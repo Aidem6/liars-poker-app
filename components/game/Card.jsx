@@ -29,7 +29,7 @@ function Card({ index, value, color, reversed }) {
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
-    height: '100%',
+    height: 100,
     aspectRatio: .625,
     borderWidth: 0.5,
     borderRadius: 8,

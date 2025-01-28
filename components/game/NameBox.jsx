@@ -6,7 +6,7 @@ import {
   View,
 } from 'react-native';
 
-function NameBox({ isYourTurn, name }) {
+function NameBox({ isYourTurn, name, handCount }) {
   const isDarkMode = useColorScheme() === 'dark';
 
   return (
@@ -17,6 +17,9 @@ function NameBox({ isYourTurn, name }) {
       }]}>
       <View style={styles.nameContainer}>
         <Text style={[styles.nameText, {color: isDarkMode ? '#49DDDD' : '#222831'}]}>{name}</Text>
+        <View style={{position: 'absolute', top: 0, right: 0, backgroundColor: isDarkMode ? '#49DDDD' : '#222831', borderRadius: 5, paddingHorizontal: 4, paddingVertical: 8, transform: [{ rotate: '90deg'}]}}>
+          <Text style={{color: isDarkMode ? '#222831' : '#E1E7E8', fontWeight: 'bold', fontSize: 12}}>{handCount}</Text>
+        </View>
       </View>
     </View>
   );
