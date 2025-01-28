@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   InteractionManager,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import Board from '../components/game/Board';
 import CardList from '../components/game/CardList';
@@ -24,13 +25,20 @@ interface Player {
   hand_count: number;
   last_bet: string;
 }
+interface BackendPlayer {
+  sid: string;
+  username: string;
+  hand_count: number;
+  last_bet: string;
+}
 
 interface GameData {
   players: Player[];
 }
 
 interface GameStartData {
-  players: string[];
+  sids: string[];
+  usernames: string[];
   room_name: string;
 }
 
@@ -95,6 +103,8 @@ function Game(): JSX.Element {
 
   const [gameData, setGameData] = useState<GameData>(initialGameData);
   const [roomName, setRoomName] = useState<string>('');
+  const [isRoomReady, setIsRoomReady] = useState<boolean>(false);
+  const [username, setUsername] = useState<string>('');
   const [whooseTurn, setWhooseTurn] = useState<number>(0);
   const [logs, setLogs] = useState<string>('');
   const scrollViewRef = useRef<ScrollView>(null);
@@ -108,10 +118,12 @@ function Game(): JSX.Element {
     InteractionManager.runAfterInteractions(() => {
       socket.on('game_start', (data: GameStartData) => {
         try {
-          let players = data.players.map((playerId: string, index: number) => {
+          console.log(data);
+          let players = data.sids.map((playerId: string, index: number) => {
+            console.log(data.usernames[index]);
             const newPlayerData: Player = {
               id: playerId,
-              name: playerId.slice(-4),
+              name: data.usernames[index],
               hand_count: 0,
               last_bet: '',
               isYourTurn: index === 0,
@@ -125,11 +137,12 @@ function Game(): JSX.Element {
             players: players,
           });
           setRoomName(data.room_name);
+          setIsRoomReady(true);
           console.log(data.room_name);
         } catch (err) {
           console.error(err);
         }
-        setLogs(oldLogs => oldLogs + '\nGame Started! players: ' + data.players);
+        setLogs(oldLogs => oldLogs + '\nGame Started! players: ' + data.sids);
         scrollViewRef.current?.scrollToEnd({ animated: true });
       });
 
@@ -139,14 +152,11 @@ function Game(): JSX.Element {
         setLogs(oldLogs => oldLogs + '\nGame Update: ' + data.text);
         scrollViewRef.current?.scrollToEnd({ animated: true });
         console.log('newPlayers: ' + JSON.stringify(data.json.players));
-        // {"current_player":"9hpLNm2XPZ4qzi-kAAAD","last_bet":"three_9","player_turn_index":1,
-        //   "players":[{"sid":"9hpLNm2XPZ4qzi-kAAAD","hand_count":1,"last_bet":"three_9"},{"sid":"DjxAVqoB6WSs9u__AAAF","hand_count":1,"last_bet":null}],
-        //   "deal_in_progress":true,"game_finished":false}
         try {
-          let players = data.json.players.map((player: any, index: number) => {
+          let players = data.json.players.map((player: BackendPlayer, index: number) => {
             const newPlayerData: Player = {
               id: player.sid,
-              name: player.sid.slice(-4),
+              name: player.username,
               hand_count: player.hand_count,
               last_bet: player.last_bet,
               isYourTurn: index === data.json.player_turn_index,
@@ -207,6 +217,35 @@ function Game(): JSX.Element {
     socket.emit('bet', { 'bet': activeFigure });
   };
 
+  if (!isRoomReady) {
+    return (
+      <SafeAreaView style={[backgroundStyle, {flex: 1}]}>
+        <StatusBar
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+          backgroundColor={backgroundStyle.backgroundColor}
+        />
+        <View style={styles.container}>
+          <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', gap: 20 }}>
+            <TextInput
+              style={{ height: 40, borderColor: 'transparent', borderWidth: 1, width: '80%', paddingHorizontal: 10, paddingVertical: 5, backgroundColor: isDarkMode ? '#2B2B2B' : '#F0F0F0', borderRadius: 5, color: isDarkMode ? '#fff' : '#000' }}
+              placeholder="Enter your username"
+              placeholderTextColor={isDarkMode ? '#fff' : '#000'}
+              onChangeText={(text) => setUsername(text)}
+              value={username}
+            />
+            <TouchableOpacity
+              style={[styles.button, isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground]}
+              onPress={() => {
+                socket.emit('play', { 'username': username });
+              }}>
+              <Text style={[styles.buttonText, isDarkMode ? styles.darkThemeText : styles.lightThemeText]}>PLAY</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[backgroundStyle, {flex: 1}]}>
       <StatusBar
@@ -221,14 +260,6 @@ function Game(): JSX.Element {
           <CardList chooseFigure={chooseFigure} firstAvailableFigure={firstAvailableFigure} activeFigure={activeFigure} />
         </View>
         <View style={[styles.buttonRow]}>
-          <TouchableOpacity
-            style={[styles.button, isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground]}
-            onPress={() => {
-              console.log('Play button pressed');
-              socket.emit('play');
-            }}>
-            <Text style={[styles.buttonText, isDarkMode ? styles.darkThemeText : styles.lightThemeText]}>PLAY</Text>
-          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.button, isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground]}
             onPress={() => socket.emit('bet', {'bet': 'check'})}>
