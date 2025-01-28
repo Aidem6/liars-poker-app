@@ -1,37 +1,36 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   StyleSheet,
   useColorScheme,
   View,
   ScrollView,
-  TouchableOpacity,
-  Text,
+  Pressable
 } from 'react-native';
 import Card from './Card';
 import { cardList } from '../../utils/dataUtils';
-// import { combinations } from '../utils/dataUtils';
 
-function CardList({ chooseFigure, firstAvailableFigure }) {
+function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
   const isDarkMode = useColorScheme() === 'dark';
-  // const [ firstAvailableFigure, setFirstAvailableFigure ] = useState(0);
   const scrollRef = useRef();
 
-  const chooseFigureLocal = (cards, name) => {
-    chooseFigure(cards, name);
-    // const indexOfFigure = cardList.findIndex((figure) => figure.name === name);
-    // setFirstAvailableFigure(indexOfFigure + 1);
-  }
+  useEffect(() => {
+    scrollRef.current?.scrollTo({
+      x: 0,
+      animated: true,
+    });
+  }, [firstAvailableFigure]);
 
   return (
-    <ScrollView ref={scrollRef} style={styles.container}>
-      <View style={styles.cardDeck}>
+    <ScrollView ref={scrollRef} style={styles.container} horizontal={true}>
         {cardList.slice(firstAvailableFigure, cardList.length).map((figure) =>
-          <TouchableOpacity
-            onPress={() => chooseFigureLocal(figure.cards, figure.name)}
+          <Pressable
+            onPress={() => chooseFigure(figure.cards, figure.name)}
             key={figure.name}
-            style={{ flexDirection: "row-reverse", height: 100, justifyContent: 'center', backgroundColor: isDarkMode ? '#010710' : '#fff' }}
+            style={[ styles.figure, { backgroundColor: isDarkMode ? '#010710' : '#fff' }, activeFigure === figure.name ? styles.activeFigure : {},
+              { borderColor: activeFigure === figure.name ? isDarkMode ? '#fff' : '#010710' : 'transparent' }
+             ]}
           >
-            {figure.cards.reverse().map((card, index) =>
+            {figure.cards.map((card, index) =>
               <View
                 key={card.rank + card.suit + index}
                 style={{ marginVertical: 10, marginHorizontal: -10 }}
@@ -42,18 +41,8 @@ function CardList({ chooseFigure, firstAvailableFigure }) {
                 />
               </View>
             )}
-          </TouchableOpacity>
+          </Pressable>
         )}
-        {/* {combinations.map((combination, index) => 
-          <TouchableOpacity
-            onPress={() => chooseFigure(cards?, combination-name?)}
-            key={combination}
-            style={{ flexDirection: "row", padding: 20, justifyContent: 'center', backgroundColor: isDarkMode ? '#010710' : '#fff' }}
-          >
-            <Text style={{ color: isDarkMode ? '#fff' : '#010710', fontSize: 26 }}>{combination}</Text>
-          </TouchableOpacity>
-        )} */}
-      </View>
     </ScrollView>
   );
 }
@@ -62,15 +51,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  figure: { flexDirection: "row-reverse",
+    height: 100,
+    paddingHorizontal: 25,
+    width: 'fit-content',
+    justifyContent: 'center',
+  },
+  activeFigure: {
+    borderWidth: 1,
+    borderRadius: 10,
+  },
   highlight: {
     fontWeight: '700',
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
-  },
-  cardDeck: {
-    
   },
 });
 

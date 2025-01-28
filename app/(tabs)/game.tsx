@@ -96,6 +96,7 @@ function Game(): JSX.Element {
   const [logs, setLogs] = useState<string>('');
   const scrollViewRef = useRef<ScrollView>(null);
   const [ firstAvailableFigure, setFirstAvailableFigure ] = useState(0);
+  const [ activeFigure, setActiveFigure ] = useState('');
 
   const { socket, sid } = useContext(SocketContext) as SocketContextType;
 
@@ -184,8 +185,11 @@ function Game(): JSX.Element {
   }, [socket, sid]);
 
   const chooseFigure = (newFigure: any, figureName: string): void => {
-    console.log(figureName);
-    socket.emit('bet', { 'bet': figureName });
+    setActiveFigure(figureName);
+  };
+
+  const bet = (): void => {
+    socket.emit('bet', { 'bet': activeFigure });
   };
 
   return (
@@ -195,13 +199,13 @@ function Game(): JSX.Element {
         backgroundColor={backgroundStyle.backgroundColor}
       />
       <View style={styles.container}>
-        <View style={{ height: '40%' }}>
+        <View style={{ flex: 1 }}>
           <Board gameData={gameData} />
         </View>
-        <View style={{ flex: 1 }}>
-          <CardList chooseFigure={chooseFigure} firstAvailableFigure={firstAvailableFigure} />
+        <View style={{ height: '15%' }}>
+          <CardList chooseFigure={chooseFigure} firstAvailableFigure={firstAvailableFigure} activeFigure={activeFigure} />
         </View>
-        <View style={[styles.buttonRow, { marginBottom: 40 }]}>
+        <View style={[styles.buttonRow, { marginBottom: 60 }]}>
           <TouchableOpacity
             style={[styles.button, isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground]}
             onPress={() => {
@@ -217,7 +221,7 @@ function Game(): JSX.Element {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.button, isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground]}
-            onPress={() => console.log('bet')}>
+            onPress={() => bet()}>
             <Text style={[styles.buttonText, isDarkMode ? styles.darkThemeText : styles.lightThemeText]}>Bet</Text>
           </TouchableOpacity>
         </View>
