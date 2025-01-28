@@ -13,7 +13,13 @@ function Player({ player, reversed }) {
 
   return (
     <View style={{ flex: 1, transform: [{ rotate: reversed ? '180deg' : '0deg' }] }}>
-      <View style={styles.cardDeck}>
+      {player.isMe && <Text>Me</Text>}
+      <Text>{player.id}</Text>
+      <Text>{player.name}</Text>
+      <Text>{player.hand_count}</Text>
+      <Text>{player.last_bet}</Text>
+      <Text>{JSON.stringify(player.isYourTurn)}</Text>
+      {/* <View style={styles.cardDeck}>
         <View style={{flexDirection: "row-reverse"}}>
           {player.cards.map((card, index) =>
             <Card
@@ -25,7 +31,7 @@ function Player({ player, reversed }) {
           )}
         </View>
       </View>
-      <NameBox isYourTurn={player.isYourTurn} name={player.name} />
+      <NameBox isYourTurn={player.isYourTurn} name={player.name} /> */}
     </View>
   );
 }

@@ -13,13 +13,15 @@ import {
 import Board from '../../components/game/Board';
 import CardList from '../../components/game/CardList';
 import { SocketContext } from '../../socket';
+import { cardList } from '../../utils/dataUtils';
 
 interface Player {
   id: string;
   name: string;
-  cards: any[]; // Replace 'any' with proper card type if available
   isYourTurn: boolean;
   isMe?: boolean;
+  hand_count: number;
+  last_bet: string;
 }
 
 interface GameData {
@@ -32,7 +34,7 @@ interface GameStartData {
 
 interface GameUpdateData {
   text: string;
-  json: JSON;
+  json: any;
 }
 
 interface GameEndData {
@@ -62,23 +64,27 @@ function Game(): JSX.Element {
     players: [{
       id: 'playerId1',
       name: 'Player 1',
-      cards: [],
       isYourTurn: true,
+      hand_count: 0,
+      last_bet: '',
     },{
       id: 'playerId2',
       name: 'Player 2',
-      cards: [],
       isYourTurn: false,
+      hand_count: 0,
+      last_bet: '',
     },{
       id: 'playerId3',
       name: 'Player 3',
-      cards: [],
       isYourTurn: false,
+      hand_count: 0,
+      last_bet: '',
     },{
       id: 'playerId4',
       name: 'Player 4',
-      cards: [],
       isYourTurn: false,
+      hand_count: 0,
+      last_bet: '',
     }]
     // {"current_player":"9hpLNm2XPZ4qzi-kAAAD","last_bet":"three_9","player_turn_index":1,
     //   "players":[{"sid":"9hpLNm2XPZ4qzi-kAAAD","hand_count":1,"last_bet":"three_9"},{"sid":"DjxAVqoB6WSs9u__AAAF","hand_count":1,"last_bet":null}],
@@ -89,6 +95,7 @@ function Game(): JSX.Element {
   const [whooseTurn, setWhooseTurn] = useState<number>(0);
   const [logs, setLogs] = useState<string>('');
   const scrollViewRef = useRef<ScrollView>(null);
+  const [ firstAvailableFigure, setFirstAvailableFigure ] = useState(0);
 
   const { socket, sid } = useContext(SocketContext) as SocketContextType;
 
@@ -100,7 +107,8 @@ function Game(): JSX.Element {
             const newPlayerData: Player = {
               id: playerId,
               name: playerId.slice(-4),
-              cards: [],
+              hand_count: 0,
+              last_bet: '',
               isYourTurn: index === 0,
             };
             if (playerId === sid) {
@@ -123,6 +131,37 @@ function Game(): JSX.Element {
         console.log('Game Update json: ' + JSON.stringify(data.json));
         setLogs(oldLogs => oldLogs + '\nGame Update: ' + data.text);
         scrollViewRef.current?.scrollToEnd({ animated: true });
+        console.log('newPlayers: ' + JSON.stringify(data.json.players));
+        // {"current_player":"9hpLNm2XPZ4qzi-kAAAD","last_bet":"three_9","player_turn_index":1,
+        //   "players":[{"sid":"9hpLNm2XPZ4qzi-kAAAD","hand_count":1,"last_bet":"three_9"},{"sid":"DjxAVqoB6WSs9u__AAAF","hand_count":1,"last_bet":null}],
+        //   "deal_in_progress":true,"game_finished":false}
+        try {
+          let players = data.json.players.map((player: any, index: number) => {
+            const newPlayerData: Player = {
+              id: player.sid,
+              name: player.sid.slice(-4),
+              hand_count: player.hand_count,
+              last_bet: player.last_bet,
+              isYourTurn: index === data.json.player_turn_index,
+            };
+            if (player.sid === sid) {
+              newPlayerData.isMe = true;
+            }
+            if (data.json.action && data.json.action === 'new_deal') {
+              setFirstAvailableFigure(0);
+            }
+            else if (data.json.last_bet) {
+              const indexOfFigure = cardList.findIndex((figure) => figure.name === data.json.last_bet);
+              setFirstAvailableFigure(indexOfFigure + 1);
+            }
+            return newPlayerData;
+          });
+          setGameData({
+            players: players,
+          });
+        } catch (err) {
+          console.error(err);
+        }
       });
 
       socket.on('game_end', (data: GameEndData) => {
@@ -147,12 +186,6 @@ function Game(): JSX.Element {
   const chooseFigure = (newFigure: any, figureName: string): void => {
     console.log(figureName);
     socket.emit('bet', { 'bet': figureName });
-    const newGameData = JSON.parse(JSON.stringify(gameData));
-    newGameData.players[whooseTurn].cards = newFigure;
-    newGameData.players[whooseTurn].isYourTurn = false;
-    newGameData.players[(whooseTurn + 1) % gameData.players.length].isYourTurn = true;
-    setWhooseTurn((whooseTurn + 1) % gameData.players.length);
-    setGameData(newGameData);
   };
 
   return (
@@ -166,7 +199,7 @@ function Game(): JSX.Element {
           <Board gameData={gameData} />
         </View>
         <View style={{ flex: 1 }}>
-          <CardList chooseFigure={chooseFigure} />
+          <CardList chooseFigure={chooseFigure} firstAvailableFigure={firstAvailableFigure} />
         </View>
         <View style={[styles.buttonRow, { marginBottom: 40 }]}>
           <TouchableOpacity

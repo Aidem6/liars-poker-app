@@ -11,19 +11,15 @@ import Card from './Card';
 import { cardList } from '../../utils/dataUtils';
 // import { combinations } from '../utils/dataUtils';
 
-function CardList({ chooseFigure }) {
+function CardList({ chooseFigure, firstAvailableFigure }) {
   const isDarkMode = useColorScheme() === 'dark';
-  const [ firstAvailableFigure, setFirstAvailableFigure ] = useState(0);
+  // const [ firstAvailableFigure, setFirstAvailableFigure ] = useState(0);
   const scrollRef = useRef();
 
   const chooseFigureLocal = (cards, name) => {
     chooseFigure(cards, name);
-    const indexOfFigure = cardList.findIndex((figure) => figure.name === name);
-    setFirstAvailableFigure(indexOfFigure + 1);
-    scrollRef.current?.scrollTo({
-      y: 0,
-      animated: true,
-    });  
+    // const indexOfFigure = cardList.findIndex((figure) => figure.name === name);
+    // setFirstAvailableFigure(indexOfFigure + 1);
   }
 
   return (
