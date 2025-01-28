@@ -103,8 +103,10 @@ function Game(): JSX.Element {
 
   const [gameData, setGameData] = useState<GameData>(initialGameData);
   const [roomName, setRoomName] = useState<string>('');
+  const [isUsernameSubmited, setIsUsernameSubmited] = useState<boolean>(false);
   const [isRoomReady, setIsRoomReady] = useState<boolean>(false);
   const [username, setUsername] = useState<string>('');
+  const [queue, setQueue] = useState<string[][]>([]);
   const [whooseTurn, setWhooseTurn] = useState<number>(0);
   const [logs, setLogs] = useState<string>('');
   const scrollViewRef = useRef<ScrollView>(null);
@@ -116,6 +118,11 @@ function Game(): JSX.Element {
 
   useEffect(() => {
     InteractionManager.runAfterInteractions(() => {
+
+      socket.on('queue_update', (data: any) => {
+        setQueue(data.queue);
+      });
+      
       socket.on('game_start', (data: GameStartData) => {
         try {
           console.log(data);
@@ -217,7 +224,7 @@ function Game(): JSX.Element {
     socket.emit('bet', { 'bet': activeFigure });
   };
 
-  if (!isRoomReady) {
+  if (!isUsernameSubmited) {
     return (
       <SafeAreaView style={[backgroundStyle, {flex: 1}]}>
         <StatusBar
@@ -237,10 +244,29 @@ function Game(): JSX.Element {
               style={[styles.button, isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground]}
               onPress={() => {
                 socket.emit('play', { 'username': username });
+                setIsUsernameSubmited(true);
               }}>
               <Text style={[styles.buttonText, isDarkMode ? styles.darkThemeText : styles.lightThemeText]}>PLAY</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!isRoomReady) {
+    return (
+      <SafeAreaView style={[backgroundStyle, {flex: 1}]}>
+        <StatusBar
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+          backgroundColor={backgroundStyle.backgroundColor}
+        />
+        <View style={[styles.container, {justifyContent: 'center', alignItems: 'center'}]}>
+          <Text>Queue:</Text>
+          {queue.map((user, index) => (
+            <Text key={'userInQueue' + index}>{user[1]}</Text>
+          ))}
+          <Text>Waiting for more players...</Text>
         </View>
       </SafeAreaView>
     );
