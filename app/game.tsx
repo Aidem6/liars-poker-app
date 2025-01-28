@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useRef } from 'react';
+import React, { useState, useContext, useEffect, useRef, useLayoutEffect } from 'react';
 import {
   SafeAreaView,
   StatusBar,
@@ -10,10 +10,11 @@ import {
   InteractionManager,
   ScrollView,
 } from 'react-native';
-import Board from '../../components/game/Board';
-import CardList from '../../components/game/CardList';
-import { SocketContext } from '../../socket';
-import { cardList } from '../../utils/dataUtils';
+import Board from '../components/game/Board';
+import CardList from '../components/game/CardList';
+import { SocketContext } from '../socket';
+import { cardList } from '../utils/dataUtils';
+import { useNavigation } from 'expo-router';
 
 interface Player {
   id: string;
@@ -30,6 +31,7 @@ interface GameData {
 
 interface GameStartData {
   players: string[];
+  room_name: string;
 }
 
 interface GameUpdateData {
@@ -92,6 +94,7 @@ function Game(): JSX.Element {
   };
 
   const [gameData, setGameData] = useState<GameData>(initialGameData);
+  const [roomName, setRoomName] = useState<string>('');
   const [whooseTurn, setWhooseTurn] = useState<number>(0);
   const [logs, setLogs] = useState<string>('');
   const scrollViewRef = useRef<ScrollView>(null);
@@ -99,6 +102,7 @@ function Game(): JSX.Element {
   const [ activeFigure, setActiveFigure ] = useState('');
 
   const { socket, sid } = useContext(SocketContext) as SocketContextType;
+  const navigation = useNavigation();
 
   useEffect(() => {
     InteractionManager.runAfterInteractions(() => {
@@ -120,6 +124,8 @@ function Game(): JSX.Element {
           setGameData({
             players: players,
           });
+          setRoomName(data.room_name);
+          console.log(data.room_name);
         } catch (err) {
           console.error(err);
         }
@@ -184,6 +190,15 @@ function Game(): JSX.Element {
     };
   }, [socket, sid]);
 
+  useLayoutEffect(() => {
+    if (roomName) {
+      navigation.setOptions({
+        title: roomName,
+        headerBackTitle: '',
+      });
+    }
+  }, [roomName, navigation]);
+
   const chooseFigure = (newFigure: any, figureName: string): void => {
     setActiveFigure(figureName);
   };
@@ -205,7 +220,7 @@ function Game(): JSX.Element {
         <View style={{ height: '15%' }}>
           <CardList chooseFigure={chooseFigure} firstAvailableFigure={firstAvailableFigure} activeFigure={activeFigure} />
         </View>
-        <View style={[styles.buttonRow, { marginBottom: 60 }]}>
+        <View style={[styles.buttonRow]}>
           <TouchableOpacity
             style={[styles.button, isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground]}
             onPress={() => {
