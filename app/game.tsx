@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import {
   SafeAreaView,
   StatusBar,
@@ -207,8 +207,8 @@ function Game(): JSX.Element {
     };
   }, [socket, sid]);
 
-  useLayoutEffect(() => {
-    if (roomName) {
+  useEffect(() => {
+    if (roomName && typeof window !== 'undefined') {
       navigation.setOptions({
         title: roomName,
         headerBackTitle: '',
@@ -262,11 +262,11 @@ function Game(): JSX.Element {
           backgroundColor={backgroundStyle.backgroundColor}
         />
         <View style={[styles.container, {justifyContent: 'center', alignItems: 'center'}]}>
-          <Text>Queue:</Text>
+          <Text style={{color: isDarkMode ? '#fff' : '#000'}}>Queue:</Text>
           {queue.map((user, index) => (
-            <Text key={'userInQueue' + index}>{user[1]}</Text>
+            <Text key={'userInQueue' + index} style={{color: isDarkMode ? '#fff' : '#000'}}>{user[1]}</Text>
           ))}
-          <Text>Waiting for more players...</Text>
+          <Text style={{color: isDarkMode ? '#fff' : '#000'}}>Waiting for more players...</Text>
         </View>
       </SafeAreaView>
     );
