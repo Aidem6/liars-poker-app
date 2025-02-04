@@ -14,8 +14,6 @@ function Player({ player, reversed, yourHand }) {
 
   return (
     <View style={{ flex: 1, maxHeight: 200, transform: [{ rotate: reversed ? '180deg' : '0deg' }] }}>
-      {/* <Text>{JSON.stringify(yourHand)}</Text>
-      <Text>{JSON.stringify(player.isMe)}</Text> */}
       {player.last_bet && <View style={styles.cardDeck}>
         <View style={{flexDirection: "row-reverse", flex: 1}}>
           {cardList[cardList.findIndex((figure) => figure.name === player.last_bet)].cards.map((card, index) =>
@@ -43,7 +41,7 @@ function Player({ player, reversed, yourHand }) {
                 <Card
                   reversed={reversed}
                   index={0}
-                  value={card.rank} color={card.suit}
+                  value={card.rank === "T" ? "10" : card.rank} color={card.suit}
                 />
               </View>
             )}

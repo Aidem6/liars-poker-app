@@ -10,6 +10,7 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Platform,
 } from 'react-native';
 import Board from '../components/game/Board';
 import CardList from '../components/game/CardList';
@@ -114,15 +115,26 @@ function Game(): JSX.Element {
   const [ firstAvailableFigure, setFirstAvailableFigure ] = useState(0);
   const [ activeFigure, setActiveFigure ] = useState('');
   const [yourHand, setYourHand] = useState([]);
+  const [isMyTurn, setIsMyTurn] = useState(false);
 
   const { socket, sid } = useContext(SocketContext) as SocketContextType;
   const navigation = useNavigation();
+
+  const [ queueSid, setQueueSid ] = useState('');
+
+  const getEffectiveSid = () => {
+    return Platform.OS === 'web' ? queueSid : (sid || queueSid);
+  };
 
   useEffect(() => {
     InteractionManager.runAfterInteractions(() => {
 
       socket.on('queue_update', (data: any) => {
         setQueue(data.queue);
+      });
+
+      socket.on('you_joined_queue', (data: any) => {
+        setQueueSid(data.your_sid);
       });
       
       socket.on('game_start', (data: GameStartData) => {
@@ -135,7 +147,7 @@ function Game(): JSX.Element {
               last_bet: '',
               isYourTurn: index === 0,
             };
-            if (playerId === sid) {
+            if (playerId === getEffectiveSid()) {
               newPlayerData.isMe = true;
             }
             return newPlayerData;
@@ -153,21 +165,28 @@ function Game(): JSX.Element {
       });
 
       socket.on('game_update', (data: GameUpdateData) => {
-        console.log('Game Update json: ' + JSON.stringify(data.json));
         setLogs(oldLogs => oldLogs + '\nGame Update: ' + data.text);
         scrollViewRef.current?.scrollToEnd({ animated: true });
         try {
-          let players = data.json.players.map((player: BackendPlayer, index: number) => {
+          if (!data?.json?.players) {
+            return;
+          }
+          setIsMyTurn(data.json.players[data.json.player_turn_index].sid === getEffectiveSid());
+          
+          let players = data?.json?.players.map((player: BackendPlayer, index: number) => {
             const newPlayerData: Player = {
               id: player.sid,
               name: player.username,
               hand_count: player.hand_count,
               last_bet: player.last_bet,
               isYourTurn: index === data.json.player_turn_index,
-              hand: player.sid === sid ? yourHand : undefined,
+              hand: player.sid === getEffectiveSid() ? yourHand : undefined,
             };
-            if (player.sid === sid) {
+            if (player.sid === getEffectiveSid()) {
               newPlayerData.isMe = true;
+            }
+            else {
+              newPlayerData.isMe = false;
             }
             if (data.json.action && data.json.action === 'new_deal') {
               setYourHand(data.json.your_hand);
@@ -204,7 +223,7 @@ function Game(): JSX.Element {
     return () => {
       socket.removeAllListeners();
     };
-  }, [socket, sid, yourHand]);
+  }, [socket, sid, queueSid, yourHand]);
 
   useEffect(() => {
     if (roomName && typeof window !== 'undefined') {
@@ -286,14 +305,32 @@ function Game(): JSX.Element {
         </View>
         <View style={[styles.buttonRow]}>
           <TouchableOpacity
-            style={[styles.button, isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground]}
+            style={[
+              styles.button,
+              isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
+              !isMyTurn && styles.disabledButton
+            ]}
+            disabled={!isMyTurn}
             onPress={() => socket.emit('bet', {'bet': 'check'})}>
-            <Text style={[styles.buttonText, isDarkMode ? styles.darkThemeText : styles.lightThemeText]}>Check</Text>
+            <Text style={[
+              styles.buttonText,
+              isDarkMode ? styles.darkThemeText : styles.lightThemeText,
+              !isMyTurn && styles.disabledButtonText
+            ]}>Check</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.button, isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground]}
+            style={[
+              styles.button,
+              isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
+              !isMyTurn && styles.disabledButton
+            ]}
+            disabled={!isMyTurn}
             onPress={() => bet()}>
-            <Text style={[styles.buttonText, isDarkMode ? styles.darkThemeText : styles.lightThemeText]}>Bet</Text>
+            <Text style={[
+              styles.buttonText,
+              isDarkMode ? styles.darkThemeText : styles.lightThemeText,
+              !isMyTurn && styles.disabledButtonText
+            ]}>Bet</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -346,6 +383,12 @@ const styles = StyleSheet.create({
   },
   lightThemeText: {
     color: '#fff',
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  disabledButtonText: {
+    opacity: 0.7,
   },
 });
 

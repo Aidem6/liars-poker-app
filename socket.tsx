@@ -8,7 +8,7 @@ import type { DefaultEventsMap } from '@socket.io/component-emitter';
 // import {ANDROID, IOS} from '../constants/constants';
 // import {isIOS} from '../helper';
 
-const SOCKET_DEV = 'http://localhost:5001/';
+const SOCKET_DEV = 'http://localhost:5003/';
 
 export const SocketContext = React.createContext<{
   socket: Socket<DefaultEventsMap, DefaultEventsMap> | null;
@@ -43,10 +43,7 @@ export const SocketProvider = ({children}: {children: ReactNode}) => {
   const socket = useRef(socketIOClient(env, connectionConfig));
   const [ sid, setSid ] = useState('');
 
-
   useEffect(() => {
-    socket.current.on('connect', () => {});
-
     socket.current.on('connected', function(data) {
       console.log('SocketIO: Connected', data);
       setSid(data.sid);
@@ -61,6 +58,7 @@ export const SocketProvider = ({children}: {children: ReactNode}) => {
       if (socket && socket.current) {
         socket?.current?.removeAllListeners();
         socket?.current?.close();
+        socket?.current?.disconnect();
       }
     };
   }, [env]);
