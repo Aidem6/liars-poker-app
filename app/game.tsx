@@ -6,9 +6,9 @@ import {
   Text,
   useColorScheme,
   View,
-  TouchableOpacity,
   InteractionManager,
   ScrollView,
+  TouchableOpacity,
   TextInput,
 } from 'react-native';
 import Board from '../components/game/Board';
@@ -24,6 +24,7 @@ interface Player {
   isMe?: boolean;
   hand_count: number;
   last_bet: string;
+  hand?: string[];
 }
 interface BackendPlayer {
   sid: string;
@@ -75,25 +76,25 @@ function Game(): JSX.Element {
       id: 'playerId1',
       name: 'Player 1',
       isYourTurn: true,
-      hand_count: 0,
+      hand_count: 2,
       last_bet: '',
     },{
       id: 'playerId2',
       name: 'Player 2',
       isYourTurn: false,
-      hand_count: 0,
+      hand_count: 2,
       last_bet: '',
     },{
       id: 'playerId3',
       name: 'Player 3',
       isYourTurn: false,
-      hand_count: 0,
+      hand_count: 2,
       last_bet: '',
     },{
       id: 'playerId4',
       name: 'Player 4',
       isYourTurn: false,
-      hand_count: 0,
+      hand_count: 2,
       last_bet: '',
     }]
     // {"current_player":"9hpLNm2XPZ4qzi-kAAAD","last_bet":"three_9","player_turn_index":1,
@@ -112,6 +113,7 @@ function Game(): JSX.Element {
   const scrollViewRef = useRef<ScrollView>(null);
   const [ firstAvailableFigure, setFirstAvailableFigure ] = useState(0);
   const [ activeFigure, setActiveFigure ] = useState('');
+  const [yourHand, setYourHand] = useState([]);
 
   const { socket, sid } = useContext(SocketContext) as SocketContextType;
   const navigation = useNavigation();
@@ -125,9 +127,7 @@ function Game(): JSX.Element {
       
       socket.on('game_start', (data: GameStartData) => {
         try {
-          console.log(data);
           let players = data.sids.map((playerId: string, index: number) => {
-            console.log(data.usernames[index]);
             const newPlayerData: Player = {
               id: playerId,
               name: data.usernames[index],
@@ -145,7 +145,6 @@ function Game(): JSX.Element {
           });
           setRoomName(data.room_name);
           setIsRoomReady(true);
-          console.log(data.room_name);
         } catch (err) {
           console.error(err);
         }
@@ -154,11 +153,9 @@ function Game(): JSX.Element {
       });
 
       socket.on('game_update', (data: GameUpdateData) => {
-        console.log('Game Update: ' + JSON.stringify(data));
         console.log('Game Update json: ' + JSON.stringify(data.json));
         setLogs(oldLogs => oldLogs + '\nGame Update: ' + data.text);
         scrollViewRef.current?.scrollToEnd({ animated: true });
-        console.log('newPlayers: ' + JSON.stringify(data.json.players));
         try {
           let players = data.json.players.map((player: BackendPlayer, index: number) => {
             const newPlayerData: Player = {
@@ -167,11 +164,13 @@ function Game(): JSX.Element {
               hand_count: player.hand_count,
               last_bet: player.last_bet,
               isYourTurn: index === data.json.player_turn_index,
+              hand: player.sid === sid ? yourHand : undefined,
             };
             if (player.sid === sid) {
               newPlayerData.isMe = true;
             }
             if (data.json.action && data.json.action === 'new_deal') {
+              setYourHand(data.json.your_hand);
               setFirstAvailableFigure(0);
             }
             else if (data.json.last_bet) {
@@ -205,7 +204,7 @@ function Game(): JSX.Element {
     return () => {
       socket.removeAllListeners();
     };
-  }, [socket, sid]);
+  }, [socket, sid, yourHand]);
 
   useEffect(() => {
     if (roomName && typeof window !== 'undefined') {
@@ -280,7 +279,7 @@ function Game(): JSX.Element {
       />
       <View style={styles.container}>
         <View style={{ flex: 1 }}>
-          <Board gameData={gameData} />
+          <Board gameData={gameData} yourHand={yourHand} />
         </View>
         <View style={{ height: '15%' }}>
           <CardList chooseFigure={chooseFigure} firstAvailableFigure={firstAvailableFigure} activeFigure={activeFigure} />

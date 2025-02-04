@@ -6,17 +6,17 @@ import {
 } from 'react-native';
 import Player from './Player';
 
-function Board({ gameData }) {
+function Board({ gameData, yourHand }) {
   const isDarkMode = useColorScheme() === 'dark';
 
   return (
     <View style={styles.container}>
       <View style={{flex: 1, flexDirection: 'row'}}>
         <View style={{ flex: 1, gap: 20, paddingVertical: 20 }}>
-          {gameData.players.slice(0, 2).reverse().map(player => <Player key={player.id} player={player} />)}
+          {gameData.players.slice(0, 2).reverse().map(player => <Player key={player.id} player={player} yourHand={yourHand} />)}
         </View>
         <View style={{ flex: 1, gap: 20, paddingVertical: 20 }}>
-          {gameData.players.slice(2).map(player => <Player reversed key={player.id} player={player} />)}
+          {gameData.players.slice(2).map(player => <Player reversed key={player.id} player={player} yourHand={yourHand} />)}
         </View>
       </View>
     </View>
