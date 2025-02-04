@@ -37,7 +37,12 @@ function Player({ player, reversed }) {
         </View>
       </View>
       }
-      <NameBox isYourTurn={player.isYourTurn} name={player.name} handCount={player.hand_count} />
+      <NameBox 
+        isYourTurn={player.isYourTurn} 
+        name={player.name} 
+        handCount={player.hand_count} 
+        reversed={reversed}
+      />
     </View>
   );
 }

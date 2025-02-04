@@ -6,7 +6,7 @@ import {
   View,
 } from 'react-native';
 
-function NameBox({ isYourTurn, name, handCount }) {
+function NameBox({ isYourTurn, name, handCount, reversed }) {
   const isDarkMode = useColorScheme() === 'dark';
 
   return (
@@ -14,11 +14,17 @@ function NameBox({ isYourTurn, name, handCount }) {
       backgroundColor: isDarkMode ? '#222831' : '#E1E7E8',
       borderColor: isDarkMode ? '#49DDDD' : '#222831',
       borderWidth: isYourTurn ? 2 : 0.5,
-      }]}>
+    }]}>
       <View style={styles.nameContainer}>
         <Text style={[styles.nameText, {color: isDarkMode ? '#49DDDD' : '#222831'}]}>{name}</Text>
-        <View style={{position: 'absolute', top: 0, right: 0, backgroundColor: isDarkMode ? '#49DDDD' : '#222831', borderRadius: 5, paddingHorizontal: 4, paddingVertical: 8, transform: [{ rotate: '90deg'}]}}>
-          <Text style={{color: isDarkMode ? '#222831' : '#E1E7E8', fontWeight: 'bold', fontSize: 12}}>{handCount}</Text>
+        <View style={[
+          styles.handCountContainer, {
+            backgroundColor: isDarkMode ? '#49DDDD' : '#222831',
+            transform: [{ rotate: reversed ? '90deg' : '-90deg'}],
+            left: reversed ? 0 : 'auto',
+            right: reversed ? 'auto' : 0,
+          }]}>
+          <Text style={[styles.handCountText, {color: isDarkMode ? '#222831' : '#E1E7E8'}]}>{handCount}</Text>
         </View>
       </View>
     </View>
@@ -48,10 +54,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 16,
     paddingTop: 6,
+    paddingBottom: 10,
     textAlign: 'center',
     alignContent: 'center',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  handCountContainer: {
+    position: 'absolute',
+    top: 0,
+    borderRadius: 5,
+    paddingHorizontal: 4,
+    paddingVertical: 8,
+  },
+  handCountText: {
+    fontWeight: 'bold',
+    fontSize: 12,
   },
 });
 
