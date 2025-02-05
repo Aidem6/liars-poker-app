@@ -8,7 +8,7 @@ import 'react-native-reanimated';
 import { SocketProvider } from '../socket';
 import { Icon } from 'react-native-elements';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { Pressable } from 'react-native';
+import { Platform, Pressable } from 'react-native';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -37,7 +37,7 @@ export default function RootLayout() {
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="game" options={{ headerShown: true, headerLeft: () => (
-            <Pressable onPress={() => router.push('/')}>
+            <Pressable onPress={() => Platform.OS === 'web' ? router.push('/') : router.back()}>
               <Icon name="arrow-back" size={24} color={colorScheme === 'dark' ? 'white' : 'black'} />
             </Pressable>
           )}} />

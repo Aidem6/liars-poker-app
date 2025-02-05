@@ -10,11 +10,17 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Link } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/Colors';
+
 function Home() {
   const isDarkMode = useColorScheme() === 'dark';
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background,
+  };
+
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
   return (
@@ -25,7 +31,11 @@ function Home() {
       />
       <ScrollView contentInsetAdjustmentBehavior="automatic" style={backgroundStyle}>
         <View style={styles.buttonRow}>
-          <Link href="/game" style={[styles.button, isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground]}>
+          <Link 
+            href="/game" 
+            style={[styles.button, isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground]}
+            onPress={handlePress}
+          >
             <Text style={[styles.buttonText, isDarkMode ? styles.lightThemeText : styles.darkThemeText]}>Game</Text>
           </Link>
         </View>

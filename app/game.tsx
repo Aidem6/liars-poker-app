@@ -19,6 +19,7 @@ import { SocketContext } from '../socket';
 import { cardList } from '../utils/dataUtils';
 import { useNavigation } from 'expo-router';
 import { Colors } from '@/constants/Colors';
+import * as Haptics from 'expo-haptics';
 
 interface Player {
   id: string;
@@ -239,11 +240,24 @@ function Game(): JSX.Element {
   }, [roomName, navigation]);
 
   const chooseFigure = (newFigure: any, figureName: string): void => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setActiveFigure(figureName);
   };
 
   const bet = (): void => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     socket.emit('bet', { 'bet': activeFigure });
+  };
+
+  const handleCheck = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    socket.emit('bet', {'bet': 'check'});
+  };
+
+  const handlePlay = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    socket.emit('play', { 'username': username });
+    setIsUsernameSubmited(true);
   };
 
   if (!isUsernameSubmited) {
@@ -267,10 +281,7 @@ function Game(): JSX.Element {
             />
             <TouchableOpacity
               style={[styles.button, isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground]}
-              onPress={() => {
-                socket.emit('play', { 'username': username });
-                setIsUsernameSubmited(true);
-              }}>
+              onPress={handlePlay}>
               <Text style={[styles.buttonText, isDarkMode ? styles.darkThemeText : styles.lightThemeText]}>PLAY</Text>
             </TouchableOpacity>
           </View>
@@ -318,7 +329,7 @@ function Game(): JSX.Element {
               !isMyTurn && styles.disabledButton
             ]}
             disabled={!isMyTurn}
-            onPress={() => socket.emit('bet', {'bet': 'check'})}>
+            onPress={handleCheck}>
             <Text style={[
               styles.buttonText,
               isDarkMode ? styles.darkThemeText : styles.lightThemeText,
@@ -332,7 +343,7 @@ function Game(): JSX.Element {
               (!isMyTurn || !activeFigure) && styles.disabledButton
             ]}
             disabled={!isMyTurn || !activeFigure}
-            onPress={() => bet()}>
+            onPress={bet}>
             <Text style={[
               styles.buttonText,
               isDarkMode ? styles.darkThemeText : styles.lightThemeText,
