@@ -4,11 +4,13 @@ import {
   useColorScheme,
   View,
   ScrollView,
-  Pressable
+  Pressable,
+  Platform
 } from 'react-native';
 import Card from './Card';
 import { cardList } from '../../utils/dataUtils';
 import { Colors } from '@/constants/Colors';
+
 function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
   const isDarkMode = useColorScheme() === 'dark';
   const scrollRef = useRef();
@@ -20,8 +22,34 @@ function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
     });
   }, [firstAvailableFigure]);
 
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleWheel = (event) => {
+        if (scrollRef.current) {
+          event.preventDefault();
+          scrollRef.current.scrollTo({
+            x: scrollRef.current.scrollLeft + event.deltaY,
+            animated: false
+          });
+        }
+      };
+
+      const scrollView = scrollRef.current;
+      if (scrollView) {
+        scrollView.addEventListener('wheel', handleWheel, { passive: false });
+        return () => scrollView.removeEventListener('wheel', handleWheel);
+      }
+    }
+  }, []);
+
   return (
-    <ScrollView ref={scrollRef} style={styles.container} horizontal={true}>
+    <ScrollView 
+      ref={scrollRef} 
+      style={styles.container} 
+      horizontal={true}
+      showsHorizontalScrollIndicator={false}
+      scrollEventThrottle={16}
+    >
         {cardList.slice(firstAvailableFigure, cardList.length).map((figure) =>
           <Pressable
             onPress={() => chooseFigure(figure.cards, figure.name)}
