@@ -11,12 +11,14 @@ import {
   TouchableOpacity,
   TextInput,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import Board from '../components/game/Board';
 import CardList from '../components/game/CardList';
 import { SocketContext } from '../socket';
 import { cardList } from '../utils/dataUtils';
 import { useNavigation } from 'expo-router';
+import { Colors } from '@/constants/Colors';
 
 interface Player {
   id: string;
@@ -69,7 +71,7 @@ interface SocketContextType {
 function Game(): JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   const backgroundStyle = {
-    backgroundColor: isDarkMode ? '#010710' : '#fff',
+    backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background,
   };
 
   const initialGameData: GameData = {
@@ -251,7 +253,10 @@ function Game(): JSX.Element {
           barStyle={isDarkMode ? 'light-content' : 'dark-content'}
           backgroundColor={backgroundStyle.backgroundColor}
         />
-        <View style={styles.container}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={[styles.container, {flex: 1}]}
+        >
           <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', gap: 20 }}>
             <TextInput
               style={{ height: 40, borderColor: 'transparent', borderWidth: 1, width: '80%', paddingHorizontal: 10, paddingVertical: 5, backgroundColor: isDarkMode ? '#2B2B2B' : '#F0F0F0', borderRadius: 5, color: isDarkMode ? '#fff' : '#000' }}
@@ -269,7 +274,7 @@ function Game(): JSX.Element {
               <Text style={[styles.buttonText, isDarkMode ? styles.darkThemeText : styles.lightThemeText]}>PLAY</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
