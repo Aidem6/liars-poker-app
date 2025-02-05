@@ -53,31 +53,70 @@ function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
       return newWidths;
     });
   };
-
+  
   const scrollToNextCategory = () => {
-    if (scrollRef.current) {
-      const categories_positions0 = [6, 12, 27, 29, 35, 65, 71, 75, 79];
-      const categories_positions = categories_positions0.map((size, index) => {
-        return size - firstAvailableFigure;
-      });
-      const categories_positions_filtered = categories_positions.filter(position => position >= 0);
-      const currentElementsWidths = elementWidths.slice(0);
+    if (!scrollRef.current) return;
 
-      const currentElementsWidthsSumsForCategories = categories_positions_filtered.map((size, index) => {
-        const startIndex = 0;
-        const endIndex = startIndex + size;
-        return currentElementsWidths.slice(startIndex, endIndex).reduce((sum, width) => sum + width, 0);
-      });
+    // Define category positions (card indices where categories start)
+    const categoryPositions = [6, 12, 27, 29, 35, 65, 71, 75, 79];
+    
+    // Adjust positions based on first available figure
+    const adjustedPositions = categoryPositions
+      .map(pos => pos - firstAvailableFigure)
+      .filter(pos => pos > 0);
 
-      const nextCategoryIndex = currentElementsWidthsSumsForCategories.findIndex(sum => sum > scrollX);
-      if (nextCategoryIndex === -1) {
-        return;
-      }
+    // Calculate cumulative widths up to each category position
+    const categoryWidths = adjustedPositions.map(position => {
+      return elementWidths
+        .slice(0, position)
+        .reduce((sum, width) => sum + width, 0);
+    });
+
+    // Find the next category position that's beyond current scroll position
+    const nextCategoryIndex = categoryWidths.findIndex(width => width > scrollX);
+    if (nextCategoryIndex === -1) return;
+
+    // Scroll to the next category
+    scrollRef.current.scrollTo({
+      x: categoryWidths[nextCategoryIndex],
+      animated: true
+    });
+  };
+
+  const scrollToPreviousCategory = () => {
+    if (!scrollRef.current) return;
+
+    // Define category positions (card indices where categories start)
+    const categoryPositions = [6, 12, 27, 29, 35, 65, 71, 75, 79];
+    
+    // Adjust positions based on first available figure
+    const adjustedPositions = categoryPositions
+      .map(pos => pos - firstAvailableFigure)
+      .filter(pos => pos > 0);
+
+    // Calculate cumulative widths up to each category position
+    const categoryWidths = adjustedPositions.map(position => {
+      return elementWidths
+        .slice(0, position)
+        .reduce((sum, width) => sum + width, 0);
+    });
+
+    // Find the previous category position
+    const previousCategoryIndex = categoryWidths.findIndex(width => width >= scrollX) - 1;
+    if (previousCategoryIndex < 0) {
+      // If we're before the first category or at it, scroll to start
       scrollRef.current.scrollTo({
-        x: currentElementsWidthsSumsForCategories[nextCategoryIndex],
+        x: 0,
         animated: true
       });
+      return;
     }
+
+    // Scroll to the previous category
+    scrollRef.current.scrollTo({
+      x: categoryWidths[previousCategoryIndex],
+      animated: true
+    });
   };
 
   return (
@@ -117,6 +156,20 @@ function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
       
       <Pressable 
         style={[
+          styles.prevButton,
+          { backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background }
+        ]}
+        onPress={scrollToPreviousCategory}
+      >
+        <FontAwesome 
+          name="backward" 
+          size={24} 
+          color={isDarkMode ? Colors.dark.text : Colors.light.text} 
+        />
+      </Pressable>
+
+      <Pressable 
+        style={[
           styles.nextButton,
           { backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background }
         ]}
@@ -145,6 +198,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 25,
     width: 'fit-content',
     justifyContent: 'center',
+  },
+  prevButton: {
+    position: 'absolute',
+    left: 10,
+    top: '50%',
+    transform: [{ translateY: -20 }],
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   nextButton: {
     position: 'absolute',
