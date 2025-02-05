@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import Card from './Card';
 import { cardList } from '../../utils/dataUtils';
-
+import { Colors } from '@/constants/Colors';
 function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
   const isDarkMode = useColorScheme() === 'dark';
   const scrollRef = useRef();
@@ -26,7 +26,7 @@ function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
           <Pressable
             onPress={() => chooseFigure(figure.cards, figure.name)}
             key={figure.name}
-            style={[ styles.figure, { backgroundColor: isDarkMode ? '#010710' : '#fff' },
+            style={[ styles.figure, { backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background },
               { borderColor: activeFigure === figure.name ? isDarkMode ? '#fff' : '#010710' : 'transparent' }
              ]}
           >

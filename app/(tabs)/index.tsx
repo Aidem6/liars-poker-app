@@ -10,11 +10,11 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Link } from 'expo-router';
-
+import { Colors } from '@/constants/Colors';
 function Home() {
   const isDarkMode = useColorScheme() === 'dark';
   const backgroundStyle = {
-    backgroundColor: isDarkMode ? '#010710' : '#fff',
+    backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background,
   };
 
   return (
