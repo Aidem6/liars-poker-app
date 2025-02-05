@@ -26,7 +26,7 @@ function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
           <Pressable
             onPress={() => chooseFigure(figure.cards, figure.name)}
             key={figure.name}
-            style={[ styles.figure, { backgroundColor: isDarkMode ? '#010710' : '#fff' }, activeFigure === figure.name ? styles.activeFigure : {},
+            style={[ styles.figure, { backgroundColor: isDarkMode ? '#010710' : '#fff' },
               { borderColor: activeFigure === figure.name ? isDarkMode ? '#fff' : '#010710' : 'transparent' }
              ]}
           >
@@ -38,6 +38,7 @@ function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
                 <Card
                   index={0}
                   value={card.rank} color={card.suit}
+                  isActive={activeFigure === figure.name}
                 />
               </View>
             )}
@@ -56,18 +57,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 25,
     width: 'fit-content',
     justifyContent: 'center',
-  },
-  activeFigure: {
-    borderWidth: 1,
-    borderRadius: 10,
-  },
-  highlight: {
-    fontWeight: '700',
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
+  }
 });
 
 export default CardList;

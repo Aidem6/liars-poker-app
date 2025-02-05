@@ -191,10 +191,12 @@ function Game(): JSX.Element {
             if (data.json.action && data.json.action === 'new_deal') {
               setYourHand(data.json.your_hand);
               setFirstAvailableFigure(0);
+              setActiveFigure('');
             }
             else if (data.json.last_bet) {
               const indexOfFigure = cardList.findIndex((figure) => figure.name === data.json.last_bet);
               setFirstAvailableFigure(indexOfFigure + 1);
+              setActiveFigure('');
             }
             return newPlayerData;
           });
@@ -300,7 +302,7 @@ function Game(): JSX.Element {
         <View style={{ flex: 1 }}>
           <Board gameData={gameData} yourHand={yourHand} />
         </View>
-        <View style={{ height: '15%' }}>
+        <View style={{ minHeight: 120 }}>
           <CardList chooseFigure={chooseFigure} firstAvailableFigure={firstAvailableFigure} activeFigure={activeFigure} />
         </View>
         <View style={[styles.buttonRow]}>
@@ -322,14 +324,14 @@ function Game(): JSX.Element {
             style={[
               styles.button,
               isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
-              !isMyTurn && styles.disabledButton
+              (!isMyTurn || !activeFigure) && styles.disabledButton
             ]}
-            disabled={!isMyTurn}
+            disabled={!isMyTurn || !activeFigure}
             onPress={() => bet()}>
             <Text style={[
               styles.buttonText,
               isDarkMode ? styles.darkThemeText : styles.lightThemeText,
-              !isMyTurn && styles.disabledButtonText
+              (!isMyTurn || !activeFigure) && styles.disabledButtonText
             ]}>Bet</Text>
           </TouchableOpacity>
         </View>
