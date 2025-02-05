@@ -37,8 +37,8 @@ export default function RootLayout() {
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="game" options={{ headerShown: true, headerLeft: () => (
-            <Pressable onPress={() => router.back()}>
-              <Icon name="arrow-back" size={24} color="black" />
+            <Pressable onPress={() => router.push('/')}>
+              <Icon name="arrow-back" size={24} color={colorScheme === 'dark' ? 'white' : 'black'} />
             </Pressable>
           )}} />
           <Stack.Screen name="+not-found" />
