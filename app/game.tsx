@@ -12,6 +12,8 @@ import {
   TextInput,
   Platform,
   KeyboardAvoidingView,
+  Modal,
+  Pressable,
 } from 'react-native';
 import Board from '../components/game/Board';
 import CardList from '../components/game/CardList';
@@ -20,6 +22,7 @@ import { cardList } from '../utils/dataUtils';
 import { useNavigation } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import * as Haptics from 'expo-haptics';
+import { Icon } from 'react-native-elements';
 
 interface Player {
   id: string;
@@ -112,14 +115,15 @@ function Game(): JSX.Element {
   const [isRoomReady, setIsRoomReady] = useState<boolean>(false);
   const [username, setUsername] = useState<string>('');
   const [queue, setQueue] = useState<string[][]>([]);
-  const [whooseTurn, setWhooseTurn] = useState<number>(0);
   const [logs, setLogs] = useState<string>('');
   const scrollViewRef = useRef<ScrollView>(null);
+  const modalScrollViewRef = useRef<ScrollView>(null);
   const [ firstAvailableFigure, setFirstAvailableFigure ] = useState(0);
   const [ activeFigure, setActiveFigure ] = useState('');
   const [yourHand, setYourHand] = useState([]);
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [lastBetExists, setLastBetExists] = useState<boolean>(false);
+  const [isLogsFullscreen, setIsLogsFullscreen] = useState(false);
 
   const { socket, sid } = useContext(SocketContext) as SocketContextType;
   const navigation = useNavigation();
@@ -128,6 +132,15 @@ function Game(): JSX.Element {
 
   const getEffectiveSid = () => {
     return Platform.OS === 'web' ? queueSid : (sid || queueSid);
+  };
+
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+      if (isLogsFullscreen) {
+        modalScrollViewRef.current?.scrollToEnd({ animated: true });
+      }
+    }, 100);
   };
 
   useEffect(() => {
@@ -165,13 +178,19 @@ function Game(): JSX.Element {
         } catch (err) {
           console.error(err);
         }
-        setLogs(oldLogs => oldLogs + '\nGame Started! players: ' + data.sids);
-        scrollViewRef.current?.scrollToEnd({ animated: true });
+        setLogs(oldLogs => {
+          const newLogs = oldLogs + '\nGame Started!';
+          scrollToBottom();
+          return newLogs;
+        });
       });
 
       socket.on('game_update', (data: GameUpdateData) => {
-        setLogs(oldLogs => oldLogs + '\nGame Update: ' + data.text);
-        scrollViewRef.current?.scrollToEnd({ animated: true });
+        setLogs(oldLogs => {
+          const newLogs = oldLogs + '\n' + data.text;
+          scrollToBottom();
+          return newLogs;
+        });
         try {
           if (!data?.json?.players) {
             return;
@@ -217,15 +236,21 @@ function Game(): JSX.Element {
 
       socket.on('game_end', (data: GameEndData) => {
         console.log('Game Ended: ' + data.result);
-        setLogs(oldLogs => oldLogs + '\nGame Ended: ' + data.result);
-        scrollViewRef.current?.scrollToEnd({ animated: true });
+        setLogs(oldLogs => {
+          const newLogs = oldLogs + '\nGame Ended: ' + data.result;
+          scrollToBottom();
+          return newLogs;
+        });
       });
 
       socket.on('message', (data: MessageData) => {
         const message = data.text;
         console.log('Log: ' + message);
-        setLogs(oldLogs => oldLogs + '\nLog: ' + message);
-        scrollViewRef.current?.scrollToEnd({ animated: true });
+        setLogs(oldLogs => {
+          const newLogs = oldLogs + '\nLog: ' + message;
+          scrollToBottom();
+          return newLogs;
+        });
       });
     });
 
@@ -330,6 +355,50 @@ function Game(): JSX.Element {
         <View style={{ flex: 1 }}>
           <Board gameData={gameData} yourHand={yourHand} />
         </View>
+        <View style={[styles.logsContainer, {flexDirection: 'row', alignItems: 'center'}]}>
+          <ScrollView 
+            ref={scrollViewRef}
+            contentContainerStyle={styles.logsContent}
+            style={{height: 60}}
+          >
+            <Text style={[styles.logsText, { color: isDarkMode ? '#fff' : '#000' }]}>
+              {logs}
+            </Text>
+          </ScrollView>
+          <Pressable onPress={() => setIsLogsFullscreen(true)} style={{margin: 8}}>
+            <Icon name="keyboard-arrow-up" size={24} color={isDarkMode ? 'white' : 'black'} />
+          </Pressable>
+        </View>
+
+        <Modal
+          visible={isLogsFullscreen}
+          animationType="fade"
+          transparent={true}
+          onRequestClose={() => setIsLogsFullscreen(false)}
+        >
+          <View style={[styles.modalOverlay, { backgroundColor: isDarkMode ? 'rgba(0,0,0,0.98)' : 'rgba(255,255,255,0.98)' }]}>
+            <SafeAreaView style={styles.modalContainer}>
+              <View style={styles.modalHeader}>
+                <TouchableOpacity 
+                  onPress={() => setIsLogsFullscreen(false)}
+                  style={styles.closeButton}
+                >
+                  <Text style={[styles.closeButtonText, { color: isDarkMode ? '#fff' : '#000' }]}>Close</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView 
+                ref={modalScrollViewRef}
+                style={styles.modalContent}
+                contentContainerStyle={styles.modalLogsContent}
+              >
+                <Text style={[styles.logsText, { color: isDarkMode ? '#fff' : '#000' }]}>
+                  {logs}
+                </Text>
+              </ScrollView>
+            </SafeAreaView>
+          </View>
+        </Modal>
+
         <View style={{ minHeight: 120 }}>
           <CardList chooseFigure={chooseFigure} firstAvailableFigure={firstAvailableFigure} activeFigure={activeFigure} />
         </View>
@@ -419,6 +488,47 @@ const styles = StyleSheet.create({
   },
   disabledButtonText: {
     opacity: 0.7,
+  },
+  logsContainer: {
+    maxHeight: 60,
+    marginHorizontal: 10,
+    marginVertical: 5,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  logsContent: {
+    padding: 12,
+  },
+  logsText: {
+    fontSize: 16,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    lineHeight: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+  },
+  modalContainer: {
+    flex: 1,
+  },
+  modalHeader: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(150,150,150,0.2)',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  closeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalContent: {
+    flex: 1,
+  },
+  modalLogsContent: {
+    padding: 20,
   },
 });
 
