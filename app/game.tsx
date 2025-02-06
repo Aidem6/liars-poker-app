@@ -119,6 +119,7 @@ function Game(): JSX.Element {
   const [ activeFigure, setActiveFigure ] = useState('');
   const [yourHand, setYourHand] = useState([]);
   const [isMyTurn, setIsMyTurn] = useState(false);
+  const [lastBetExists, setLastBetExists] = useState<boolean>(false);
 
   const { socket, sid } = useContext(SocketContext) as SocketContextType;
   const navigation = useNavigation();
@@ -160,6 +161,7 @@ function Game(): JSX.Element {
           });
           setRoomName(data.room_name);
           setIsRoomReady(true);
+          setLastBetExists(false); 
         } catch (err) {
           console.error(err);
         }
@@ -175,6 +177,8 @@ function Game(): JSX.Element {
             return;
           }
           setIsMyTurn(data.json.players[data.json.player_turn_index].sid === getEffectiveSid());
+          
+          setLastBetExists(!!data.json.last_bet);
           
           let players = data?.json?.players.map((player: BackendPlayer, index: number) => {
             const newPlayerData: Player = {
@@ -326,14 +330,14 @@ function Game(): JSX.Element {
             style={[
               styles.button,
               isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
-              !isMyTurn && styles.disabledButton
+              (!isMyTurn || !lastBetExists) && styles.disabledButton
             ]}
-            disabled={!isMyTurn}
+            disabled={!isMyTurn || !lastBetExists}
             onPress={handleCheck}>
             <Text style={[
               styles.buttonText,
               isDarkMode ? styles.darkThemeText : styles.lightThemeText,
-              !isMyTurn && styles.disabledButtonText
+              (!isMyTurn || !lastBetExists) && styles.disabledButtonText
             ]}>Check</Text>
           </TouchableOpacity>
           <TouchableOpacity
