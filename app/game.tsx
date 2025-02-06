@@ -244,22 +244,30 @@ function Game(): JSX.Element {
   }, [roomName, navigation]);
 
   const chooseFigure = (newFigure: any, figureName: string): void => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     setActiveFigure(figureName);
   };
 
   const bet = (): void => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     socket.emit('bet', { 'bet': activeFigure });
   };
 
   const handleCheck = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     socket.emit('bet', {'bet': 'check'});
   };
 
   const handlePlay = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
     socket.emit('play', { 'username': username });
     setIsUsernameSubmited(true);
   };
