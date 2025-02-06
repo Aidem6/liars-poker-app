@@ -7,7 +7,7 @@ import {
   Text,
   useColorScheme,
   View,
-  TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { Link } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -20,7 +20,9 @@ function Home() {
   };
 
   const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
   };
 
   return (
