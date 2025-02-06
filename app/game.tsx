@@ -19,7 +19,7 @@ import Board from '../components/game/Board';
 import CardList from '../components/game/CardList';
 import { SocketContext } from '../socket';
 import { cardList } from '../utils/dataUtils';
-import { useNavigation } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import * as Haptics from 'expo-haptics';
 import { Icon } from 'react-native-elements';
@@ -264,9 +264,20 @@ function Game(): JSX.Element {
       navigation.setOptions({
         title: roomName,
         headerBackTitle: '',
+        headerLeft: () => (
+          <TouchableOpacity 
+            onPress={() => {
+              socket.emit('leave_game');
+              Platform.OS === 'web' ? router.push('/') : router.back();
+              console.log('leave_game');
+            }}
+          >
+            <Icon name="arrow-back" size={24} color={isDarkMode ? 'white' : 'black'} />
+          </TouchableOpacity>
+        ),
       });
     }
-  }, [roomName, navigation]);
+  }, [roomName, navigation, socket, isDarkMode]);
 
   const chooseFigure = (newFigure: any, figureName: string): void => {
     if (Platform.OS !== 'web') {
@@ -295,6 +306,13 @@ function Game(): JSX.Element {
     }
     socket.emit('play', { 'username': username });
     setIsUsernameSubmited(true);
+  };
+
+  const handleStartGame = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    socket.emit('start_game');
   };
 
   if (!isUsernameSubmited) {
@@ -340,6 +358,11 @@ function Game(): JSX.Element {
             <Text key={'userInQueue' + index} style={{color: isDarkMode ? '#fff' : '#000'}}>{user[1]}</Text>
           ))}
           <Text style={{color: isDarkMode ? '#fff' : '#000'}}>Waiting for more players...</Text>
+          <TouchableOpacity
+            style={[styles.button, isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground]}
+            onPress={handleStartGame}>
+            <Text style={[styles.buttonText, isDarkMode ? styles.darkThemeText : styles.lightThemeText]}>Start game</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
