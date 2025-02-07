@@ -9,6 +9,7 @@ import type { DefaultEventsMap } from '@socket.io/component-emitter';
 // import {isIOS} from '../helper';
 
 const SOCKET_DEV = 'https://liars-poker-dbhw.onrender.com/';
+// const SOCKET_DEV = 'http://localhost:5001';
 
 export const SocketContext = React.createContext<{
   socket: Socket<DefaultEventsMap, DefaultEventsMap> | null;

@@ -2,7 +2,7 @@
   "expo": {
     "name": "liars-poker-app",
     "slug": "liars-poker-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -38,6 +38,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "d8dcde85-8220-4590-bcbd-f9346a113408"
+      }
     }
   }
 }
