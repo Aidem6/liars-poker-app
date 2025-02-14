@@ -1,15 +1,18 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 export function ProfileHeader() {
+  const router = useRouter();
+
   return (
-    <View style={styles.topBar}>
-      <View style={styles.diamondContainer}>
-        <Ionicons name="diamond-outline" size={24} color="#3498db" />
-        <Text style={styles.diamondCount}>0</Text>
-      </View>
-      <TouchableOpacity style={styles.settingsButton}>
+    <View style={styles.header}>
+      <Text style={styles.title}>Profile</Text>
+      <TouchableOpacity 
+        onPress={() => router.push('/settings')}
+        style={styles.settingsButton}
+      >
         <Ionicons name="settings-outline" size={24} color="#fff" />
       </TouchableOpacity>
     </View>
@@ -17,19 +20,16 @@ export function ProfileHeader() {
 }
 
 const styles = StyleSheet.create({
-  topBar: {
+  header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
   },
-  diamondContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  diamondCount: {
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
     color: '#fff',
-    marginLeft: 8,
-    fontSize: 16,
   },
   settingsButton: {
     padding: 8,
