@@ -8,7 +8,7 @@ import {
   SafeAreaView,
   Image,
 } from 'react-native';
-import { pb } from '../lib/pocketbase';
+import { pb, clearAuthData, saveAuthData } from '../lib/pocketbase';
 import { useRouter, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -42,12 +42,18 @@ export default function Settings() {
           type: 'image/jpeg',
         } as any);
 
-        await pb.collection('users').update(pb.authStore.model.id, formData);
+        const updatedUser = await pb.collection('users').update(pb.authStore.model.id, formData);
+        
+        await saveAuthData({
+          token: pb.authStore.token,
+          model: updatedUser
+        });
+        
         Alert.alert('Success', 'Profile picture updated successfully');
       }
     } catch (error) {
+      console.error('Avatar update error:', error);
       Alert.alert('Error', 'Failed to update profile picture');
-      console.error(error);
     }
   };
 
@@ -63,7 +69,10 @@ export default function Settings() {
         {
           text: "Logout",
           style: "destructive",
-          onPress: () => {
+          onPress: async () => {
+            console.log('Starting logout...');
+            await clearAuthData();
+            console.log('Auth data cleared');
             pb.authStore.clear();
             router.push('/profile');
           }

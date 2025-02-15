@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { pb } from '../../lib/pocketbase';
+import { pb, saveAuthData } from '../../lib/pocketbase';
 
 export function LoginScreen() {
   const [isLogin, setIsLogin] = useState(true);
@@ -18,7 +18,13 @@ export function LoginScreen() {
   const handleAuth = async () => {
     try {
       if (isLogin) {
-        await pb.collection('users').authWithPassword(email, password);
+        const authData = await pb.collection('users').authWithPassword(email, password);
+        console.log('Login successful, saving auth data...');
+        await saveAuthData({
+          token: pb.authStore.token,
+          model: pb.authStore.model
+        });
+        console.log('Auth data saved after login');
       } else {
         const data = {
           email,
@@ -30,6 +36,7 @@ export function LoginScreen() {
         await pb.collection('users').authWithPassword(email, password);
       }
     } catch (error) {
+      console.error('Auth error:', error);
       Alert.alert('Error', (error as Error).message);
     }
   };

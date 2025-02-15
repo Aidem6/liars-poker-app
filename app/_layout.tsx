@@ -3,12 +3,13 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import { SocketProvider } from '../socket';
 import { Icon } from 'react-native-elements';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Platform, Pressable } from 'react-native';
+import { loadAuthData, pb } from './lib/pocketbase';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -20,6 +21,7 @@ export default function RootLayout() {
   });
 
   const router = useRouter();
+  const [authLoaded, setAuthLoaded] = useState(false);
 
   useEffect(() => {
     if (loaded) {
@@ -27,7 +29,18 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
-  if (!loaded) {
+  // Load auth data when app starts
+  useEffect(() => {
+    async function loadAuth() {
+      console.log('Starting auth load...');
+      await loadAuthData();
+      console.log('Auth load complete, isAuthenticated:', pb.authStore.isValid);
+      setAuthLoaded(true);
+    }
+    loadAuth();
+  }, []);
+
+  if (!loaded || !authLoaded) {
     return null;
   }
 

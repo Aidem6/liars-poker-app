@@ -40,7 +40,8 @@
         {
           "photosPermission": "The app accesses your photos to let you share them with your friends."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
@@ -53,6 +54,8 @@
         "projectId": "d8dcde85-8220-4590-bcbd-f9346a113408"
       }
     },
-    "assets": ["./assets/images/"]
+    "assets": [
+      "./assets/images/"
+    ]
   }
 }
