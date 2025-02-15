@@ -19,12 +19,10 @@ export function LoginScreen() {
     try {
       if (isLogin) {
         const authData = await pb.collection('users').authWithPassword(email, password);
-        console.log('Login successful, saving auth data...');
         await saveAuthData({
           token: pb.authStore.token,
           model: pb.authStore.model
         });
-        console.log('Auth data saved after login');
       } else {
         const data = {
           email,
@@ -36,7 +34,6 @@ export function LoginScreen() {
         await pb.collection('users').authWithPassword(email, password);
       }
     } catch (error) {
-      console.error('Auth error:', error);
       Alert.alert('Error', (error as Error).message);
     }
   };

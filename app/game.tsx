@@ -23,6 +23,7 @@ import { router, useNavigation } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import * as Haptics from 'expo-haptics';
 import { Icon } from 'react-native-elements';
+import { pb } from './lib/pocketbase';
 
 interface Player {
   id: string;
@@ -279,6 +280,16 @@ function Game(): JSX.Element {
     }
   }, [roomName, navigation, socket, isDarkMode]);
 
+  useEffect(() => {
+    // Pre-fill username if user is logged in
+    if (pb.authStore.isValid && pb.authStore.model?.username) {
+      const username = pb.authStore.model.username;
+      setUsername(username);
+      setIsUsernameSubmited(true);
+      socket.emit('play', { 'username': username });
+    }
+  }, []);
+
   const chooseFigure = (newFigure: any, figureName: string): void => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -333,6 +344,7 @@ function Game(): JSX.Element {
               placeholderTextColor={isDarkMode ? '#fff' : '#000'}
               onChangeText={(text) => setUsername(text)}
               value={username}
+              editable={!pb.authStore.isValid}
             />
             <TouchableOpacity
               style={[styles.button, isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground]}
