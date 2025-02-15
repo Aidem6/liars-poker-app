@@ -6,14 +6,50 @@ import {
   StyleSheet,
   Alert,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import { pb } from '../lib/pocketbase';
 import { useRouter, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function Settings() {
   const router = useRouter();
   const navigation = useNavigation();
+
+  const handleAvatarChange = async () => {
+    try {
+      if (!pb.authStore.model?.id) {
+        Alert.alert('Error', 'You must be logged in to change your avatar');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        const formData = new FormData();
+        const uri = result.assets[0].uri;
+        const filename = uri.split('/').pop();
+        
+        formData.append('avatar', {
+          uri,
+          name: filename,
+          type: 'image/jpeg',
+        } as any);
+
+        await pb.collection('users').update(pb.authStore.model.id, formData);
+        Alert.alert('Success', 'Profile picture updated successfully');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update profile picture');
+      console.error(error);
+    }
+  };
 
   const handleLogout = async () => {
     Alert.alert(
@@ -54,6 +90,20 @@ export default function Settings() {
 
       <View style={styles.content}>
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Profile</Text>
+          <TouchableOpacity 
+            style={styles.settingButton}
+            onPress={handleAvatarChange}
+          >
+            <View style={styles.settingContent}>
+              <Ionicons name="person-circle-outline" size={20} color="#fff" />
+              <Text style={styles.settingText}>Change Profile Picture</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.section, styles.marginTop]}>
           <Text style={styles.sectionTitle}>Account</Text>
           <TouchableOpacity 
             style={styles.logoutButton}
@@ -113,6 +163,25 @@ const styles = StyleSheet.create({
     color: '#FF3B30',
     fontSize: 16,
     fontWeight: '600',
+    marginLeft: 8,
+  },
+  marginTop: {
+    marginTop: 20,
+  },
+  settingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 8,
+  },
+  settingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingText: {
+    color: '#fff',
+    fontSize: 16,
     marginLeft: 8,
   },
 }); 
