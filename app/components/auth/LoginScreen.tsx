@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Modal,
 } from 'react-native';
 import { pb, saveAuthData } from '../../lib/pocketbase';
 
@@ -14,6 +15,8 @@ export function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
 
   const handleAuth = async () => {
     try {
@@ -35,6 +38,30 @@ export function LoginScreen() {
       }
     } catch (error) {
       Alert.alert('Error', (error as Error).message);
+    }
+  };
+
+  const handleForgotPassword = () => {
+    setResetEmail(email);
+    setShowResetModal(true);
+  };
+
+  const submitPasswordReset = async () => {
+    try {
+      if (!resetEmail) {
+        Alert.alert('Error', 'Please enter your email address');
+        return;
+      }
+      await pb.collection('users').requestPasswordReset(resetEmail);
+      setShowResetModal(false);
+      setResetEmail('');
+      Alert.alert(
+        'Success', 
+        'Password reset instructions have been sent to your email'
+      );
+    } catch (error) {
+      console.error('Password reset error:', error);
+      Alert.alert('Error', 'Failed to send reset instructions');
     }
   };
 
@@ -84,6 +111,51 @@ export function LoginScreen() {
           {isLogin ? 'Need an account? Sign up' : 'Already have an account? Login'}
         </Text>
       </TouchableOpacity>
+
+      <TouchableOpacity 
+        onPress={handleForgotPassword}
+        style={styles.forgotPasswordButton}
+      >
+        <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+      </TouchableOpacity>
+
+      <Modal
+        visible={showResetModal}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Reset Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Email address"
+              placeholderTextColor="#666"
+              value={resetEmail}
+              onChangeText={setResetEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={styles.modalButton} 
+                onPress={() => {
+                  setShowResetModal(false);
+                  setResetEmail('');
+                }}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.submitButton]} 
+                onPress={submitPasswordReset}
+              >
+                <Text style={styles.buttonText}>Send Reset Link</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -124,5 +196,44 @@ const styles = StyleSheet.create({
   switchText: {
     color: '#007AFF',
     textAlign: 'center',
+  },
+  forgotPasswordButton: {
+    marginTop: 10,
+    padding: 10,
+  },
+  forgotPasswordText: {
+    color: '#007AFF',
+    textAlign: 'center',
+    fontSize: 14,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  modalButton: {
+    padding: 10,
+    marginLeft: 10,
+  },
+  submitButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 6,
   },
 }); 
