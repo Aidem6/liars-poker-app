@@ -73,6 +73,137 @@ interface SocketContextType {
   sid: string;
 }
 
+interface SocketEvents {
+  queue_update: (data: { queue: string[][] }) => void;
+  you_joined_queue: (data: { your_sid: string }) => void;
+  game_start: (data: GameStartData) => void;
+  game_update: (data: GameUpdateData) => void;
+  game_end: (data: GameEndData) => void;
+  message: (data: MessageData) => void;
+}
+
+function useSocketEvents(
+  socket: SocketContextType['socket'],
+  getEffectiveSid: () => string,
+  setGameData: React.Dispatch<React.SetStateAction<GameData>>,
+  setQueue: React.Dispatch<React.SetStateAction<string[][]>>,
+  setQueueSid: React.Dispatch<React.SetStateAction<string>>,
+  setRoomName: React.Dispatch<React.SetStateAction<string>>,
+  setIsRoomReady: React.Dispatch<React.SetStateAction<boolean>>,
+  setLogs: React.Dispatch<React.SetStateAction<string>>,
+  setIsMyTurn: React.Dispatch<React.SetStateAction<boolean>>,
+  setLastBetExists: React.Dispatch<React.SetStateAction<boolean>>,
+  setYourHand: React.Dispatch<React.SetStateAction<any[]>>,
+  setFirstAvailableFigure: React.Dispatch<React.SetStateAction<number>>,
+  setActiveFigure: React.Dispatch<React.SetStateAction<string>>,
+  yourHand: any[],
+  scrollToBottom: () => void
+) {
+  useEffect(() => {
+    const handlers: SocketEvents = {
+      queue_update: (data) => {
+        setQueue(data.queue);
+      },
+
+      you_joined_queue: (data) => {
+        setQueueSid(data.your_sid);
+      },
+
+      game_start: (data) => {
+        try {
+          const players = data.sids.map((playerId: string, index: number) => ({
+            id: playerId,
+            name: data.usernames[index],
+            hand_count: 0,
+            last_bet: '',
+            isYourTurn: index === 0,
+            isMe: playerId === getEffectiveSid(),
+          }));
+
+          setGameData({ players });
+          setRoomName(data.room_name);
+          setIsRoomReady(true);
+          setLastBetExists(false);
+
+          setLogs(oldLogs => {
+            const newLogs = oldLogs + '\nGame Started!';
+            scrollToBottom();
+            return newLogs;
+          });
+        } catch (err) {
+          console.error('Error handling game_start:', err);
+        }
+      },
+
+      game_update: (data) => {
+        setLogs(oldLogs => {
+          const newLogs = oldLogs + '\n' + data.text;
+          scrollToBottom();
+          return newLogs;
+        });
+
+        try {
+          if (!data?.json?.players) return;
+
+          const json = data.json;
+          setIsMyTurn(json.players[json.player_turn_index].sid === getEffectiveSid());
+          setLastBetExists(!!json.last_bet);
+
+          const players = json.players.map((player: BackendPlayer, index: number) => ({
+            id: player.sid,
+            name: player.username,
+            hand_count: player.hand_count,
+            last_bet: player.last_bet,
+            isYourTurn: index === json.player_turn_index,
+            hand: player.sid === getEffectiveSid() ? yourHand : undefined,
+            isMe: player.sid === getEffectiveSid(),
+          }));
+
+          if (json.action === 'new_deal') {
+            setYourHand(json.your_hand);
+            setFirstAvailableFigure(0);
+            setActiveFigure('');
+          } else if (json.last_bet) {
+            const indexOfFigure = cardList.findIndex((figure) => figure.name === json.last_bet);
+            setFirstAvailableFigure(indexOfFigure + 1);
+            setActiveFigure('');
+          }
+
+          setGameData({ players });
+        } catch (err) {
+          console.error('Error handling game_update:', err);
+        }
+      },
+
+      game_end: (data) => {
+        setLogs(oldLogs => {
+          const newLogs = oldLogs + '\nGame Ended: ' + data.result;
+          scrollToBottom();
+          return newLogs;
+        });
+      },
+
+      message: (data) => {
+        setLogs(oldLogs => {
+          const newLogs = oldLogs + '\nLog: ' + data.text;
+          scrollToBottom();
+          return newLogs;
+        });
+      },
+    };
+
+    // Register all event handlers
+    Object.entries(handlers).forEach(([event, handler]) => {
+      socket.on(event, handler);
+    });
+
+    // Cleanup function
+    return () => {
+      socket.removeAllListeners();
+    };
+  }, [socket, yourHand]);
+}
+
 function Game(): JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
   const backgroundStyle = {
@@ -121,7 +252,7 @@ function Game(): JSX.Element {
   const modalScrollViewRef = useRef<ScrollView>(null);
   const [ firstAvailableFigure, setFirstAvailableFigure ] = useState(0);
   const [ activeFigure, setActiveFigure ] = useState('');
-  const [yourHand, setYourHand] = useState([]);
+  const [yourHand, setYourHand] = useState<string[]>([]);
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [lastBetExists, setLastBetExists] = useState<boolean>(false);
   const [isLogsFullscreen, setIsLogsFullscreen] = useState(false);
@@ -144,121 +275,24 @@ function Game(): JSX.Element {
     }, 100);
   };
 
-  useEffect(() => {
-    InteractionManager.runAfterInteractions(() => {
-
-      socket.on('queue_update', (data: any) => {
-        setQueue(data.queue);
-      });
-
-      socket.on('you_joined_queue', (data: any) => {
-        setQueueSid(data.your_sid);
-      });
-      
-      socket.on('game_start', (data: GameStartData) => {
-        try {
-          let players = data.sids.map((playerId: string, index: number) => {
-            const newPlayerData: Player = {
-              id: playerId,
-              name: data.usernames[index],
-              hand_count: 0,
-              last_bet: '',
-              isYourTurn: index === 0,
-            };
-            if (playerId === getEffectiveSid()) {
-              newPlayerData.isMe = true;
-            }
-            return newPlayerData;
-          });
-          setGameData({
-            players: players,
-          });
-          setRoomName(data.room_name);
-          setIsRoomReady(true);
-          setLastBetExists(false); 
-        } catch (err) {
-          console.error(err);
-        }
-        setLogs(oldLogs => {
-          const newLogs = oldLogs + '\nGame Started!';
-          scrollToBottom();
-          return newLogs;
-        });
-      });
-
-      socket.on('game_update', (data: GameUpdateData) => {
-        setLogs(oldLogs => {
-          const newLogs = oldLogs + '\n' + data.text;
-          scrollToBottom();
-          return newLogs;
-        });
-        try {
-          if (!data?.json?.players) {
-            return;
-          }
-          setIsMyTurn(data.json.players[data.json.player_turn_index].sid === getEffectiveSid());
-          
-          setLastBetExists(!!data.json.last_bet);
-          
-          let players = data?.json?.players.map((player: BackendPlayer, index: number) => {
-            const newPlayerData: Player = {
-              id: player.sid,
-              name: player.username,
-              hand_count: player.hand_count,
-              last_bet: player.last_bet,
-              isYourTurn: index === data.json.player_turn_index,
-              hand: player.sid === getEffectiveSid() ? yourHand : undefined,
-            };
-            if (player.sid === getEffectiveSid()) {
-              newPlayerData.isMe = true;
-            }
-            else {
-              newPlayerData.isMe = false;
-            }
-            if (data.json.action && data.json.action === 'new_deal') {
-              setYourHand(data.json.your_hand);
-              setFirstAvailableFigure(0);
-              setActiveFigure('');
-            }
-            else if (data.json.last_bet) {
-              const indexOfFigure = cardList.findIndex((figure) => figure.name === data.json.last_bet);
-              setFirstAvailableFigure(indexOfFigure + 1);
-              setActiveFigure('');
-            }
-            return newPlayerData;
-          });
-          setGameData({
-            players: players,
-          });
-        } catch (err) {
-          console.error(err);
-        }
-      });
-
-      socket.on('game_end', (data: GameEndData) => {
-        console.log('Game Ended: ' + data.result);
-        setLogs(oldLogs => {
-          const newLogs = oldLogs + '\nGame Ended: ' + data.result;
-          scrollToBottom();
-          return newLogs;
-        });
-      });
-
-      socket.on('message', (data: MessageData) => {
-        const message = data.text;
-        console.log('Log: ' + message);
-        setLogs(oldLogs => {
-          const newLogs = oldLogs + '\nLog: ' + message;
-          scrollToBottom();
-          return newLogs;
-        });
-      });
-    });
-
-    return () => {
-      socket.removeAllListeners();
-    };
-  }, [socket, sid, queueSid, yourHand]);
+  // Use the custom hook
+  useSocketEvents(
+    socket,
+    getEffectiveSid,
+    setGameData,
+    setQueue,
+    setQueueSid,
+    setRoomName,
+    setIsRoomReady,
+    setLogs,
+    setIsMyTurn,
+    setLastBetExists,
+    setYourHand,
+    setFirstAvailableFigure,
+    setActiveFigure,
+    yourHand,
+    scrollToBottom
+  );
 
   useEffect(() => {
     if (roomName && typeof window !== 'undefined') {
