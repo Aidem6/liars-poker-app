@@ -216,6 +216,7 @@ function Player({ player, reversed, yourHand }) {
       {displayedBet && (
         <Animated.View style={[
           styles.cardDeck,
+          reversed ? styles.cardDeckReversed : null,
           {
             opacity: animations.fade,
             transform: [
@@ -234,6 +235,7 @@ function Player({ player, reversed, yourHand }) {
       
       <Animated.View style={[
         styles.cardDeckBottom,
+        reversed ? styles.cardDeckBottomReversed : null,
         {
           opacity: animations.bottomFade,
           transform: [
@@ -277,11 +279,17 @@ const styles = StyleSheet.create({
     top: '10%',
     left: 7,
   },
+  cardDeckReversed: {
+    top: '40%',
+  },
   cardDeckBottom: {
     position: 'absolute',
     height: '40%',
     top: '40%',
     left: 7,
+  },
+  cardDeckBottomReversed: {
+    top: '10%',
   },
 });
 
