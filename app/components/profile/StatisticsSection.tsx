@@ -1,10 +1,54 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { memo } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { useTheme } from '../../lib/ThemeContext';
+
+// Types
+interface StatBoxProps {
+  emoji: string;
+  value: string;
+  label: string;
+}
+
+interface StreetData {
+  value: string;
+  label: string;
+}
+
+// Constants
+const STREET_DATA: StreetData[] = [
+  { value: '29%', label: 'Preflop' },
+  { value: '14%', label: 'Flop' },
+  { value: '19%', label: 'Turn' },
+  { value: '16%', label: 'River' },
+];
 
 export function StatisticsSection() {
+  const { colors } = useTheme();
+  // Example loading state - replace with real data fetching
+  const isLoading = false;
+  const error = null;
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={[styles.error, { color: colors.primary }]}>
+          Failed to load statistics
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.statisticsSection}>
-      <Text style={styles.sectionTitle}>Statistics</Text>
+    <View style={styles.container} accessible={true} accessibilityLabel="Statistics section">
+      <Text style={[styles.title, { color: colors.text }]}>Statistics</Text>
       <View style={styles.statsGrid}>
         <View style={styles.statsRow}>
           <StatBox emoji="👆" value="23%" label="Aggression freq." />
@@ -19,92 +63,106 @@ export function StatisticsSection() {
   );
 }
 
-function StatBox({ emoji, value, label }: { emoji: string; value: string; label: string }) {
+const StatBox = memo(({ emoji, value, label }: StatBoxProps) => {
+  const { colors } = useTheme();
   return (
-    <View style={styles.statsBox}>
-      <Text style={styles.statsEmoji}>{emoji}</Text>
+    <View 
+      style={[styles.statsBox, { backgroundColor: colors.secondary }]}
+      accessible={true}
+      accessibilityLabel={`${label}: ${value}`}
+    >
+      <Text style={styles.statsEmoji} accessibilityLabel="">{emoji}</Text>
       <View style={styles.statsTextContainer}>
-        <Text style={styles.statsValue}>{value}</Text>
-        <Text style={styles.statsLabel}>{label}</Text>
+        <Text style={[styles.statsValue, { color: colors.text }]}>{value}</Text>
+        <Text style={[styles.statsLabel, { color: colors.secondaryText }]}>{label}</Text>
       </View>
     </View>
   );
-}
+});
 
-function StreetStats() {
-  const streets = [
-    { value: '29%', label: 'Preflop' },
-    { value: '14%', label: 'Flop' },
-    { value: '19%', label: 'Turn' },
-    { value: '16%', label: 'River' },
-  ];
-
+const StreetStats = memo(() => {
+  const { colors } = useTheme();
+  
   return (
-    <View style={[styles.statsBox, styles.statsBoxWide]}>
+    <View 
+      style={[styles.statsBox, styles.statsBoxWide, { backgroundColor: colors.secondary }]}
+      accessible={true}
+      accessibilityLabel="Street statistics"
+    >
       <Text style={styles.statsEmoji}>👈</Text>
       <View style={styles.statsStreetContainer}>
-        {streets.map((street, index) => (
+        {STREET_DATA.map((street, index) => (
           <View key={index} style={styles.streetStat}>
-            <Text style={styles.statsValue}>{street.value}</Text>
-            <Text style={styles.statsLabel}>{street.label}</Text>
+            <Text style={[styles.statsValue, { color: colors.text }]}>{street.value}</Text>
+            <Text style={[styles.statsLabel, { color: colors.secondaryText }]}>{street.label}</Text>
           </View>
         ))}
       </View>
     </View>
   );
-}
+});
 
-function HandStats() {
+const HandStats = memo(() => {
+  const { colors } = useTheme();
   return (
-    <View style={[styles.statsBox, styles.statsBoxWide]}>
+    <View 
+      style={[styles.statsBox, styles.statsBoxWide, { backgroundColor: colors.secondary }]}
+      accessible={true}
+      accessibilityLabel="Hand statistics"
+    >
       <Text style={styles.statsEmoji}>✋</Text>
       <View style={styles.statsStreetContainer}>
         <View style={styles.streetStat}>
-          <Text style={styles.statsValue}>148</Text>
-          <Text style={styles.statsLabel}>Hands played</Text>
+          <Text style={[styles.statsValue, { color: colors.text }]}>148</Text>
+          <Text style={[styles.statsLabel, { color: colors.secondaryText }]}>Hands played</Text>
         </View>
         <View style={styles.streetStat}>
-          <Text style={styles.statsValue}>36</Text>
-          <Text style={styles.statsLabel}>Hands won</Text>
+          <Text style={[styles.statsValue, { color: colors.text }]}>36</Text>
+          <Text style={[styles.statsLabel, { color: colors.secondaryText }]}>Hands won</Text>
         </View>
         <View style={styles.streetStat}>
-          <Text style={styles.statsValue}>25%</Text>
-          <Text style={styles.statsLabel}>Win rate</Text>
+          <Text style={[styles.statsValue, { color: colors.text }]}>25%</Text>
+          <Text style={[styles.statsLabel, { color: colors.secondaryText }]}>Win rate</Text>
         </View>
       </View>
     </View>
   );
-}
+});
 
-function TournamentStats() {
+const TournamentStats = memo(() => {
+  const { colors } = useTheme();
   return (
-    <View style={[styles.statsBox, styles.statsBoxWide]}>
+    <View 
+      style={[styles.statsBox, styles.statsBoxWide, { backgroundColor: colors.secondary }]}
+      accessible={true}
+      accessibilityLabel="Tournament statistics"
+    >
       <Text style={styles.statsEmoji}>🏆</Text>
       <View style={styles.statsStreetContainer}>
         <View style={styles.streetStat}>
-          <Text style={styles.statsValue}>2</Text>
-          <Text style={styles.statsLabel}>Tourn. played</Text>
+          <Text style={[styles.statsValue, { color: colors.text }]}>2</Text>
+          <Text style={[styles.statsLabel, { color: colors.secondaryText }]}>Tourn. played</Text>
         </View>
         <View style={styles.streetStat}>
-          <Text style={styles.statsValue}>0</Text>
-          <Text style={styles.statsLabel}>Tourn. won</Text>
+          <Text style={[styles.statsValue, { color: colors.text }]}>0</Text>
+          <Text style={[styles.statsLabel, { color: colors.secondaryText }]}>Tourn. won</Text>
         </View>
         <View style={styles.streetStat}>
-          <Text style={styles.statsValue}>0%</Text>
-          <Text style={styles.statsLabel}>Win rate</Text>
+          <Text style={[styles.statsValue, { color: colors.text }]}>0%</Text>
+          <Text style={[styles.statsLabel, { color: colors.secondaryText }]}>Win rate</Text>
         </View>
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
-  statisticsSection: {
+  container: {
     padding: 16,
   },
-  sectionTitle: {
-    color: '#fff',
-    fontSize: 18,
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
     marginBottom: 16,
   },
   statsGrid: {
@@ -116,7 +174,6 @@ const styles = StyleSheet.create({
   },
   statsBox: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
@@ -142,12 +199,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statsValue: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
   statsLabel: {
-    color: '#666',
     fontSize: 12,
+  },
+  error: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 20,
   },
 }); 

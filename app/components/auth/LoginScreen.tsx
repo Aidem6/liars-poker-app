@@ -10,10 +10,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  useColorScheme,
 } from 'react-native';
 import { pb, saveAuthData } from '../../lib/pocketbase';
+import { useTheme } from '../../lib/ThemeContext';
 
-export function LoginScreen() {
+export default function LoginScreen() {
+  const { colors } = useTheme();
+  const colorScheme = useColorScheme();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -71,7 +75,7 @@ export function LoginScreen() {
   return (
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 50 : 0}
     >
       <ScrollView 
@@ -80,13 +84,16 @@ export function LoginScreen() {
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        <Text style={styles.title}>
+        <Text style={[styles.title, { color: colors.text }]}>
           {isLogin ? 'Login' : 'Create Account'}
         </Text>
         
         {!isLogin && (
           <TextInput
-            style={styles.input}
+            style={[styles.input, { 
+              backgroundColor: colorScheme === 'light' ? '#f0f0f0' : '#333',
+              color: colorScheme === 'light' ? '#000' : '#fff'
+            }]}
             placeholder="Username"
             placeholderTextColor="#666"
             value={username}
@@ -95,7 +102,10 @@ export function LoginScreen() {
         )}
         
         <TextInput
-          style={styles.input}
+          style={[styles.input, { 
+            backgroundColor: colorScheme === 'light' ? '#f0f0f0' : '#333',
+            color: colorScheme === 'light' ? '#000' : '#fff'
+          }]}
           placeholder="Email"
           placeholderTextColor="#666"
           value={email}
@@ -105,7 +115,10 @@ export function LoginScreen() {
         />
         
         <TextInput
-          style={styles.input}
+          style={[styles.input, { 
+            backgroundColor: colorScheme === 'light' ? '#f0f0f0' : '#333',
+            color: colorScheme === 'light' ? '#000' : '#fff'
+          }]}
           placeholder="Password"
           placeholderTextColor="#666"
           value={password}
@@ -113,14 +126,17 @@ export function LoginScreen() {
           secureTextEntry
         />
         
-        <TouchableOpacity style={styles.button} onPress={handleAuth}>
+        <TouchableOpacity 
+          style={[styles.button, { backgroundColor: colors.primary }]}
+          onPress={handleAuth}
+        >
           <Text style={styles.buttonText}>
             {isLogin ? 'Login' : 'Create Account'}
           </Text>
         </TouchableOpacity>
         
         <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
-          <Text style={styles.switchText}>
+          <Text style={[styles.switchText, { color: colors.primary }]}>
             {isLogin ? 'Need an account? Sign up' : 'Already have an account? Login'}
           </Text>
         </TouchableOpacity>
@@ -129,7 +145,9 @@ export function LoginScreen() {
           onPress={handleForgotPassword}
           style={styles.forgotPasswordButton}
         >
-          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+          <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>
+            Forgot Password?
+          </Text>
         </TouchableOpacity>
 
         <Modal
@@ -138,10 +156,15 @@ export function LoginScreen() {
           animationType="slide"
         >
           <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Reset Password</Text>
+            <View style={[styles.modalContent, { backgroundColor: colors.secondary }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Reset Password
+              </Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { 
+                  backgroundColor: colorScheme === 'light' ? '#f0f0f0' : '#333',
+                  color: colorScheme === 'light' ? '#000' : '#fff'
+                }]}
                 placeholder="Email address"
                 placeholderTextColor="#666"
                 value={resetEmail}
@@ -151,16 +174,16 @@ export function LoginScreen() {
               />
               <View style={styles.modalButtons}>
                 <TouchableOpacity 
-                  style={styles.modalButton} 
+                  style={[styles.modalButton, { backgroundColor: colors.secondary }]} 
                   onPress={() => {
                     setShowResetModal(false);
                     setResetEmail('');
                   }}
                 >
-                  <Text style={styles.buttonText}>Cancel</Text>
+                  <Text style={[styles.buttonText, { color: colors.text }]}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={[styles.modalButton, styles.submitButton]} 
+                  style={[styles.modalButton, { backgroundColor: colors.primary }]} 
                   onPress={submitPasswordReset}
                 >
                   <Text style={styles.buttonText}>Send Reset Link</Text>
@@ -177,7 +200,8 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    padding: 20,
+    justifyContent: 'center',
   },
   scrollContent: {
     flexGrow: 1,
@@ -193,27 +217,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   input: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
-    color: '#fff',
+    marginVertical: 8,
+    padding: 10,
+    borderRadius: 5,
   },
   button: {
-    backgroundColor: '#007AFF',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 5,
     alignItems: 'center',
-    marginBottom: 15,
+    marginTop: 20,
   },
   buttonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
   },
   switchText: {
     color: '#007AFF',
     textAlign: 'center',
+    marginTop: 15,
   },
   forgotPasswordButton: {
     marginTop: 10,

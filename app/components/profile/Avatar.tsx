@@ -3,14 +3,16 @@ import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 import { pb } from '../../lib/pocketbase';
 import * as ImagePicker from 'expo-image-picker';
+import { useTheme } from '../../lib/ThemeContext';
 
 interface AvatarProps {
   username: string;
 }
 
-export function Avatar({ username }: AvatarProps) {
+export default function Avatar({ username }: AvatarProps) {
   const user = pb.authStore.model;
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const { colors } = useTheme();
 
   useEffect(() => {
     if (user?.avatar) {
@@ -56,12 +58,12 @@ export function Avatar({ username }: AvatarProps) {
   };
 
   return (
-    <View style={styles.profileSection}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.avatarContainer}>
         {avatarUrl ? (
           <Image 
             source={{ uri: avatarUrl }} 
-            style={styles.avatar}
+            style={[styles.avatar, { borderColor: colors.border }]}
           />
         ) : (
           <View style={[styles.avatar, styles.avatarPlaceholder]}>
@@ -75,24 +77,24 @@ export function Avatar({ username }: AvatarProps) {
           <Ionicons name="pencil" size={16} color="#fff" />
         </TouchableOpacity>
       </View>
-      <Text style={styles.username}>{username}</Text>
+      <Text style={[styles.username, { color: colors.text }]}>{username}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  profileSection: {
+  container: {
     alignItems: 'center',
-    marginVertical: 20,
+    padding: 10,
   },
   avatarContainer: {
     position: 'relative',
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#333',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
   },
   avatarPlaceholder: {
     justifyContent: 'center',
@@ -107,8 +109,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   username: {
-    color: '#fff',
-    fontSize: 20,
-    marginTop: 12,
+    marginTop: 10,
+    fontSize: 16,
   },
 }); 

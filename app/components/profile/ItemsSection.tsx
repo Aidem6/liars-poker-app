@@ -1,45 +1,66 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../lib/ThemeContext';
 
-export function ItemsSection() {
+interface ItemsSectionProps {
+  emotes: { owned: number; total: number };
+  cardBacks: { owned: number; total: number };
+  fishProgress: number;
+  onEmotesPress: () => void;
+  onCardBacksPress: () => void;
+  onFishPress: () => void;
+}
+
+export function ItemsSection({
+  emotes,
+  cardBacks,
+  fishProgress,
+  onEmotesPress,
+  onCardBacksPress,
+  onFishPress,
+}: ItemsSectionProps) {
+  const { colors } = useTheme();
+  
   return (
     <View style={styles.itemsContainer}>
       <View style={styles.inlineContainer}>
-        <TouchableOpacity style={styles.itemRow}>
+        <TouchableOpacity 
+          style={[styles.itemRow, { backgroundColor: colors.secondary }]}
+          onPress={onEmotesPress}
+          accessibilityLabel="View emotes"
+          accessibilityRole="button"
+        >
           <View style={styles.itemLeft}>
-            <Ionicons name="happy-outline" size={24} color="#fff" />
+            <Ionicons name="happy-outline" size={24} color={colors.text} />
             <View style={styles.itemTextContainer}>
-              <Text style={styles.itemText}>Emotes</Text>
-              <Text style={styles.itemCount}>6 (24)</Text>
+              <Text style={[styles.itemText, { color: colors.text }]}>Emotes</Text>
+              <Text style={[styles.itemCount, { color: colors.secondaryText }]}>
+                {emotes.owned} ({emotes.total})
+              </Text>
             </View>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#666" />
+          <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.itemRow}>
+        <TouchableOpacity 
+          style={[styles.itemRow, { backgroundColor: colors.secondary }]}
+          onPress={onCardBacksPress}
+          accessibilityLabel="View card backs"
+          accessibilityRole="button"
+        >
           <View style={styles.itemLeft}>
-            <Ionicons name="grid-outline" size={24} color="#fff" />
+            <Ionicons name="grid-outline" size={24} color={colors.text} />
             <View style={styles.itemTextContainer}>
-              <Text style={styles.itemText}>Card backs</Text>
-              <Text style={styles.itemCount}>2 (20)</Text>
+              <Text style={[styles.itemText, { color: colors.text }]}>Card backs</Text>
+              <Text style={[styles.itemCount, { color: colors.secondaryText }]}>
+                {cardBacks.owned} ({cardBacks.total})
+              </Text>
             </View>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#666" />
+          <Ionicons name="chevron-forward" size={20} color={colors.secondaryText} />
         </TouchableOpacity>
       </View>
-
-      <TouchableOpacity style={[styles.itemRow, { maxWidth: '100%' }]}>
-        <View style={styles.itemLeft}>
-          <Ionicons name="fish-outline" size={24} color="#fff" />
-          <Text style={styles.itemText}>Fish</Text>
-        </View>
-        <Text style={styles.itemSubtext}>Rank progress</Text>
-        <View style={styles.progressBar}>
-          <View style={styles.progressFill} />
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
-      </TouchableOpacity>
     </View>
   );
 }
@@ -57,12 +78,14 @@ const styles = StyleSheet.create({
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
     padding: 12,
     borderRadius: 12,
     gap: 8,
     flex: 1,
     maxWidth: '48%',
+  },
+  fishRow: {
+    maxWidth: '100%',
   },
   itemLeft: {
     flexDirection: 'row',
@@ -74,27 +97,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemText: {
-    color: '#fff',
     fontSize: 14,
   },
   itemCount: {
-    color: '#666',
     fontSize: 12,
     marginTop: 2,
   },
   itemSubtext: {
-    color: '#666',
     fontSize: 14,
   },
   progressBar: {
     height: 4,
-    backgroundColor: '#333',
     borderRadius: 2,
     width: 100,
     marginHorizontal: 12,
   },
   progressFill: {
-    width: '60%',
     height: '100%',
     backgroundColor: '#3498db',
     borderRadius: 2,

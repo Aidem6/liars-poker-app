@@ -9,11 +9,14 @@ import {
   Image,
   TextInput,
   Modal,
+  Switch,
+  useColorScheme,
 } from 'react-native';
 import { pb, clearAuthData, saveAuthData } from '../lib/pocketbase';
 import { useRouter, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useTheme } from '../lib/ThemeContext';
 
 export default function Settings() {
   const router = useRouter();
@@ -22,6 +25,7 @@ export default function Settings() {
   const [newEmail, setNewEmail] = useState('');
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [newUsername, setNewUsername] = useState('');
+  const { colors, isLightMode, toggleTheme } = useTheme();
 
   const handleAvatarChange = async () => {
     try {
@@ -202,71 +206,79 @@ export default function Settings() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity 
           onPress={handleBack}
           style={styles.backButton}
         >
-          <Ionicons name="chevron-back" size={24} color="#fff" />
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Settings</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
       </View>
 
       <View style={styles.content}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Profile</Text>
+        <View style={[styles.section, { backgroundColor: colors.secondary }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Profile</Text>
           <TouchableOpacity 
             style={styles.settingButton}
             onPress={handleUsernameChange}
           >
             <View style={styles.settingContent}>
-              <Ionicons name="person-outline" size={20} color="#fff" />
-              <Text style={styles.settingText}>Change Username</Text>
+              <Ionicons name="person-outline" size={20} color={colors.text} />
+              <Text style={[styles.settingText, { color: colors.text }]}>Change Username</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="chevron-forward" size={20} color={colors.border} />
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.settingButton}
             onPress={handleAvatarChange}
           >
             <View style={styles.settingContent}>
-              <Ionicons name="person-circle-outline" size={20} color="#fff" />
-              <Text style={styles.settingText}>Change Profile Picture</Text>
+              <Ionicons name="person-circle-outline" size={20} color={colors.text} />
+              <Text style={[styles.settingText, { color: colors.text }]}>Change Profile Picture</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="chevron-forward" size={20} color={colors.border} />
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.section, styles.marginTop]}>
-          <Text style={styles.sectionTitle}>Account</Text>
+        <View style={[styles.section, styles.marginTop, { backgroundColor: colors.secondary }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Account</Text>
           <TouchableOpacity 
             style={styles.settingButton}
             onPress={handleEmailChange}
           >
             <View style={styles.settingContent}>
-              <Ionicons name="mail-outline" size={20} color="#fff" />
-              <Text style={styles.settingText}>Change Email</Text>
+              <Ionicons name="mail-outline" size={20} color={colors.text} />
+              <Text style={[styles.settingText, { color: colors.text }]}>Change Email</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="chevron-forward" size={20} color={colors.border} />
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.settingButton}
             onPress={handlePasswordReset}
           >
             <View style={styles.settingContent}>
-              <Ionicons name="key-outline" size={20} color="#fff" />
-              <Text style={styles.settingText}>Reset Password</Text>
+              <Ionicons name="key-outline" size={20} color={colors.text} />
+              <Text style={[styles.settingText, { color: colors.text }]}>Reset Password</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="chevron-forward" size={20} color={colors.border} />
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.logoutButton, styles.marginTop]}
             onPress={handleLogout}
           >
             <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
-            <Text style={styles.logoutText}>Logout</Text>
+            <Text style={[styles.logoutText, { color: colors.text }]}>Logout</Text>
           </TouchableOpacity>
+        </View>
+
+        <View style={[styles.settingItem, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.text, { color: colors.text }]}>Light Mode</Text>
+          <Switch
+            value={isLightMode}
+            onValueChange={toggleTheme}
+          />
         </View>
       </View>
 
@@ -276,12 +288,16 @@ export default function Settings() {
         animationType="slide"
       >
         <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Change Email</Text>
+          <View style={[styles.modalContent, { backgroundColor: colors.secondary }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Change Email</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { 
+                backgroundColor: colors.background,
+                color: colors.text,
+                borderColor: colors.border
+              }]}
               placeholder="New email address"
-              placeholderTextColor="#666"
+              placeholderTextColor={colors.border}
               value={newEmail}
               onChangeText={setNewEmail}
               keyboardType="email-address"
@@ -351,7 +367,7 @@ export default function Settings() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    padding: 20,
   },
   header: {
     flexDirection: 'row',
@@ -453,6 +469,17 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
+    fontSize: 16,
+  },
+  settingItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  text: {
     fontSize: 16,
   },
 }); 

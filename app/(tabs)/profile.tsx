@@ -4,18 +4,19 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  useColorScheme,
+  View,
 } from 'react-native';
 import { ProfileHeader } from '../components/profile/ProfileHeader';
-import { Avatar } from '../components/profile/Avatar';
+import Avatar from '../components/profile/Avatar';
 import { FriendsSection } from '../components/profile/FriendsSection';
 import { ItemsSection } from '../components/profile/ItemsSection';
 import { StatisticsSection } from '../components/profile/StatisticsSection';
-import { LoginScreen } from '../components/auth/LoginScreen';
+import LoginScreen from '../components/auth/LoginScreen';
 import { pb } from '../lib/pocketbase';
+import { useTheme } from '../lib/ThemeContext';
 
 function Profile() {
-  const isDarkMode = useColorScheme() === 'dark';
+  const { colors, isLightMode } = useTheme();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
   useEffect(() => {
@@ -28,32 +29,41 @@ function Profile() {
     checkAuth();
 
     // Listen for authentication changes
-    pb.authStore.onChange(() => {
-      checkAuth();
-    });
+    pb.authStore.onChange(checkAuth);
   }, []);
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? '#000' : '#000',
-  };
 
   if (!isAuthenticated) {
     return <LoginScreen />;
   }
 
+  const itemsProps = {
+    emotes: { owned: 6, total: 24 },
+    cardBacks: { owned: 2, total: 20 },
+    fishProgress: 45,
+    onEmotesPress: () => {},
+    onCardBacksPress: () => {},
+    onFishPress: () => {},
+  };
+
   return (
-    <SafeAreaView style={[backgroundStyle, styles.container]}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar 
+        barStyle={isLightMode ? 'dark-content' : 'light-content'} 
+        backgroundColor={colors.background} 
+      />
       <ScrollView 
         contentInsetAdjustmentBehavior="automatic" 
-        style={backgroundStyle}
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollViewContent}
+        showsVerticalScrollIndicator={false}
       >
-        <ProfileHeader />
-        <Avatar username={pb.authStore.model?.username} />
-        <FriendsSection />
-        <ItemsSection />
-        <StatisticsSection />
+        <View style={styles.content}>
+          <ProfileHeader />
+          <Avatar username={pb.authStore.model?.username} />
+          <FriendsSection />
+          <ItemsSection {...itemsProps} />
+          <StatisticsSection />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -62,10 +72,15 @@ function Profile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+  },
+  scrollView: {
+    flex: 1,
   },
   scrollViewContent: {
     paddingBottom: 80,
+  },
+  content: {
+    flex: 1,
   },
 });
 
