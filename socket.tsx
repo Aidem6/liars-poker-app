@@ -41,25 +41,33 @@ const connectionConfig = {
  */
 export const SocketProvider = ({children}: {children: ReactNode}) => {
   const env = SOCKET_DEV;
-  const socket = useRef(socketIOClient(env, connectionConfig));
+  const socket = useRef<Socket<DefaultEventsMap, DefaultEventsMap> | null>(null);
   const [ sid, setSid ] = useState('');
 
   useEffect(() => {
-    socket.current.on('connected', function(data) {
+    // Initialize socket only once inside useEffect to avoid double-mounting issues
+    if (!socket.current) {
+      console.log('SocketIO: Initializing connection');
+      socket.current = socketIOClient(env, connectionConfig);
+    }
+
+    const currentSocket = socket.current;
+
+    currentSocket.on('connected', function(data) {
       console.log('SocketIO: Connected', data);
       setSid(data.sid);
     });
 
-    socket.current.on('disconnect', msg => {
+    currentSocket.on('disconnect', msg => {
       console.log('SocketIO: Disconnect', msg);
-      socket.current = socketIOClient(env, connectionConfig);
+      // Don't create a new socket here - let reconnection config handle it
     });
 
     return () => {
-      if (socket && socket.current) {
-        socket?.current?.removeAllListeners();
-        socket?.current?.close();
-        socket?.current?.disconnect();
+      if (currentSocket) {
+        currentSocket.removeAllListeners();
+        currentSocket.close();
+        currentSocket.disconnect();
       }
     };
   }, [env]);

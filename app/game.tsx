@@ -96,7 +96,6 @@ function useSocketEvents(
   setYourHand: React.Dispatch<React.SetStateAction<any[]>>,
   setFirstAvailableFigure: React.Dispatch<React.SetStateAction<number>>,
   setActiveFigure: React.Dispatch<React.SetStateAction<string>>,
-  yourHand: any[],
   scrollToBottom: () => void
 ) {
   useEffect(() => {
@@ -146,30 +145,40 @@ function useSocketEvents(
           if (!data?.json?.players) return;
 
           const json = data.json;
-          setIsMyTurn(json.players[json.player_turn_index].sid === getEffectiveSid());
+          const effectiveSid = getEffectiveSid();
+
+          // Only update turn status if we have a valid effectiveSid
+          if (effectiveSid) {
+            setIsMyTurn(json.players[json.player_turn_index].sid === effectiveSid);
+          }
           setLastBetExists(!!json.last_bet);
 
-          const players = json.players.map((player: BackendPlayer, index: number) => ({
-            id: player.sid,
-            name: player.username,
-            hand_count: player.hand_count,
-            last_bet: player.last_bet,
-            isYourTurn: index === json.player_turn_index,
-            hand: player.sid === getEffectiveSid() ? yourHand : undefined,
-            isMe: player.sid === getEffectiveSid(),
-          }));
+          setYourHand(currentHand => {
+            const players = json.players.map((player: BackendPlayer, index: number) => ({
+              id: player.sid,
+              name: player.username,
+              hand_count: player.hand_count,
+              last_bet: player.last_bet,
+              isYourTurn: index === json.player_turn_index,
+              hand: player.sid === effectiveSid ? currentHand : undefined,
+              isMe: player.sid === effectiveSid,
+            }));
 
-          if (json.action === 'new_deal') {
-            setYourHand(json.your_hand);
-            setFirstAvailableFigure(0);
-            setActiveFigure('');
-          } else if (json.last_bet) {
-            const indexOfFigure = cardList.findIndex((figure) => figure.name === json.last_bet);
-            setFirstAvailableFigure(indexOfFigure + 1);
-            setActiveFigure('');
-          }
+            setGameData({ players });
 
-          setGameData({ players });
+            // Return updated hand if action is 'new_deal'
+            if (json.action === 'new_deal') {
+              setFirstAvailableFigure(0);
+              setActiveFigure('');
+              return json.your_hand;
+            } else if (json.last_bet) {
+              const indexOfFigure = cardList.findIndex((figure) => figure.name === json.last_bet);
+              setFirstAvailableFigure(indexOfFigure + 1);
+              setActiveFigure('');
+            }
+
+            return currentHand;
+          });
         } catch (err) {
           console.error('Error handling game_update:', err);
         }
@@ -192,7 +201,11 @@ function useSocketEvents(
       },
     };
 
+    // Remove any existing listeners first to prevent duplicates
+    socket.removeAllListeners();
+
     // Register all event handlers
+    console.log('Registering socket event handlers');
     Object.entries(handlers).forEach(([event, handler]) => {
       socket.on(event, handler);
     });
@@ -201,7 +214,7 @@ function useSocketEvents(
     return () => {
       socket.removeAllListeners();
     };
-  }, [socket, yourHand]);
+  }, [socket]);
 }
 
 function Game(): JSX.Element {
@@ -262,8 +275,20 @@ function Game(): JSX.Element {
 
   const [ queueSid, setQueueSid ] = useState('');
 
+  // Use refs to always get the latest values
+  const queueSidRef = useRef(queueSid);
+  const sidRef = useRef(sid);
+
+  useEffect(() => {
+    queueSidRef.current = queueSid;
+  }, [queueSid]);
+
+  useEffect(() => {
+    sidRef.current = sid;
+  }, [sid]);
+
   const getEffectiveSid = () => {
-    return Platform.OS === 'web' ? queueSid : (sid || queueSid);
+    return Platform.OS === 'web' ? queueSidRef.current : (sidRef.current || queueSidRef.current);
   };
 
   const scrollToBottom = () => {
@@ -290,7 +315,6 @@ function Game(): JSX.Element {
     setYourHand,
     setFirstAvailableFigure,
     setActiveFigure,
-    yourHand,
     scrollToBottom
   );
 
@@ -498,7 +522,7 @@ function Game(): JSX.Element {
               styles.buttonText,
               isDarkMode ? styles.darkThemeText : styles.lightThemeText,
               (!isMyTurn || !activeFigure) && styles.disabledButtonText
-            ]}>Bet</Text>
+            ]}>{isMyTurn ? "Bet" : "Wait for your turn"}</Text>
           </TouchableOpacity>
         </View>
       </View>
