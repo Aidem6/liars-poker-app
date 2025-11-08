@@ -6,13 +6,11 @@ import {
   Text,
   useColorScheme,
   View,
-  InteractionManager,
   ScrollView,
   TouchableOpacity,
   TextInput,
   Platform,
   KeyboardAvoidingView,
-  Modal,
   Pressable,
 } from 'react-native';
 import Board from '../components/game/Board';
@@ -446,32 +444,27 @@ function Game(): JSX.Element {
       />
       <View style={styles.container}>
         <View style={{ flex: 1 }}>
-          <Board gameData={gameData} yourHand={yourHand} />
-        </View>
-        <View style={[styles.logsContainer, {flexDirection: 'row', alignItems: 'center'}]}>
-          <ScrollView 
-            ref={scrollViewRef}
-            contentContainerStyle={styles.logsContent}
-            style={{height: 60}}
-          >
-            <Text style={[styles.logsText, { color: isDarkMode ? '#fff' : '#000' }]}>
-              {logs}
-            </Text>
-          </ScrollView>
-          <Pressable onPress={() => setIsLogsFullscreen(true)} style={{margin: 8}}>
-            <Icon name="keyboard-arrow-up" size={24} color={isDarkMode ? 'white' : 'black'} />
-          </Pressable>
-        </View>
-
-        <Modal
-          visible={isLogsFullscreen}
-          animationType="fade"
-          transparent={true}
-          onRequestClose={() => setIsLogsFullscreen(false)}
-        >
-          <View style={[styles.modalOverlay, { backgroundColor: isDarkMode ? 'rgba(0,0,0,0.98)' : 'rgba(255,255,255,0.98)' }]}>
-            <SafeAreaView style={styles.modalContainer}>
+          {!isLogsFullscreen ?
+            <>
+              <Board gameData={gameData} yourHand={yourHand} />
+              <View style={[styles.logsContainer, {flexDirection: 'row', alignItems: 'center'}]}>
+                <ScrollView 
+                  ref={scrollViewRef}
+                  contentContainerStyle={styles.logsContent}
+                  style={{height: 60}}
+                >
+                  <Text style={[styles.logsText, { color: isDarkMode ? '#fff' : '#000' }]}>
+                    {logs}
+                  </Text>
+                </ScrollView>
+                <Pressable onPress={() => setIsLogsFullscreen(true)} style={{margin: 8}}>
+                  <Icon name="keyboard-arrow-up" size={24} color={isDarkMode ? 'white' : 'black'} />
+                </Pressable>
+              </View>
+            </>
+            : <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
+                <Text style={[styles.closeButton, styles.closeButtonText, { color: isDarkMode ? '#fff' : '#000' }]}>Logs</Text>
                 <TouchableOpacity 
                   onPress={() => setIsLogsFullscreen(false)}
                   style={styles.closeButton}
@@ -488,9 +481,9 @@ function Game(): JSX.Element {
                   {logs}
                 </Text>
               </ScrollView>
-            </SafeAreaView>
-          </View>
-        </Modal>
+            </View>
+          }
+        </View>
 
         <View style={{ minHeight: 120 }}>
           <CardList chooseFigure={chooseFigure} firstAvailableFigure={firstAvailableFigure} activeFigure={activeFigure} />
@@ -608,7 +601,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(150,150,150,0.2)',
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
   },
   closeButton: {
     padding: 8,
