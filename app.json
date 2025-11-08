@@ -54,8 +54,8 @@
         "projectId": "d8dcde85-8220-4590-bcbd-f9346a113408"
       }
     },
-    "assets": [
-      "./assets/images/"
+    "assetBundlePatterns": [
+      "assets/images/**/*"
     ]
   }
 }
