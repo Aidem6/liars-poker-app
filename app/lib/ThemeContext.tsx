@@ -46,4 +46,7 @@ export function useTheme() {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;
-} 
+}
+
+// Add default export for expo-router compatibility
+export default ThemeProvider; 

@@ -210,4 +210,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
   },
-}); 
+});
+
+export default StatisticsSection; 

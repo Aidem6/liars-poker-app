@@ -39,7 +39,7 @@ export function RoomCard({ item, isDarkMode, onPress }: RoomCardProps) {
           ]}
         >
           {item.name}
-          </Text>
+        </Text>
         </View>
       </Link>
     </View>
@@ -57,13 +57,7 @@ const styles = StyleSheet.create({
       borderRadius: 16,
       padding: 20,
       justifyContent: 'center',
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-      shadowOpacity: 0.25,
-      shadowRadius: 3.84,
+      boxShadow: '0px 2px 3.84px rgba(0, 0, 0, 0.25)',
       elevation: 5,
     },
   roomCardContent: {

@@ -117,4 +117,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#3498db',
     borderRadius: 2,
   },
-}); 
+});
+
+export default ItemsSection; 

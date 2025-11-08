@@ -31,4 +31,7 @@ export async function clearAuthData() {
   } catch (error) {
     console.error('Error clearing auth data:', error);
   }
-} 
+}
+
+// Add default export for expo-router compatibility
+export default pb; 

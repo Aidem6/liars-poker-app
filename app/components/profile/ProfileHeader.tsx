@@ -35,4 +35,6 @@ const styles = StyleSheet.create({
   settingsButton: {
     padding: 8,
   },
-}); 
+});
+
+export default ProfileHeader; 

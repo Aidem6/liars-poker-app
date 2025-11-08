@@ -19,10 +19,9 @@ function Card({ index, value, color, reversed, isActive }) {
       borderColor: isDarkMode ? '#49DDDD' : '#222831',
       borderWidth: isActive ? 2 : 0.5,
       elevation: isActive ? 5 : 0,
-      shadowColor: isDarkMode ? '#49DDDD' : '#222831',
-      shadowOffset: isActive ? { width: 0, height: 2 } : { width: 0, height: 0 },
-      shadowOpacity: isActive ? 0.25 : 0,
-      shadowRadius: isActive ? 3.84 : 0,
+      boxShadow: isActive
+        ? `0px 2px 3.84px ${isDarkMode ? 'rgba(73, 221, 221, 0.25)' : 'rgba(34, 40, 49, 0.25)'}`
+        : 'none',
       }]}>
       <View style={[styles.cardTextContainer]}>
         <Text style={[styles.cardText, {
