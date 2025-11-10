@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View, Dimensions } from 'react-native';
+import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,48 +24,50 @@ export function RoomCard({ item, isDarkMode, onPress }: RoomCardProps) {
         onPress={onPress}
         asChild
       >
-        <LinearGradient
-          colors={isDarkMode
-            ? ['#49DDDD', '#3BC9C9']
-            : ['#2D3748', '#1A202C']
-          }
-          style={styles.roomCard2}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.iconContainer}>
-            <Ionicons
-              name={item.icon}
-              size={40}
-              color={isDarkMode ? '#010710' : '#49DDDD'}
-            />
-          </View>
-          <View style={styles.textContainer}>
-            <Text
-              style={[
-                styles.roomCardText,
-                isDarkMode ? styles.darkThemeText : styles.lightThemeText,
-              ]}
-            >
-              {item.name}
-            </Text>
-            <Text
-              style={[
-                styles.roomSubtext,
-                isDarkMode ? styles.darkThemeSubtext : styles.lightThemeSubtext,
-              ]}
-            >
-              Tap to join
-            </Text>
-          </View>
-          <View style={styles.arrowContainer}>
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color={isDarkMode ? 'rgba(1, 7, 16, 0.5)' : 'rgba(73, 221, 221, 0.5)'}
-            />
-          </View>
-        </LinearGradient>
+        <Pressable>
+          <LinearGradient
+            colors={isDarkMode
+              ? ['#49DDDD', '#3BC9C9']
+              : ['#2D3748', '#1A202C']
+            }
+            style={styles.roomCard2}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.iconContainer}>
+              <Ionicons
+                name={item.icon}
+                size={40}
+                color={isDarkMode ? '#010710' : '#49DDDD'}
+              />
+            </View>
+            <View style={styles.textContainer}>
+              <Text
+                style={[
+                  styles.roomCardText,
+                  isDarkMode ? styles.darkThemeText : styles.lightThemeText,
+                ]}
+              >
+                {item.name}
+              </Text>
+              <Text
+                style={[
+                  styles.roomSubtext,
+                  isDarkMode ? styles.darkThemeSubtext : styles.lightThemeSubtext,
+                ]}
+              >
+                Tap to join
+              </Text>
+            </View>
+            <View style={styles.arrowContainer}>
+              <Ionicons
+                name="chevron-forward"
+                size={24}
+                color={isDarkMode ? 'rgba(1, 7, 16, 0.5)' : 'rgba(73, 221, 221, 0.5)'}
+              />
+            </View>
+          </LinearGradient>
+        </Pressable>
       </Link>
     </View>
   );
