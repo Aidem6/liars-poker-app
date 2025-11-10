@@ -6,7 +6,7 @@ import {
   View,
 } from 'react-native';
 
-function NameBox({ isYourTurn, name, handCount, reversed }) {
+function NameBox({ isYourTurn, name, handCount, reversed, isActive = true }) {
   const isDarkMode = useColorScheme() === 'dark';
 
   return (

@@ -31,12 +31,14 @@ interface Player {
   hand_count: number;
   last_bet: string;
   hand?: string[];
+  is_active: boolean;
 }
 interface BackendPlayer {
   sid: string;
   username: string;
   hand_count: number;
   last_bet: string;
+  is_active: boolean;
 }
 
 interface GameData {
@@ -121,6 +123,7 @@ function useSocketEvents(
             last_bet: '',
             isYourTurn: index === 0,
             isMe: playerId === getEffectiveSid(),
+            is_active: true,
           }));
 
           setGameData({ players });
@@ -166,6 +169,7 @@ function useSocketEvents(
               isYourTurn: index === json.player_turn_index,
               hand: player.sid === effectiveSid ? currentHand : undefined,
               isMe: player.sid === effectiveSid,
+              is_active: player.is_active,
             }));
 
             setGameData({ players });
@@ -234,24 +238,28 @@ function Game(): JSX.Element {
       isYourTurn: true,
       hand_count: 2,
       last_bet: '',
+      is_active: true,
     },{
       id: 'playerId2',
       name: 'Player 2',
       isYourTurn: false,
       hand_count: 2,
       last_bet: '',
+      is_active: true,
     },{
       id: 'playerId3',
       name: 'Player 3',
       isYourTurn: false,
       hand_count: 2,
       last_bet: '',
+      is_active: false,
     },{
       id: 'playerId4',
       name: 'Player 4',
       isYourTurn: false,
       hand_count: 2,
       last_bet: '',
+      is_active: true,
     }]
     // {"current_player":"9hpLNm2XPZ4qzi-kAAAD","last_bet":"three_9","player_turn_index":1,
     //   "players":[{"sid":"9hpLNm2XPZ4qzi-kAAAD","hand_count":1,"last_bet":"three_9"},{"sid":"DjxAVqoB6WSs9u__AAAF","hand_count":1,"last_bet":null}],

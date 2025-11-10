@@ -22,6 +22,7 @@ const ANIMATION_CONFIG = {
 };
 
 function Player({ player, reversed, yourHand }) {
+  const isActive = player.is_active !== false; // Default to true if undefined
   // Animation refs
   const animations = useMemo(() => ({
     slide: new Animated.Value(ANIMATION_CONFIG.SLIDE_INITIAL),
@@ -212,7 +213,13 @@ function Player({ player, reversed, yourHand }) {
   }, [displayedBet]);
 
   return (
-    <View style={[styles.container, { transform: [{ rotate: reversed ? '180deg' : '0deg' }] }]}>
+    <View style={[
+      styles.container,
+      {
+        transform: [{ rotate: reversed ? '180deg' : '0deg' }],
+        opacity: isActive ? 1 : 0.4
+      }
+    ]}>
       {displayedBet && (
         <Animated.View style={[
           styles.cardDeck,
@@ -232,7 +239,7 @@ function Player({ player, reversed, yourHand }) {
           {renderCards({ cards: currentBetCards })}
         </Animated.View>
       )}
-      
+
       <Animated.View style={[
         styles.cardDeckBottom,
         reversed ? styles.cardDeckBottomReversed : null,
@@ -244,17 +251,18 @@ function Player({ player, reversed, yourHand }) {
           ]
         }
       ]}>
-        {player.isMe ? 
+        {player.isMe ?
           renderCards({ cards: yourHand }) :
           renderCards({ cards: Array(player.hand_count).fill(0), isBlank: true })
         }
       </Animated.View>
-      
-      <NameBox 
-        isYourTurn={player.isYourTurn} 
-        name={player.name} 
-        handCount={player.hand_count} 
+
+      <NameBox
+        isYourTurn={player.isYourTurn}
+        name={player.name}
+        handCount={player.hand_count}
         reversed={reversed}
+        isActive={isActive}
       />
     </View>
   );
