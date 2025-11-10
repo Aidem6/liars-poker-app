@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View, Dimensions } from 'react-native';
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export interface Room {
   id: string;
@@ -20,65 +21,116 @@ export function RoomCard({ item, isDarkMode, onPress }: RoomCardProps) {
     <View style={styles.roomCard}>
       <Link
         href={`/game?roomId=${item.id}`}
-        style={[
-        styles.roomCard2,
-        isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
-      ]}
-      onPress={onPress}
-    >
-      <View style={styles.roomCardContent}>
-        <Ionicons
-          name={item.icon}
-          size={32}
-          color={isDarkMode ? '#010710' : '#fff'}
-        />
-        <Text
-          style={[
-            styles.roomCardText,
-            isDarkMode ? styles.darkThemeText : styles.lightThemeText,
-          ]}
+        onPress={onPress}
+        asChild
+      >
+        <LinearGradient
+          colors={isDarkMode
+            ? ['#49DDDD', '#3BC9C9']
+            : ['#2D3748', '#1A202C']
+          }
+          style={styles.roomCard2}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
         >
-          {item.name}
-        </Text>
-        </View>
+          <View style={styles.iconContainer}>
+            <Ionicons
+              name={item.icon}
+              size={40}
+              color={isDarkMode ? '#010710' : '#49DDDD'}
+            />
+          </View>
+          <View style={styles.textContainer}>
+            <Text
+              style={[
+                styles.roomCardText,
+                isDarkMode ? styles.darkThemeText : styles.lightThemeText,
+              ]}
+            >
+              {item.name}
+            </Text>
+            <Text
+              style={[
+                styles.roomSubtext,
+                isDarkMode ? styles.darkThemeSubtext : styles.lightThemeSubtext,
+              ]}
+            >
+              Tap to join
+            </Text>
+          </View>
+          <View style={styles.arrowContainer}>
+            <Ionicons
+              name="chevron-forward"
+              size={24}
+              color={isDarkMode ? 'rgba(1, 7, 16, 0.5)' : 'rgba(73, 221, 221, 0.5)'}
+            />
+          </View>
+        </LinearGradient>
       </Link>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-    roomCard: {
-        width: Dimensions.get('window').width - 80,
-        height: 120,
-        borderRadius: 16,
-        padding: 20,
+  roomCard: {
+    width: '100%',
+    height: 140,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
     },
-    roomCard2: {
-      borderRadius: 16,
-      padding: 20,
-      justifyContent: 'center',
-      boxShadow: '0px 2px 3.84px rgba(0, 0, 0, 0.25)',
-      elevation: 5,
-    },
-  roomCardContent: {
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  roomCard2: {
+    borderRadius: 20,
+    paddingVertical: 24,
+    paddingHorizontal: 24,
     flexDirection: 'row',
     alignItems: 'center',
+    height: '100%',
     gap: 16,
   },
+  iconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  textContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
   roomCardText: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 4,
   },
-  darkThemeButtonBackground: {
-    backgroundColor: '#49DDDD',
+  roomSubtext: {
+    fontSize: 14,
+    fontWeight: '400',
+    opacity: 0.7,
   },
-  lightThemeButtonBackground: {
-    backgroundColor: '#222831',
+  arrowContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 30,
   },
   darkThemeText: {
     color: '#010710',
   },
   lightThemeText: {
-    color: '#fff',
+    color: '#FFFFFF',
+  },
+  darkThemeSubtext: {
+    color: '#010710',
+  },
+  lightThemeSubtext: {
+    color: '#FFFFFF',
   },
 }); 

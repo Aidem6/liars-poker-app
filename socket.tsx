@@ -8,8 +8,8 @@ import type { DefaultEventsMap } from '@socket.io/component-emitter';
 // import {ANDROID, IOS} from '../constants/constants';
 // import {isIOS} from '../helper';
 
-const SOCKET_DEV = 'https://liars-poker-dbhw.onrender.com/';
-// const SOCKET_DEV = 'http://localhost:5001';
+// const SOCKET_DEV = 'https://liars-poker-dbhw.onrender.com/';
+const SOCKET_DEV = 'http://localhost:4000';
 
 export const SocketContext = React.createContext<{
   socket: Socket<DefaultEventsMap, DefaultEventsMap> | null;

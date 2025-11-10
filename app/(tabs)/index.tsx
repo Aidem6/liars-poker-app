@@ -1,4 +1,4 @@
-import React, { useRef, ComponentType } from 'react';
+import React from 'react';
 import {
   SafeAreaView,
   StatusBar,
@@ -8,12 +8,10 @@ import {
   View,
   Platform,
   FlatList,
-  Dimensions,
-  Animated,
-  FlatListProps,
   ListRenderItem,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/Colors';
 import { RoomCard, Room } from '@/components/RoomCard';
 
@@ -24,16 +22,11 @@ const rooms: Room[] = [
   { id: '4', name: 'Tournament', icon: 'medal' },
 ];
 
-const AnimatedFlatList = Animated.createAnimatedComponent(
-  FlatList as ComponentType<FlatListProps<Room>>
-);
-
 function Home() {
   const isDarkMode = useColorScheme() === 'dark';
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background,
   };
-  const scrollX = useRef(new Animated.Value(0)).current;
 
   const handlePress = () => {
     if (Platform.OS !== 'web') {
@@ -41,30 +34,11 @@ function Home() {
     }
   };
 
-  const renderRoomCard: ListRenderItem<Room> = ({ item, index }) => {
-    const inputRange = [
-      (index - 1) * (Dimensions.get('window').width - 80),
-      index * (Dimensions.get('window').width - 80),
-      (index + 1) * (Dimensions.get('window').width - 80),
-    ];
-    
-    const scale = scrollX.interpolate({
-      inputRange,
-      outputRange: [0.9, 1.1, 0.9],
-      extrapolate: 'clamp',
-    });
-
+  const renderRoomCard: ListRenderItem<Room> = ({ item }) => {
     return (
-      <Animated.View 
-        style={[
-          styles.cardContainer,
-          { 
-            transform: [{ scale }],
-          }
-        ]}
-      >
+      <View style={styles.cardContainer}>
         <RoomCard item={item} isDarkMode={isDarkMode} onPress={handlePress} />
-      </Animated.View>
+      </View>
     );
   };
 
@@ -74,27 +48,30 @@ function Home() {
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={backgroundStyle.backgroundColor}
       />
-      <View style={styles.header}>
-        <Text style={[styles.headerText, isDarkMode ? styles.lightThemeText : styles.darkThemeText]}>
-          Available Rooms
-        </Text>
-      </View>
-      <AnimatedFlatList
+      <LinearGradient
+        colors={isDarkMode
+          ? ['rgba(73, 221, 221, 0.15)', 'rgba(0, 0, 0, 0)']
+          : ['rgba(10, 126, 164, 0.1)', 'rgba(255, 255, 255, 0)']
+        }
+        style={styles.headerGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      >
+        <View style={styles.header}>
+          <Text style={[styles.headerText, isDarkMode ? styles.lightThemeText : styles.darkThemeText]}>
+            Liar's Poker
+          </Text>
+          <Text style={[styles.subtitle, isDarkMode ? styles.subtitleLight : styles.subtitleDark]}>
+            Choose a room to start playing
+          </Text>
+        </View>
+      </LinearGradient>
+      <FlatList
         data={rooms}
         renderItem={renderRoomCard}
         keyExtractor={(item: Room) => item.id}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        snapToAlignment="center"
-        snapToInterval={Dimensions.get('window').width - 80}
-        decelerationRate="fast"
         contentContainerStyle={styles.roomList}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-          { useNativeDriver: true }
-        )}
-        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
       />
     </SafeAreaView>
   );
@@ -104,14 +81,37 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  headerGradient: {
+    paddingTop: 10,
+    paddingBottom: 20,
+  },
   header: {
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   headerText: {
-    fontSize: 24,
+    fontSize: 36,
     fontWeight: 'bold',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontSize: 16,
+    opacity: 0.8,
+    fontWeight: '400',
+  },
+  subtitleLight: {
+    color: '#E0E0E0',
+  },
+  subtitleDark: {
+    color: '#4A5568',
   },
   roomList: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+    gap: 16,
   },
   lightThemeText: {
     color: '#fff',
@@ -120,9 +120,7 @@ const styles = StyleSheet.create({
     color: '#010710',
   },
   cardContainer: {
-    height: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: 16,
   },
 });
 

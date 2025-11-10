@@ -97,6 +97,12 @@ function useSocketEvents(
   scrollToBottom: () => void
 ) {
   useEffect(() => {
+    // Early return if socket is null (server not available)
+    if (!socket) {
+      console.log('Socket not available, skipping event registration');
+      return;
+    }
+
     const handlers: SocketEvents = {
       queue_update: (data) => {
         setQueue(data.queue);
@@ -322,9 +328,11 @@ function Game(): JSX.Element {
         title: roomName,
         headerBackTitle: '',
         headerLeft: () => (
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => {
-              socket.emit('leave_game');
+              if (socket) {
+                socket.emit('leave_game');
+              }
               Platform.OS === 'web' ? router.push('/') : router.back();
               console.log('leave_game');
             }}
@@ -338,13 +346,13 @@ function Game(): JSX.Element {
 
   useEffect(() => {
     // Pre-fill username if user is logged in
-    if (pb.authStore.isValid && pb.authStore.model?.username) {
+    if (pb.authStore.isValid && pb.authStore.model?.username && socket) {
       const username = pb.authStore.model.username;
       setUsername(username);
       setIsUsernameSubmited(true);
       socket.emit('play', { 'username': username });
     }
-  }, []);
+  }, [socket]);
 
   const chooseFigure = (newFigure: any, figureName: string): void => {
     if (Platform.OS !== 'web') {
@@ -357,29 +365,37 @@ function Game(): JSX.Element {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    socket.emit('bet', { 'bet': activeFigure });
+    if (socket) {
+      socket.emit('bet', { 'bet': activeFigure });
+    }
   };
 
   const handleCheck = () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    socket.emit('bet', {'bet': 'check'});
+    if (socket) {
+      socket.emit('bet', {'bet': 'check'});
+    }
   };
 
   const handlePlay = () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    socket.emit('play', { 'username': username });
-    setIsUsernameSubmited(true);
+    if (socket) {
+      socket.emit('play', { 'username': username });
+      setIsUsernameSubmited(true);
+    }
   };
 
   const handleStartGame = () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    socket.emit('start_game');
+    if (socket) {
+      socket.emit('start_game');
+    }
   };
 
   if (!isUsernameSubmited) {
