@@ -8,8 +8,14 @@ import type { DefaultEventsMap } from '@socket.io/component-emitter';
 // import {ANDROID, IOS} from '../constants/constants';
 // import {isIOS} from '../helper';
 
-const SOCKET_DEV = 'https://liars-poker-dbhw.onrender.com/';
-// const SOCKET_DEV = 'http://localhost:4000';
+// Production server
+const SOCKET_PROD = 'https://liarspoker-server.adamtomczyk.com';
+// Development server
+const SOCKET_DEV = 'http://localhost:4000';
+
+// Use production by default, can switch for local dev
+const SOCKET_URL = SOCKET_PROD;
+// const SOCKET_URL = SOCKET_DEV;  // Uncomment for local development
 
 export const SocketContext = React.createContext<{
   socket: Socket<DefaultEventsMap, DefaultEventsMap> | null;
@@ -40,15 +46,14 @@ const connectionConfig = {
  * @returns
  */
 export const SocketProvider = ({children}: {children: ReactNode}) => {
-  const env = SOCKET_DEV;
   const socket = useRef<Socket<DefaultEventsMap, DefaultEventsMap> | null>(null);
   const [ sid, setSid ] = useState('');
 
   useEffect(() => {
     // Initialize socket only once inside useEffect to avoid double-mounting issues
     if (!socket.current) {
-      console.log('SocketIO: Initializing connection');
-      socket.current = socketIOClient(env, connectionConfig);
+      console.log('SocketIO: Initializing connection to', SOCKET_URL);
+      socket.current = socketIOClient(SOCKET_URL, connectionConfig);
     }
 
     const currentSocket = socket.current;
@@ -82,7 +87,7 @@ export const SocketProvider = ({children}: {children: ReactNode}) => {
       currentSocket.off('reconnect');
       currentSocket.off('reconnect_attempt');
     };
-  }, [env]);
+  }, []);
 
   return (
     <SocketContext.Provider value={{socket: socket.current, sid: sid}} >
