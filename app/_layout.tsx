@@ -11,6 +11,7 @@ import { Platform, Pressable } from 'react-native';
 import { loadAuthData, pb } from './lib/pocketbase';
 import { ThemeProvider as CustomThemeProvider, useTheme } from './lib/ThemeContext';
 import { FeedbackButton } from './components/feedback/FeedbackButton';
+import { ThemeMetaTag } from '@/components/ThemeMetaTag';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -22,6 +23,7 @@ function RootNavigator() {
   return (
     <SocketProvider>
       <ThemeProvider value={isLightMode ? DefaultTheme : DarkTheme}>
+        <ThemeMetaTag />
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="game" options={{
