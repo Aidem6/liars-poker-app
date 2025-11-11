@@ -63,12 +63,24 @@ export const SocketProvider = ({children}: {children: ReactNode}) => {
       // Don't create a new socket here - let reconnection config handle it
     });
 
+    currentSocket.on('reconnect', (attemptNumber) => {
+      console.log('SocketIO: Reconnected after', attemptNumber, 'attempts');
+    });
+
+    currentSocket.on('reconnect_attempt', (attemptNumber) => {
+      console.log('SocketIO: Reconnection attempt', attemptNumber);
+    });
+
+    // Note: Cleanup function intentionally left minimal
+    // Socket should persist across navigation and screen changes
+    // Only disconnect when the entire app unmounts
     return () => {
-      if (currentSocket) {
-        currentSocket.removeAllListeners();
-        currentSocket.close();
-        currentSocket.disconnect();
-      }
+      console.log('SocketIO: Provider cleanup called - this should rarely happen');
+      // Only remove the global event listeners, not component-specific ones
+      currentSocket.off('connected');
+      currentSocket.off('disconnect');
+      currentSocket.off('reconnect');
+      currentSocket.off('reconnect_attempt');
     };
   }, [env]);
 

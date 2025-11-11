@@ -17,11 +17,12 @@ import Board from '../components/game/Board';
 import CardList from '../components/game/CardList';
 import { SocketContext } from '../socket';
 import { cardList } from '../utils/dataUtils';
-import { router, useNavigation } from 'expo-router';
+import { router, useNavigation, useLocalSearchParams } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import * as Haptics from 'expo-haptics';
 import { Icon } from 'react-native-elements';
 import { pb } from './lib/pocketbase';
+import { UsernameStorage } from '@/utils/usernameStorage';
 
 interface Player {
   id: string;
@@ -73,6 +74,15 @@ interface SocketContextType {
   sid: string;
 }
 
+interface RoomData {
+  id: string;
+  name: string;
+  creator: string;
+  playerCount: number;
+  maxPlayers: number;
+  status: string;
+}
+
 interface SocketEvents {
   queue_update: (data: { queue: string[][] }) => void;
   you_joined_queue: (data: { your_sid: string }) => void;
@@ -80,6 +90,15 @@ interface SocketEvents {
   game_update: (data: GameUpdateData) => void;
   game_end: (data: GameEndData) => void;
   message: (data: MessageData) => void;
+  room_created: (data: { roomId: string; roomName: string }) => void;
+  room_deleted: (data: { roomId: string }) => void;
+  joined_room: (data: { roomId: string; roomName: string; players: string[][]; isCreator?: boolean; creatorSid?: string }) => void;
+  room_update: (data: { players: string[][]; roomName: string; creatorSid?: string }) => void;
+  rooms_update: (data: { rooms: RoomData[] }) => void;
+  rooms_list: (data: { rooms: RoomData[] }) => void;
+  removed_from_room: (data: { roomId: string; reason: string }) => void;
+  player_removed: (data: { playerId: string; playerName: string }) => void;
+  error: (data: { message: string }) => void;
 }
 
 function useSocketEvents(
@@ -96,7 +115,9 @@ function useSocketEvents(
   setYourHand: React.Dispatch<React.SetStateAction<any[]>>,
   setFirstAvailableFigure: React.Dispatch<React.SetStateAction<number>>,
   setActiveFigure: React.Dispatch<React.SetStateAction<string>>,
-  scrollToBottom: () => void
+  scrollToBottom: () => void,
+  setCurrentRoomId: React.Dispatch<React.SetStateAction<string>>,
+  setIsCreator: React.Dispatch<React.SetStateAction<boolean>>
 ) {
   useEffect(() => {
     // Early return if socket is null (server not available)
@@ -111,20 +132,32 @@ function useSocketEvents(
       },
 
       you_joined_queue: (data) => {
+        console.log('you_joined_queue event received! Setting queueSid to:', data.your_sid);
         setQueueSid(data.your_sid);
       },
 
       game_start: (data) => {
         try {
-          const players = data.sids.map((playerId: string, index: number) => ({
-            id: playerId,
-            name: data.usernames[index],
-            hand_count: 0,
-            last_bet: '',
-            isYourTurn: index === 0,
-            isMe: playerId === getEffectiveSid(),
-            is_active: true,
-          }));
+          const mySid = getEffectiveSid();
+          console.log('Game starting! My sid:', mySid);
+          console.log('Player sids from backend:', data.sids);
+
+          const players = data.sids.map((playerId: string, index: number) => {
+            const isMe = playerId === mySid;
+            console.log(`Player ${index}: sid=${playerId}, isMe=${isMe}, isYourTurn=${index === 0}`);
+            return {
+              id: playerId,
+              name: data.usernames[index],
+              hand_count: 0,
+              last_bet: '',
+              isYourTurn: index === 0,
+              isMe: isMe,
+              is_active: true,
+            };
+          });
+
+          console.log('Setting isMyTurn based on first player turn:', players[0]?.isMe);
+          setIsMyTurn(players[0]?.isMe || false);
 
           setGameData({ players });
           setRoomName(data.room_name);
@@ -153,10 +186,15 @@ function useSocketEvents(
 
           const json = data.json;
           const effectiveSid = getEffectiveSid();
+          const currentTurnSid = json.players[json.player_turn_index]?.sid;
+
+          console.log('game_update: my sid =', effectiveSid, ', current turn sid =', currentTurnSid);
 
           // Only update turn status if we have a valid effectiveSid
           if (effectiveSid) {
-            setIsMyTurn(json.players[json.player_turn_index].sid === effectiveSid);
+            const isMyTurnNow = currentTurnSid === effectiveSid;
+            console.log('Setting isMyTurn to:', isMyTurnNow);
+            setIsMyTurn(isMyTurnNow);
           }
           setLastBetExists(!!json.last_bet);
 
@@ -207,20 +245,115 @@ function useSocketEvents(
           return newLogs;
         });
       },
-    };
 
-    // Remove any existing listeners first to prevent duplicates
-    socket.removeAllListeners();
+      room_created: (data) => {
+        console.log('Room created (I am creator):', data);
+        setCurrentRoomId(data.roomId);
+        setRoomName(data.roomName);
+        console.log('Setting isCreator to: true (from room_created)');
+        setIsCreator(true);
+      },
+
+      room_deleted: (data) => {
+        console.log('Room deleted:', data);
+        setLogs(oldLogs => {
+          const newLogs = oldLogs + '\nRoom has been deleted.';
+          scrollToBottom();
+          return newLogs;
+        });
+        // Navigate back to lobby
+        setTimeout(() => {
+          Platform.OS === 'web' ? router.push('/') : router.back();
+        }, 1000);
+      },
+
+      joined_room: (data) => {
+        console.log('Joined room:', data);
+        console.log('Creator status - isCreator:', data.isCreator, 'creatorSid:', data.creatorSid, 'mySid:', getEffectiveSid());
+        setCurrentRoomId(data.roomId);
+        setRoomName(data.roomName);
+        setQueue(data.players);
+
+        // Check if this player is the creator
+        if (data.isCreator !== undefined) {
+          console.log('Setting isCreator to:', data.isCreator);
+          setIsCreator(data.isCreator);
+        } else if (data.creatorSid) {
+          // Fallback: check if our SID matches the creator SID
+          const amICreator = data.creatorSid === getEffectiveSid();
+          console.log('Setting isCreator to (from fallback):', amICreator);
+          setIsCreator(amICreator);
+        }
+      },
+
+      room_update: (data) => {
+        console.log('Room update:', data);
+        setQueue(data.players);
+        if (data.roomName) {
+          setRoomName(data.roomName);
+        }
+
+        // Don't update isCreator here - it's already set correctly from room_created or joined_room
+        // Updating it here can cause issues because getEffectiveSid() might not match the backend sid
+      },
+
+      rooms_update: (data) => {
+        console.log('Rooms list updated:', data);
+        // This will be handled by the home screen
+      },
+
+      rooms_list: (data) => {
+        console.log('Rooms list received:', data);
+        // This will be handled by the home screen
+      },
+
+      removed_from_room: (data) => {
+        console.log('REMOVED_FROM_ROOM event received!', data);
+        console.log('Redirecting to lobby in 2 seconds...');
+        setLogs(oldLogs => {
+          const newLogs = oldLogs + `\n${data.reason || 'Room was closed.'}`;
+          scrollToBottom();
+          return newLogs;
+        });
+        // Navigate back to lobby
+        setTimeout(() => {
+          console.log('Navigating to lobby now!');
+          Platform.OS === 'web' ? router.push('/') : router.back();
+        }, 2000);
+      },
+
+      player_removed: (data) => {
+        console.log('Player removed:', data);
+        setLogs(oldLogs => {
+          const newLogs = oldLogs + `\n${data.playerName} has been removed from the room.`;
+          scrollToBottom();
+          return newLogs;
+        });
+      },
+
+      error: (data) => {
+        console.error('Socket error:', data.message);
+        setLogs(oldLogs => {
+          const newLogs = oldLogs + `\nError: ${data.message}`;
+          scrollToBottom();
+          return newLogs;
+        });
+      },
+    };
 
     // Register all event handlers
     console.log('Registering socket event handlers');
-    Object.entries(handlers).forEach(([event, handler]) => {
-      socket.on(event, handler);
+    const events = Object.keys(handlers);
+
+    events.forEach((event) => {
+      socket.on(event, handlers[event as keyof SocketEvents]);
     });
 
-    // Cleanup function
+    // Cleanup function - remove only the events we registered
     return () => {
-      socket.removeAllListeners();
+      events.forEach((event) => {
+        socket.off(event);
+      });
     };
   }, [socket]);
 }
@@ -230,6 +363,8 @@ function Game(): JSX.Element {
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background,
   };
+
+  const { roomId } = useLocalSearchParams<{ roomId?: string }>();
 
   const initialGameData: GameData = {
     players: [{
@@ -281,6 +416,8 @@ function Game(): JSX.Element {
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [lastBetExists, setLastBetExists] = useState<boolean>(false);
   const [isLogsFullscreen, setIsLogsFullscreen] = useState(false);
+  const [currentRoomId, setCurrentRoomId] = useState<string>('');
+  const [isCreator, setIsCreator] = useState<boolean>(false);
 
   const { socket, sid } = useContext(SocketContext) as SocketContextType;
   const navigation = useNavigation();
@@ -327,8 +464,15 @@ function Game(): JSX.Element {
     setYourHand,
     setFirstAvailableFigure,
     setActiveFigure,
-    scrollToBottom
+    scrollToBottom,
+    setCurrentRoomId,
+    setIsCreator
   );
+
+  // Debug: Track isCreator changes
+  useEffect(() => {
+    console.log('isCreator state changed to:', isCreator);
+  }, [isCreator]);
 
   useEffect(() => {
     if (roomName && typeof window !== 'undefined') {
@@ -353,14 +497,38 @@ function Game(): JSX.Element {
   }, [roomName, navigation, socket, isDarkMode]);
 
   useEffect(() => {
-    // Pre-fill username if user is logged in
-    if (pb.authStore.isValid && pb.authStore.model?.username && socket) {
-      const username = pb.authStore.model.username;
-      setUsername(username);
-      setIsUsernameSubmited(true);
-      socket.emit('play', { 'username': username });
-    }
-  }, [socket]);
+    const loadAndJoin = async () => {
+      if (!socket) return;
+
+      let loadedUsername = '';
+
+      // Check if user is logged in
+      if (pb.authStore.isValid && pb.authStore.model?.username) {
+        loadedUsername = pb.authStore.model.username;
+      } else {
+        // Load stored username
+        const storedUsername = await UsernameStorage.getUsername();
+        if (storedUsername) {
+          loadedUsername = storedUsername;
+        }
+      }
+
+      // If we have a username, auto-submit and join
+      if (loadedUsername) {
+        setUsername(loadedUsername);
+        setIsUsernameSubmited(true);
+
+        // Check if we have a roomId from route params
+        if (roomId) {
+          socket.emit('join_manual_room', { roomId, username: loadedUsername });
+        } else {
+          socket.emit('play', { 'username': loadedUsername });
+        }
+      }
+    };
+
+    loadAndJoin();
+  }, [socket, roomId]);
 
   const chooseFigure = (newFigure: any, figureName: string): void => {
     if (Platform.OS !== 'web') {
@@ -392,7 +560,12 @@ function Game(): JSX.Element {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     if (socket) {
-      socket.emit('play', { 'username': username });
+      // Check if we have a roomId from route params
+      if (roomId) {
+        socket.emit('join_manual_room', { roomId, username });
+      } else {
+        socket.emit('play', { 'username': username });
+      }
       setIsUsernameSubmited(true);
     }
   };
@@ -402,7 +575,12 @@ function Game(): JSX.Element {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
     if (socket) {
-      socket.emit('start_game');
+      // Use manual room start if we have a room ID, otherwise use old method
+      if (currentRoomId) {
+        socket.emit('start_manual_room_game', { roomId: currentRoomId });
+      } else {
+        socket.emit('start_game');
+      }
     }
   };
 
@@ -437,6 +615,37 @@ function Game(): JSX.Element {
     );
   }
 
+  const handleRemovePlayer = (playerSid: string) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    if (socket && currentRoomId) {
+      socket.emit('remove_player_from_room', { roomId: currentRoomId, playerId: playerSid });
+    }
+  };
+
+  const handleDeleteRoom = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    }
+    if (socket) {
+      console.log('Delete room button pressed - emitting leave_game');
+      socket.emit('leave_game');
+    }
+    // Navigate back to home
+    Platform.OS === 'web' ? router.push('/') : router.back();
+  };
+
+  const handleLeaveRoom = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    if (socket) {
+      socket.emit('leave_game');
+    }
+    Platform.OS === 'web' ? router.push('/') : router.back();
+  };
+
   if (!isRoomReady) {
     return (
       <SafeAreaView style={[backgroundStyle, {flex: 1}]}>
@@ -444,18 +653,80 @@ function Game(): JSX.Element {
           barStyle={isDarkMode ? 'light-content' : 'dark-content'}
           backgroundColor={backgroundStyle.backgroundColor}
         />
-        <View style={[styles.container, {justifyContent: 'center', alignItems: 'center'}]}>
-          <Text style={{color: isDarkMode ? '#fff' : '#000'}}>Queue:</Text>
-          {queue.map((user, index) => (
-            <Text key={'userInQueue' + index} style={{color: isDarkMode ? '#fff' : '#000'}}>{user[1]}</Text>
-          ))}
-          <Text style={{color: isDarkMode ? '#fff' : '#000'}}>Waiting for more players...</Text>
-          <TouchableOpacity
-            style={[styles.button, isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground]}
-            onPress={handleStartGame}>
-            <Text style={[styles.buttonText, isDarkMode ? styles.darkThemeText : styles.lightThemeText]}>Start game</Text>
-          </TouchableOpacity>
-        </View>
+        <ScrollView contentContainerStyle={[styles.container, {justifyContent: 'center', alignItems: 'center', paddingVertical: 40, gap: 20}]}>
+          {roomName && (
+            <View style={{alignItems: 'center', marginBottom: 20}}>
+              <Text style={{color: isDarkMode ? '#49DDDD' : '#0a7ea4', fontSize: 24, fontWeight: 'bold'}}>{roomName}</Text>
+            </View>
+          )}
+
+          <Text style={{color: isDarkMode ? '#fff' : '#000', fontSize: 18, fontWeight: '600'}}>Players in Room:</Text>
+          <View style={{width: '100%', paddingHorizontal: 40, gap: 10}}>
+            {queue.map((user, index) => {
+              const playerSid = user[0];
+              const playerName = user[1];
+              const isMe = playerSid === getEffectiveSid();
+              return (
+                <View key={'userInQueue' + index} style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: 15,
+                  backgroundColor: isDarkMode ? '#1a1a2e' : '#f0f0f0',
+                  borderRadius: 8,
+                }}>
+                  <Text style={{color: isDarkMode ? '#fff' : '#000', fontSize: 16}}>
+                    {playerName} {isMe && '(You)'}
+                  </Text>
+                  {isCreator && !isMe && (
+                    <TouchableOpacity
+                      onPress={() => handleRemovePlayer(playerSid)}
+                      style={{padding: 5}}
+                    >
+                      <Icon name="close" size={20} color="#ff4444" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+
+          <Text style={{color: isDarkMode ? '#aaa' : '#666', marginTop: 10}}>
+            {queue.length < 2 ? 'Waiting for more players...' : 'Ready to start!'}
+          </Text>
+
+          {isCreator ? (
+            <View style={{width: '100%', paddingHorizontal: 40, gap: 15, marginTop: 20}}>
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
+                  queue.length < 2 && styles.disabledButton
+                ]}
+                disabled={queue.length < 2}
+                onPress={handleStartGame}>
+                <Text style={[styles.buttonText, isDarkMode ? styles.darkThemeText : styles.lightThemeText]}>Start Game</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.button, {backgroundColor: '#ff4444'}]}
+                onPress={handleDeleteRoom}>
+                <Text style={[styles.buttonText, {color: '#fff'}]}>Delete Room</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={{width: '100%', paddingHorizontal: 40, marginTop: 20}}>
+              <Text style={{color: isDarkMode ? '#aaa' : '#666', textAlign: 'center', marginBottom: 15}}>
+                Waiting for room creator to start...
+              </Text>
+              <TouchableOpacity
+                style={[styles.button, {backgroundColor: '#666'}]}
+                onPress={handleLeaveRoom}>
+                <Text style={[styles.buttonText, {color: '#fff'}]}>Leave Room</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </ScrollView>
       </SafeAreaView>
     );
   }
