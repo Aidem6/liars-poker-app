@@ -25,6 +25,7 @@ import { pb } from '../lib/pocketbase';
 import { UsernameStorage } from '@/utils/usernameStorage';
 import { useTheme } from '../lib/ThemeContext';
 import { ThemeMode } from '@/utils/themeStorage';
+import { FeedbackButton } from '../components/feedback/FeedbackButton';
 
 interface DynamicRoom {
   id: string;
@@ -304,9 +305,12 @@ function Home() {
               <Text style={[styles.headerText, isDarkMode ? styles.lightThemeText : styles.darkThemeText]}>
                 Liar's Poker
               </Text>
-              <TouchableOpacity onPress={handleThemeToggle} style={styles.themeButton}>
-                <Icon name={getThemeIcon()} size={24} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
-              </TouchableOpacity>
+              <View style={styles.headerButtons}>
+                <FeedbackButton screenName="Home" />
+                <TouchableOpacity onPress={handleThemeToggle} style={styles.themeButton}>
+                  <Icon name={getThemeIcon()} size={24} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
+                </TouchableOpacity>
+              </View>
             </View>
             <View style={styles.usernameRow}>
               <Text style={[styles.subtitle, isDarkMode ? styles.subtitleLight : styles.subtitleDark]}>
@@ -480,6 +484,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   themeButton: {
     padding: 8,

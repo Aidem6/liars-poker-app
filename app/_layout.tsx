@@ -10,6 +10,7 @@ import { Icon } from 'react-native-elements';
 import { Platform, Pressable } from 'react-native';
 import { loadAuthData, pb } from './lib/pocketbase';
 import { ThemeProvider as CustomThemeProvider, useTheme } from './lib/ThemeContext';
+import { FeedbackButton } from './components/feedback/FeedbackButton';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -29,7 +30,8 @@ function RootNavigator() {
               <Pressable onPress={() => Platform.OS === 'web' ? router.push('/') : router.back()}>
                 <Icon name="arrow-back" size={24} color={isLightMode ? 'black' : 'white'} />
               </Pressable>
-            )
+            ),
+            headerRight: () => <FeedbackButton screenName="Game" />
           }} />
           <Stack.Screen name="+not-found" />
         </Stack>

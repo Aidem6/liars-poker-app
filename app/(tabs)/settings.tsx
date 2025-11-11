@@ -17,6 +17,7 @@ import { useRouter, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../lib/ThemeContext';
+import { FeedbackButton } from '../components/feedback/FeedbackButton';
 
 export default function Settings() {
   const router = useRouter();
@@ -208,13 +209,16 @@ export default function Settings() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity 
-          onPress={handleBack}
-          style={styles.backButton}
-        >
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.backButton}
+          >
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
+        </View>
+        <FeedbackButton screenName="Settings" />
       </View>
 
       <View style={styles.content}>
@@ -372,9 +376,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#1a1a1a',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   backButton: {
     marginRight: 16,

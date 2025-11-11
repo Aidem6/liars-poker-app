@@ -18,6 +18,7 @@ import { Icon } from 'react-native-elements';
 import { pb, saveAuthData } from '../../lib/pocketbase';
 import { useTheme } from '../../lib/ThemeContext';
 import * as Haptics from 'expo-haptics';
+import { FeedbackButton } from '../feedback/FeedbackButton';
 
 export default function LoginScreen() {
   const { colors, isLightMode } = useTheme();
@@ -99,20 +100,25 @@ export default function LoginScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
       >
-        <View style={styles.header}>
-          <Icon
-            name="account-circle"
-            size={60}
-            color={isDarkMode ? '#49DDDD' : '#0a7ea4'}
-            style={styles.headerIcon}
-          />
-          <Text style={[styles.title, { color: isDarkMode ? '#fff' : '#010710' }]}>
-            {isLogin ? 'Welcome Back' : 'Create Account'}
-          </Text>
-          <Text style={[styles.subtitle, { color: isDarkMode ? '#aaa' : '#666' }]}>
-            {isLogin ? 'Sign in to continue' : 'Join us to play Liar\'s Poker'}
-          </Text>
-        </View>
+        <SafeAreaView>
+          <View style={styles.feedbackButtonContainer}>
+            <FeedbackButton screenName="Login" />
+          </View>
+          <View style={styles.header}>
+            <Icon
+              name="account-circle"
+              size={60}
+              color={isDarkMode ? '#49DDDD' : '#0a7ea4'}
+              style={styles.headerIcon}
+            />
+            <Text style={[styles.title, { color: isDarkMode ? '#fff' : '#010710' }]}>
+              {isLogin ? 'Welcome Back' : 'Create Account'}
+            </Text>
+            <Text style={[styles.subtitle, { color: isDarkMode ? '#aaa' : '#666' }]}>
+              {isLogin ? 'Sign in to continue' : 'Join us to play Liar\'s Poker'}
+            </Text>
+          </View>
+        </SafeAreaView>
       </LinearGradient>
 
       <KeyboardAvoidingView
@@ -281,6 +287,11 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  feedbackButtonContainer: {
+    alignItems: 'flex-end',
+    paddingRight: 16,
+    paddingTop: 8,
   },
   headerGradient: {
     paddingBottom: 30,
