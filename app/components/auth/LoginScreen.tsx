@@ -10,14 +10,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  useColorScheme,
 } from 'react-native';
 import { pb, saveAuthData } from '../../lib/pocketbase';
 import { useTheme } from '../../lib/ThemeContext';
 
 export default function LoginScreen() {
-  const { colors } = useTheme();
-  const colorScheme = useColorScheme();
+  const { colors, isLightMode } = useTheme();
+  const colorScheme = isLightMode ? 'light' : 'dark';
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

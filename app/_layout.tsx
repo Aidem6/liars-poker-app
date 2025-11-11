@@ -7,21 +7,43 @@ import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import { SocketProvider } from '../socket';
 import { Icon } from 'react-native-elements';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { Platform, Pressable } from 'react-native';
 import { loadAuthData, pb } from './lib/pocketbase';
-import { ThemeProvider as CustomThemeProvider } from './lib/ThemeContext';
+import { ThemeProvider as CustomThemeProvider, useTheme } from './lib/ThemeContext';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
+function RootNavigator() {
+  const { isLightMode } = useTheme();
+  const router = useRouter();
+
+  return (
+    <SocketProvider>
+      <ThemeProvider value={isLightMode ? DefaultTheme : DarkTheme}>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="game" options={{
+            headerShown: true,
+            headerLeft: () => (
+              <Pressable onPress={() => Platform.OS === 'web' ? router.push('/') : router.back()}>
+                <Icon name="arrow-back" size={24} color={isLightMode ? 'black' : 'white'} />
+              </Pressable>
+            )
+          }} />
+          <Stack.Screen name="+not-found" />
+        </Stack>
+        <StatusBar style={isLightMode ? 'dark' : 'light'} />
+      </ThemeProvider>
+    </SocketProvider>
+  );
+}
+
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
-  const router = useRouter();
   const [authLoaded, setAuthLoaded] = useState(false);
 
   useEffect(() => {
@@ -47,20 +69,7 @@ export default function RootLayout() {
 
   return (
     <CustomThemeProvider>
-      <SocketProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="game" options={{ headerShown: true, headerLeft: () => (
-              <Pressable onPress={() => Platform.OS === 'web' ? router.push('/') : router.back()}>
-                <Icon name="arrow-back" size={24} color={colorScheme === 'dark' ? 'white' : 'black'} />
-              </Pressable>
-            )}} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-          <StatusBar style="auto" />
-        </ThemeProvider>
-      </SocketProvider>
+      <RootNavigator />
     </CustomThemeProvider>
   );
 }

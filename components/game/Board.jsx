@@ -1,13 +1,14 @@
 import React, { useEffect } from 'react';
 import {
   StyleSheet,
-  useColorScheme,
   View,
 } from 'react-native';
 import Player from './Player';
+import { useTheme } from '@/app/lib/ThemeContext';
 
 function Board({ gameData, yourHand }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const { isLightMode } = useTheme();
+  const isDarkMode = !isLightMode;
 
   return (
     <View style={styles.container}>

@@ -4,7 +4,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  useColorScheme,
   View,
   ScrollView,
   TouchableOpacity,
@@ -23,6 +22,7 @@ import * as Haptics from 'expo-haptics';
 import { Icon } from 'react-native-elements';
 import { pb } from './lib/pocketbase';
 import { UsernameStorage } from '@/utils/usernameStorage';
+import { useTheme } from './lib/ThemeContext';
 
 interface Player {
   id: string;
@@ -359,7 +359,8 @@ function useSocketEvents(
 }
 
 function Game(): JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+  const { isLightMode } = useTheme();
+  const isDarkMode = !isLightMode;
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background,
   };

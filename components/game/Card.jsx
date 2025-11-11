@@ -2,12 +2,13 @@ import React from 'react';
 import {
   StyleSheet,
   Text,
-  useColorScheme,
   View,
 } from 'react-native';
+import { useTheme } from '@/app/lib/ThemeContext';
 
 function Card({ index, value, color, reversed, isActive }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const { isLightMode } = useTheme();
+  const isDarkMode = !isLightMode;
   const leftPosition = index * 35 + 5 + '%'
 
   return (

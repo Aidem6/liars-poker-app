@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import {
   StyleSheet,
-  useColorScheme,
   View,
   ScrollView,
   Pressable,
@@ -11,9 +10,11 @@ import Card from './Card';
 import { cardList } from '../../utils/dataUtils';
 import { Colors } from '@/constants/Colors';
 import { FontAwesome } from '@expo/vector-icons';
+import { useTheme } from '@/app/lib/ThemeContext';
 
 function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const { isLightMode } = useTheme();
+  const isDarkMode = !isLightMode;
   const scrollRef = useRef();
   const [elementWidths, setElementWidths] = React.useState([]);
   const [scrollX, setScrollX] = useState(0);

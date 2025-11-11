@@ -4,7 +4,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  useColorScheme,
   View,
   Platform,
   FlatList,
@@ -24,6 +23,8 @@ import { Icon } from 'react-native-elements';
 import { router, useFocusEffect } from 'expo-router';
 import { pb } from '../lib/pocketbase';
 import { UsernameStorage } from '@/utils/usernameStorage';
+import { useTheme } from '../lib/ThemeContext';
+import { ThemeMode } from '@/utils/themeStorage';
 
 interface DynamicRoom {
   id: string;
@@ -35,7 +36,8 @@ interface DynamicRoom {
 }
 
 function Home() {
-  const isDarkMode = useColorScheme() === 'dark';
+  const { setThemeMode, isLightMode } = useTheme();
+  const isDarkMode = !isLightMode;
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background,
   };
@@ -51,7 +53,7 @@ function Home() {
 
   // Load username on mount
   useEffect(() => {
-    const loadUsername = async () => {
+    const loadUserData = async () => {
       // Check if user is logged in
       if (pb.authStore.isValid && pb.authStore.model?.username) {
         setUsername(pb.authStore.model.username);
@@ -66,7 +68,7 @@ function Home() {
         }
       }
     };
-    loadUsername();
+    loadUserData();
   }, []);
 
   // Reset loading state when component mounts
@@ -219,6 +221,18 @@ function Home() {
     }
   };
 
+  const handleThemeToggle = async () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    const nextTheme: ThemeMode = isDarkMode ? 'light' : 'dark';
+    await setThemeMode(nextTheme);
+  };
+
+  const getThemeIcon = () => {
+    return isDarkMode ? 'nights-stay' : 'wb-sunny';
+  };
+
   const renderDynamicRoom: ListRenderItem<DynamicRoom> = ({ item }) => {
     const statusColor = item.status === 'waiting' ? (isDarkMode ? '#49DDDD' : '#0a7ea4') :
                         item.status === 'in_progress' ? '#FFA500' : '#999';
@@ -269,10 +283,11 @@ function Home() {
   };
 
   return (
-    <SafeAreaView style={[backgroundStyle, styles.container]}>
+    <View style={[backgroundStyle, styles.container]}>
       <StatusBar
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
+        backgroundColor="transparent"
+        translucent
       />
       <LinearGradient
         colors={isDarkMode
@@ -283,21 +298,28 @@ function Home() {
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
       >
-        <View style={styles.header}>
-          <Text style={[styles.headerText, isDarkMode ? styles.lightThemeText : styles.darkThemeText]}>
-            Liar's Poker
-          </Text>
-          <View style={styles.usernameRow}>
-            <Text style={[styles.subtitle, isDarkMode ? styles.subtitleLight : styles.subtitleDark]}>
-              Playing as: <Text style={styles.usernameText}>{username || 'Guest'}</Text>
-            </Text>
-            {!pb.authStore.isValid && (
-              <TouchableOpacity onPress={handleEditUsername} style={styles.editButton}>
-                <Icon name="edit" size={16} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
+        <SafeAreaView>
+          <View style={styles.header}>
+            <View style={styles.headerTop}>
+              <Text style={[styles.headerText, isDarkMode ? styles.lightThemeText : styles.darkThemeText]}>
+                Liar's Poker
+              </Text>
+              <TouchableOpacity onPress={handleThemeToggle} style={styles.themeButton}>
+                <Icon name={getThemeIcon()} size={24} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
               </TouchableOpacity>
-            )}
+            </View>
+            <View style={styles.usernameRow}>
+              <Text style={[styles.subtitle, isDarkMode ? styles.subtitleLight : styles.subtitleDark]}>
+                Playing as: <Text style={styles.usernameText}>{username || 'Guest'}</Text>
+              </Text>
+              {!pb.authStore.isValid && (
+                <TouchableOpacity onPress={handleEditUsername} style={styles.editButton}>
+                  <Icon name="edit" size={16} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-        </View>
+        </SafeAreaView>
       </LinearGradient>
 
       <TouchableOpacity
@@ -344,7 +366,7 @@ function Home() {
               Create New Room
             </Text>
             <Text style={[styles.modalDescription, { color: isDarkMode ? '#aaa' : '#666' }]}>
-              Your room will be automatically named (e.g., "Room-0")
+              Your room will be automatically named (e.g., "Room-0").
             </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -435,7 +457,7 @@ function Home() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -443,14 +465,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  headerWrapper: {
+    overflow: 'hidden',
+  },
   headerGradient: {
-    paddingTop: 10,
     paddingBottom: 20,
   },
   header: {
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 8,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  themeButton: {
+    padding: 8,
   },
   headerText: {
     fontSize: 36,

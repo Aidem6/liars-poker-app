@@ -2,12 +2,13 @@ import React from 'react';
 import {
   StyleSheet,
   Text,
-  useColorScheme,
   View,
 } from 'react-native';
+import { useTheme } from '@/app/lib/ThemeContext';
 
 function NameBox({ isYourTurn, name, handCount, reversed, isActive = true }) {
-  const isDarkMode = useColorScheme() === 'dark';
+  const { isLightMode } = useTheme();
+  const isDarkMode = !isLightMode;
 
   return (
     <View style={[styles.container, {
