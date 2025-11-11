@@ -10,13 +10,18 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Icon } from 'react-native-elements';
 import { pb, saveAuthData } from '../../lib/pocketbase';
 import { useTheme } from '../../lib/ThemeContext';
+import * as Haptics from 'expo-haptics';
 
 export default function LoginScreen() {
   const { colors, isLightMode } = useTheme();
-  const colorScheme = isLightMode ? 'light' : 'dark';
+  const isDarkMode = !isLightMode;
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -71,207 +76,357 @@ export default function LoginScreen() {
     }
   };
 
+  const handleButtonPress = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  };
+
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={[styles.container, { backgroundColor: colors.background }]}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 50 : 0}
-    >
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        bounces={false}
+    <View style={[styles.container, { backgroundColor: isDarkMode ? colors.background : colors.background }]}>
+      <StatusBar
+        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+        backgroundColor="transparent"
+        translucent
+      />
+
+      <LinearGradient
+        colors={isDarkMode
+          ? ['rgba(73, 221, 221, 0.15)', 'rgba(0, 0, 0, 0)']
+          : ['rgba(10, 126, 164, 0.1)', 'rgba(255, 255, 255, 0)']
+        }
+        style={styles.headerGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
       >
-        <Text style={[styles.title, { color: colors.text }]}>
-          {isLogin ? 'Login' : 'Create Account'}
-        </Text>
-        
-        {!isLogin && (
-          <TextInput
-            style={[styles.input, { 
-              backgroundColor: colorScheme === 'light' ? '#f0f0f0' : '#333',
-              color: colorScheme === 'light' ? '#000' : '#fff'
-            }]}
-            placeholder="Username"
-            placeholderTextColor="#666"
-            value={username}
-            onChangeText={setUsername}
+        <View style={styles.header}>
+          <Icon
+            name="account-circle"
+            size={60}
+            color={isDarkMode ? '#49DDDD' : '#0a7ea4'}
+            style={styles.headerIcon}
           />
-        )}
-        
-        <TextInput
-          style={[styles.input, { 
-            backgroundColor: colorScheme === 'light' ? '#f0f0f0' : '#333',
-            color: colorScheme === 'light' ? '#000' : '#fff'
-          }]}
-          placeholder="Email"
-          placeholderTextColor="#666"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        
-        <TextInput
-          style={[styles.input, { 
-            backgroundColor: colorScheme === 'light' ? '#f0f0f0' : '#333',
-            color: colorScheme === 'light' ? '#000' : '#fff'
-          }]}
-          placeholder="Password"
-          placeholderTextColor="#666"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        
-        <TouchableOpacity 
-          style={[styles.button, { backgroundColor: colors.primary }]}
-          onPress={handleAuth}
-        >
-          <Text style={styles.buttonText}>
-            {isLogin ? 'Login' : 'Create Account'}
+          <Text style={[styles.title, { color: isDarkMode ? '#fff' : '#010710' }]}>
+            {isLogin ? 'Welcome Back' : 'Create Account'}
           </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
-          <Text style={[styles.switchText, { color: colors.primary }]}>
-            {isLogin ? 'Need an account? Sign up' : 'Already have an account? Login'}
+          <Text style={[styles.subtitle, { color: isDarkMode ? '#aaa' : '#666' }]}>
+            {isLogin ? 'Sign in to continue' : 'Join us to play Liar\'s Poker'}
           </Text>
-        </TouchableOpacity>
+        </View>
+      </LinearGradient>
 
-        <TouchableOpacity 
-          onPress={handleForgotPassword}
-          style={styles.forgotPasswordButton}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.formContainer}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>
-            Forgot Password?
-          </Text>
-        </TouchableOpacity>
+          <View style={[styles.card, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>
+            {!isLogin && (
+              <View style={styles.inputContainer}>
+                <Icon name="person" size={20} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
+                <TextInput
+                  style={[styles.input, {
+                    backgroundColor: isDarkMode ? '#2B2B2B' : '#F0F0F0',
+                    color: isDarkMode ? '#fff' : '#000'
+                  }]}
+                  placeholder="Username"
+                  placeholderTextColor={isDarkMode ? '#888' : '#999'}
+                  value={username}
+                  onChangeText={setUsername}
+                />
+              </View>
+            )}
 
-        <Modal
-          visible={showResetModal}
-          transparent={true}
-          animationType="slide"
-        >
-          <View style={styles.modalContainer}>
-            <View style={[styles.modalContent, { backgroundColor: colors.secondary }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Reset Password
-              </Text>
+            <View style={styles.inputContainer}>
+              <Icon name="email" size={20} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
               <TextInput
-                style={[styles.input, { 
-                  backgroundColor: colorScheme === 'light' ? '#f0f0f0' : '#333',
-                  color: colorScheme === 'light' ? '#000' : '#fff'
+                style={[styles.input, {
+                  backgroundColor: isDarkMode ? '#2B2B2B' : '#F0F0F0',
+                  color: isDarkMode ? '#fff' : '#000'
+                }]}
+                placeholder="Email"
+                placeholderTextColor={isDarkMode ? '#888' : '#999'}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Icon name="lock" size={20} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
+              <TextInput
+                style={[styles.input, {
+                  backgroundColor: isDarkMode ? '#2B2B2B' : '#F0F0F0',
+                  color: isDarkMode ? '#fff' : '#000'
+                }]}
+                placeholder="Password"
+                placeholderTextColor={isDarkMode ? '#888' : '#999'}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}
+              onPress={() => {
+                handleButtonPress();
+                handleAuth();
+              }}
+            >
+              <Text style={[styles.buttonText, { color: isDarkMode ? '#010710' : '#fff' }]}>
+                {isLogin ? 'Login' : 'Create Account'}
+              </Text>
+            </TouchableOpacity>
+
+            {isLogin && (
+              <TouchableOpacity
+                onPress={() => {
+                  handleButtonPress();
+                  handleForgotPassword();
+                }}
+                style={styles.forgotPasswordButton}
+              >
+                <Text style={[styles.forgotPasswordText, { color: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}>
+                  Forgot Password?
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <TouchableOpacity
+            onPress={() => {
+              handleButtonPress();
+              setIsLogin(!isLogin);
+            }}
+            style={styles.switchContainer}
+          >
+            <Text style={[styles.switchText, { color: isDarkMode ? '#aaa' : '#666' }]}>
+              {isLogin ? 'Don\'t have an account? ' : 'Already have an account? '}
+              <Text style={[styles.switchTextBold, { color: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}>
+                {isLogin ? 'Sign up' : 'Login'}
+              </Text>
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <Modal
+        visible={showResetModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowResetModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>
+            <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+              Reset Password
+            </Text>
+            <Text style={[styles.modalDescription, { color: isDarkMode ? '#aaa' : '#666' }]}>
+              Enter your email address and we'll send you instructions to reset your password.
+            </Text>
+            <View style={styles.inputContainer}>
+              <Icon name="email" size={20} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
+              <TextInput
+                style={[styles.input, {
+                  backgroundColor: isDarkMode ? '#2B2B2B' : '#F0F0F0',
+                  color: isDarkMode ? '#fff' : '#000',
+                  borderColor: isDarkMode ? '#444' : '#ddd'
                 }]}
                 placeholder="Email address"
-                placeholderTextColor="#666"
+                placeholderTextColor={isDarkMode ? '#888' : '#999'}
                 value={resetEmail}
                 onChangeText={setResetEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
-              <View style={styles.modalButtons}>
-                <TouchableOpacity 
-                  style={[styles.modalButton, { backgroundColor: colors.secondary }]} 
-                  onPress={() => {
-                    setShowResetModal(false);
-                    setResetEmail('');
-                  }}
-                >
-                  <Text style={[styles.buttonText, { color: colors.text }]}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.modalButton, { backgroundColor: colors.primary }]} 
-                  onPress={submitPasswordReset}
-                >
-                  <Text style={styles.buttonText}>Send Reset Link</Text>
-                </TouchableOpacity>
-              </View>
+            </View>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => {
+                  handleButtonPress();
+                  setShowResetModal(false);
+                  setResetEmail('');
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton, { backgroundColor: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}
+                onPress={() => {
+                  handleButtonPress();
+                  submitPasswordReset();
+                }}
+              >
+                <Text style={[styles.confirmButtonText, { color: isDarkMode ? '#010710' : '#fff' }]}>
+                  Send Link
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </Modal>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    justifyContent: 'center',
+  },
+  headerGradient: {
+    paddingBottom: 30,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    alignItems: 'center',
+  },
+  headerIcon: {
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  subtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  formContainer: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
-    padding: 20,
-    minHeight: '100%',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
+  card: {
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
     marginBottom: 20,
-    textAlign: 'center',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
   },
   input: {
-    marginVertical: 8,
-    padding: 10,
-    borderRadius: 5,
-  },
-  button: {
-    padding: 15,
-    borderRadius: 5,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  buttonText: {
-    color: '#fff',
+    flex: 1,
+    height: 50,
+    borderRadius: 8,
+    paddingHorizontal: 16,
     fontSize: 16,
   },
-  switchText: {
-    color: '#007AFF',
-    textAlign: 'center',
-    marginTop: 15,
+  button: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  buttonText: {
+    fontSize: 18,
+    fontWeight: '600',
   },
   forgotPasswordButton: {
-    marginTop: 10,
-    padding: 10,
+    marginTop: 16,
+    padding: 8,
+    alignItems: 'center',
   },
   forgotPasswordText: {
-    color: '#007AFF',
-    textAlign: 'center',
     fontSize: 14,
+    fontWeight: '500',
   },
-  modalContainer: {
+  switchContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  switchText: {
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  switchTextBold: {
+    fontWeight: '600',
+  },
+  modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalContent: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 20,
-    width: '80%',
+    width: '85%',
+    maxWidth: 400,
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 16,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalDescription: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
   },
   modalButtons: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 8,
   },
   modalButton: {
-    padding: 10,
-    marginLeft: 10,
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
   },
-  submitButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 6,
+  cancelButton: {
+    backgroundColor: '#666',
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  confirmButton: {
+    // backgroundColor set dynamically
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 }); 

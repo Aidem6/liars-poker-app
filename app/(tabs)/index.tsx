@@ -250,7 +250,7 @@ function Home() {
             {item.name}
           </Text>
           <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-            <Text style={styles.statusText}>
+            <Text style={[styles.statusText, { color: isDarkMode ? '#010710' : '#fff' }]}>
               {item.status === 'waiting' ? 'Open' : item.status === 'in_progress' ? 'Playing' : 'Full'}
             </Text>
           </View>
@@ -549,7 +549,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   statusText: {
-    color: '#fff',
     fontSize: 12,
     fontWeight: '600',
   },
