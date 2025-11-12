@@ -104,20 +104,6 @@ export default function LoginScreen() {
           <View style={styles.feedbackButtonContainer}>
             <FeedbackButton screenName="Login" />
           </View>
-          <View style={styles.header}>
-            <Icon
-              name="account-circle"
-              size={60}
-              color={isDarkMode ? '#49DDDD' : '#0a7ea4'}
-              style={styles.headerIcon}
-            />
-            <Text style={[styles.title, { color: isDarkMode ? '#fff' : '#010710' }]}>
-              {isLogin ? 'Welcome Back' : 'Create Account'}
-            </Text>
-            <Text style={[styles.subtitle, { color: isDarkMode ? '#aaa' : '#666' }]}>
-              {isLogin ? 'Sign in to continue' : 'Join us to play Liar\'s Poker'}
-            </Text>
-          </View>
         </SafeAreaView>
       </LinearGradient>
 
@@ -132,6 +118,20 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
+          <View style={styles.header}>
+            <Icon
+              name="account-circle"
+              size={60}
+              color={isDarkMode ? '#49DDDD' : '#0a7ea4'}
+              style={styles.headerIcon}
+            />
+            <Text style={[styles.title, { color: isDarkMode ? '#fff' : '#010710' }]}>
+              {isLogin ? 'Welcome Back' : 'Create Account'}
+            </Text>
+            <Text style={[styles.subtitle, { color: isDarkMode ? '#aaa' : '#666' }]}>
+              {isLogin ? 'Sign in to continue' : 'Join us to play Liar\'s Poker'}
+            </Text>
+          </View>
           <View style={[styles.card, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>
             {!isLogin && (
               <View style={styles.inputContainer}>
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 24,
-    paddingTop: 60,
+    paddingTop: 0,
     alignItems: 'center',
   },
   headerIcon: {
@@ -323,7 +323,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 20,
-    paddingTop: 20,
     paddingBottom: 40,
   },
   card: {
