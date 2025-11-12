@@ -92,6 +92,7 @@ export function FeedbackModal({ visible, onClose, screenName = 'Unknown' }: Feed
       const feedbackData = new FormData();
       feedbackData.append('message', message.trim());
       feedbackData.append('source', 'liars-poker-app');
+      feedbackData.append('priority', 'medium');
       feedbackData.append('place', screenName);
 
       if (email.trim()) {
