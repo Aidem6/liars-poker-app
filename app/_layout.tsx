@@ -12,6 +12,8 @@ import { loadAuthData, pb } from './lib/pocketbase';
 import { ThemeProvider as CustomThemeProvider, useTheme } from './lib/ThemeContext';
 import { FeedbackButton } from './components/feedback/FeedbackButton';
 import { ThemeMetaTag } from '@/components/ThemeMetaTag';
+import { ThemeToggleButton } from './components/theme/ThemeToggleButton';
+import { View } from 'react-native';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -33,7 +35,12 @@ function RootNavigator() {
                 <Icon name="arrow-back" size={24} color={isLightMode ? 'black' : 'white'} />
               </Pressable>
             ),
-            headerRight: () => <FeedbackButton screenName="Game" />
+            headerRight: () => (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <FeedbackButton screenName="Game" />
+                <ThemeToggleButton />
+              </View>
+            )
           }} />
           <Stack.Screen name="+not-found" />
         </Stack>
