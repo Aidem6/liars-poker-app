@@ -965,9 +965,7 @@ export const cardList = [
         },
         {
           "rank": "A",
-          "suit":
-
-  ""
+          "suit":""
         },
         {
           "rank": "A",
