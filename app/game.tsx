@@ -11,9 +11,12 @@ import {
   Platform,
   KeyboardAvoidingView,
   Pressable,
+  Modal,
 } from 'react-native';
 import Board from '../components/game/Board';
 import CardList from '../components/game/CardList';
+import GameTimeline from '../components/game/GameTimeline';
+import GameDrawerContent from '../components/game/GameDrawerContent';
 import { SocketContext } from '../socket';
 import { cardList } from '../utils/dataUtils';
 import { router, useNavigation, useLocalSearchParams } from 'expo-router';
@@ -23,6 +26,8 @@ import { Icon } from 'react-native-elements';
 import { pb } from './lib/pocketbase';
 import { UsernameStorage } from '@/utils/usernameStorage';
 import { useTheme } from './lib/ThemeContext';
+import { GameEvent } from '@/types/gameEvents';
+import { ViewModeStorage, ViewMode } from '@/utils/viewModeStorage';
 
 interface Player {
   id: string;
@@ -117,7 +122,8 @@ function useSocketEvents(
   setActiveFigure: React.Dispatch<React.SetStateAction<string>>,
   scrollToBottom: () => void,
   setCurrentRoomId: React.Dispatch<React.SetStateAction<string>>,
-  setIsCreator: React.Dispatch<React.SetStateAction<boolean>>
+  setIsCreator: React.Dispatch<React.SetStateAction<boolean>>,
+  setGameEvents: React.Dispatch<React.SetStateAction<GameEvent[]>>
 ) {
   useEffect(() => {
     // Early return if socket is null (server not available)
@@ -164,6 +170,13 @@ function useSocketEvents(
           setIsRoomReady(true);
           setLastBetExists(false);
 
+          // Add game start event
+          setGameEvents(prev => [...prev, {
+            id: `game_start_${Date.now()}`,
+            type: 'game_start',
+            timestamp: Date.now(),
+          }]);
+
           setLogs(oldLogs => {
             const newLogs = oldLogs + '\nGame Started!';
             scrollToBottom();
@@ -180,6 +193,24 @@ function useSocketEvents(
           scrollToBottom();
           return newLogs;
         });
+
+        const loseCardMatch = data.text?.match(/^(.+?) lost the deal!?$/);
+
+        if (loseCardMatch) {
+          const loserName = loseCardMatch[1];
+          // Find the loser's player info from the players list if available
+          const loserPlayer = data?.json?.players?.find((p: BackendPlayer) => p.username === loserName);
+
+          // Create event even if we can't find the player ID
+          setGameEvents(prev => [...prev, {
+            id: `deal_result_${Date.now()}`,
+            type: 'deal_result',
+            timestamp: Date.now(),
+            playerId: loserPlayer?.sid,
+            playerName: loserPlayer?.username || loserName,
+            result: data.text,
+          }]);
+        }
 
         try {
           if (!data?.json?.players) return;
@@ -212,16 +243,96 @@ function useSocketEvents(
 
             setGameData({ players });
 
-            // Return updated hand if action is 'new_deal'
+            // Add game events based on action
             if (json.action === 'new_deal') {
+              // Create hand counts map with player IDs and names
+              const playerHandCounts: Record<string, number> = {};
+              const playerIdToName: Record<string, string> = {};
+              json.players.forEach((player: BackendPlayer) => {
+                playerHandCounts[player.sid] = player.hand_count;
+                playerIdToName[player.sid] = player.username;
+              });
+
+              // Convert your hand to proper format
+              const yourHandFormatted = json.your_hand?.map((card: any) => {
+                // Check if card is already an object or a string
+                if (typeof card === 'string') {
+                  const suit = card.slice(-1);
+                  const rank = card.slice(0, -1);
+                  return { rank, suit };
+                } else if (typeof card === 'object' && card.rank && card.suit) {
+                  // Already in correct format
+                  return card;
+                }
+                return { rank: '', suit: '' };
+              }) || [];
+
+              setGameEvents(prev => [...prev, {
+                id: `new_deal_${Date.now()}`,
+                type: 'new_deal',
+                timestamp: Date.now(),
+                playerHandCounts,
+                playerIdToName,
+                yourHand: yourHandFormatted,
+              }]);
+
               setFirstAvailableFigure(0);
               setActiveFigure('');
               return json.your_hand;
-            } else if (json.last_bet) {
+            } else if (json.action === 'bet' && json.last_bet) {
+              // Find the player who made the bet
+              const betPlayer = json.players.find((p: BackendPlayer) => p.last_bet === json.last_bet);
+              if (betPlayer) {
+                const figure = cardList.find((fig) => fig.name === json.last_bet);
+                setGameEvents(prev => [...prev, {
+                  id: `bet_${Date.now()}`,
+                  type: 'bet',
+                  timestamp: Date.now(),
+                  playerId: betPlayer.sid,
+                  playerName: betPlayer.username,
+                  betName: json.last_bet,
+                  betCards: figure?.cards || [],
+                }]);
+              }
+
               const indexOfFigure = cardList.findIndex((figure) => figure.name === json.last_bet);
               setFirstAvailableFigure(indexOfFigure + 1);
               setActiveFigure('');
+            } else if (json.action === 'check') {
+              // Find who called check (might need to be in the data from backend)
+              const checkPlayer = json.players[json.player_turn_index];
+              if (checkPlayer) {
+                setGameEvents(prev => [...prev, {
+                  id: `check_${Date.now()}`,
+                  type: 'check',
+                  timestamp: Date.now(),
+                  playerId: checkPlayer.sid,
+                  playerName: checkPlayer.username,
+                }]);
+              }
             }
+
+            // Check for eliminated players
+            json.players.forEach((player: BackendPlayer) => {
+              if (!player.is_active) {
+                // Check if we already have an elimination event for this player
+                setGameEvents(prev => {
+                  const hasEliminationEvent = prev.some(
+                    event => event.type === 'player_eliminated' && event.playerId === player.sid
+                  );
+                  if (!hasEliminationEvent) {
+                    return [...prev, {
+                      id: `eliminated_${player.sid}_${Date.now()}`,
+                      type: 'player_eliminated',
+                      timestamp: Date.now(),
+                      playerId: player.sid,
+                      playerName: player.username,
+                    }];
+                  }
+                  return prev;
+                });
+              }
+            });
 
             return currentHand;
           });
@@ -236,6 +347,14 @@ function useSocketEvents(
           scrollToBottom();
           return newLogs;
         });
+
+        // Add game end event
+        setGameEvents(prev => [...prev, {
+          id: `game_end_${Date.now()}`,
+          type: 'game_end',
+          timestamp: Date.now(),
+          result: data.result,
+        }]);
       },
 
       message: (data) => {
@@ -351,9 +470,11 @@ function useSocketEvents(
 
     // Cleanup function - remove only the events we registered
     return () => {
-      events.forEach((event) => {
-        socket.off(event);
-      });
+      // Note: socket.off is not defined in the SocketContextType interface
+      // If needed, this should be added to the interface in socket.tsx
+      // events.forEach((event) => {
+      //   socket.off(event);
+      // });
     };
   }, [socket]);
 }
@@ -419,6 +540,9 @@ function Game(): JSX.Element {
   const [isLogsFullscreen, setIsLogsFullscreen] = useState(false);
   const [currentRoomId, setCurrentRoomId] = useState<string>('');
   const [isCreator, setIsCreator] = useState<boolean>(false);
+  const [gameEvents, setGameEvents] = useState<GameEvent[]>([]);
+  const [displayMode, setDisplayMode] = useState<ViewMode>('board');
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const { socket, sid } = useContext(SocketContext) as SocketContextType;
   const navigation = useNavigation();
@@ -467,7 +591,8 @@ function Game(): JSX.Element {
     setActiveFigure,
     scrollToBottom,
     setCurrentRoomId,
-    setIsCreator
+    setIsCreator,
+    setGameEvents
   );
 
   // Debug: Track isCreator changes
@@ -475,27 +600,32 @@ function Game(): JSX.Element {
     console.log('isCreator state changed to:', isCreator);
   }, [isCreator]);
 
+  // Load view mode preference on mount
   useEffect(() => {
-    if (roomName && typeof window !== 'undefined') {
+    const loadViewMode = async () => {
+      const storedViewMode = await ViewModeStorage.getViewMode();
+      if (storedViewMode) {
+        setDisplayMode(storedViewMode);
+      }
+    };
+    loadViewMode();
+  }, []);
+
+  // Save view mode preference when it changes
+  useEffect(() => {
+    const saveViewMode = async () => {
+      await ViewModeStorage.setViewMode(displayMode);
+    };
+    saveViewMode();
+  }, [displayMode]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
       navigation.setOptions({
-        title: roomName,
-        headerBackTitle: '',
-        headerLeft: () => (
-          <TouchableOpacity
-            onPress={() => {
-              if (socket) {
-                socket.emit('leave_game');
-              }
-              Platform.OS === 'web' ? router.push('/') : router.back();
-              console.log('leave_game');
-            }}
-          >
-            <Icon name="arrow-back" size={24} color={isDarkMode ? 'white' : 'black'} />
-          </TouchableOpacity>
-        ),
+        headerShown: false,
       });
     }
-  }, [roomName, navigation, socket, isDarkMode]);
+  }, [navigation]);
 
   useEffect(() => {
     const loadAndJoin = async () => {
@@ -738,13 +868,55 @@ function Game(): JSX.Element {
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={backgroundStyle.backgroundColor}
       />
+
+      {/* Drawer Modal */}
+      <Modal
+        visible={isDrawerOpen}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setIsDrawerOpen(false)}
+      >
+        <GameDrawerContent
+          roomName={roomName}
+          isCreator={isCreator}
+          currentRoomId={currentRoomId}
+          onLeaveRoom={handleLeaveRoom}
+          onDeleteRoom={handleDeleteRoom}
+          onClose={() => setIsDrawerOpen(false)}
+          displayMode={displayMode}
+          onDisplayModeChange={setDisplayMode}
+        />
+      </Modal>
+
       <View style={styles.container}>
         <View style={{ flex: 1 }}>
           {!isLogsFullscreen ?
             <>
-              <Board gameData={gameData} yourHand={yourHand} />
+              {/* Floating menu button */}
+              <TouchableOpacity
+                onPress={() => setIsDrawerOpen(true)}
+                style={[styles.floatingMenuButton, { backgroundColor: isDarkMode ? '#303030' : '#fff' }]}
+              >
+                <Icon name="menu" size={24} color={isDarkMode ? '#fff' : '#000'} />
+              </TouchableOpacity>
+
+              {/* Display Board or Timeline based on mode */}
+              {displayMode === 'board' ? (
+                <Board gameData={gameData} yourHand={yourHand} />
+              ) : (
+                <GameTimeline
+                  events={gameEvents}
+                  playerNames={gameData.players.reduce((acc, player) => {
+                    acc[player.id] = player.name;
+                    return acc;
+                  }, {} as Record<string, string>)}
+                  myUserId={gameData.players.find(p => p.isMe)?.id}
+                  myUsername={username}
+                />
+              )}
+
               <View style={[styles.logsContainer, {flexDirection: 'row', alignItems: 'center'}]}>
-                <ScrollView 
+                <ScrollView
                   ref={scrollViewRef}
                   contentContainerStyle={styles.logsContent}
                   style={{height: 60}}
@@ -761,14 +933,14 @@ function Game(): JSX.Element {
             : <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
                 <Text style={[styles.closeButton, styles.closeButtonText, { color: isDarkMode ? '#fff' : '#000' }]}>Logs</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => setIsLogsFullscreen(false)}
                   style={styles.closeButton}
                 >
                   <Text style={[styles.closeButtonText, { color: isDarkMode ? '#fff' : '#000' }]}>Close</Text>
                 </TouchableOpacity>
               </View>
-              <ScrollView 
+              <ScrollView
                 ref={modalScrollViewRef}
                 style={styles.modalContent}
                 contentContainerStyle={styles.modalLogsContent}
@@ -831,6 +1003,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20
+  },
+  floatingMenuButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 20,
+    left: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   buttonRow: {
     flexDirection: 'row',
