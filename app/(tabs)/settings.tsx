@@ -11,6 +11,7 @@ import {
   Modal,
   Switch,
   useColorScheme,
+  Platform,
 } from 'react-native';
 import { pb, clearAuthData, saveAuthData } from '../lib/pocketbase';
 import { useRouter, useNavigation } from 'expo-router';
@@ -18,6 +19,25 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../lib/ThemeContext';
 import { FeedbackButton } from '../components/feedback/FeedbackButton';
+
+// Cross-platform confirm dialog
+const confirmAction = (
+  title: string,
+  message: string,
+  onConfirm: () => void,
+  confirmText: string = 'Confirm'
+) => {
+  if (Platform.OS === 'web') {
+    if (window.confirm(`${title}\n\n${message}`)) {
+      onConfirm();
+    }
+  } else {
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: confirmText, style: 'destructive', onPress: onConfirm },
+    ]);
+  }
+};
 
 export default function Settings() {
   const router = useRouter();
@@ -68,27 +88,75 @@ export default function Settings() {
     }
   };
 
-  const handleLogout = async () => {
-    Alert.alert(
+  const handleLogout = () => {
+    confirmAction(
       "Logout",
       "Are you sure you want to logout?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Logout",
-          style: "destructive",
-          onPress: async () => {
-            console.log('Starting logout...');
-            await clearAuthData();
-            console.log('Auth data cleared');
-            pb.authStore.clear();
-            router.push('/profile');
+      async () => {
+        try {
+          pb.authStore.clear();
+          await clearAuthData();
+          router.replace('/profile');
+        } catch (error) {
+          console.error('Logout error:', error);
+          if (Platform.OS === 'web') {
+            window.alert('Failed to logout. Please try again.');
+          } else {
+            Alert.alert('Error', 'Failed to logout. Please try again.');
           }
         }
-      ]
+      },
+      "Logout"
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    confirmAction(
+      "Delete Account",
+      "Are you sure you want to delete your account? This will permanently delete all your data and cannot be undone.",
+      () => {
+        // Second confirmation for safety
+        confirmAction(
+          "Final Confirmation",
+          "This action is irreversible. Are you absolutely sure?",
+          async () => {
+            try {
+              const userId = pb.authStore.model?.id;
+              if (!userId) {
+                if (Platform.OS === 'web') {
+                  window.alert('No user found');
+                } else {
+                  Alert.alert('Error', 'No user found');
+                }
+                return;
+              }
+
+              // Delete user from PocketBase (this deletes all user data)
+              await pb.collection('users').delete(userId);
+
+              // Clear local auth data
+              pb.authStore.clear();
+              await clearAuthData();
+
+              if (Platform.OS === 'web') {
+                window.alert('Your account and all data have been permanently deleted.');
+              } else {
+                Alert.alert('Account Deleted', 'Your account and all data have been permanently deleted.');
+              }
+              router.replace('/profile');
+            } catch (error) {
+              console.error('Delete account error:', error);
+              if (Platform.OS === 'web') {
+                window.alert('Failed to delete account. Please try again or contact support.');
+              } else {
+                Alert.alert('Error', 'Failed to delete account. Please try again or contact support.');
+              }
+            }
+          },
+          "Delete Forever"
+        );
+      },
+      "Delete"
     );
   };
 
@@ -268,12 +336,19 @@ export default function Settings() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.border} />
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.logoutButton, styles.marginTop]}
             onPress={handleLogout}
           >
             <Ionicons name="log-out-outline" size={20} color="#FF3B30" />
-            <Text style={[styles.logoutText, { color: colors.text }]}>Logout</Text>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.deleteAccountButton}
+            onPress={handleDeleteAccount}
+          >
+            <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+            <Text style={styles.deleteAccountText}>Delete Account</Text>
           </TouchableOpacity>
         </View>
 
@@ -283,6 +358,20 @@ export default function Settings() {
             value={isLightMode}
             onValueChange={toggleTheme}
           />
+        </View>
+
+        <View style={[styles.section, styles.marginTop, { backgroundColor: colors.secondary }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Legal</Text>
+          <TouchableOpacity
+            style={styles.settingButton}
+            onPress={() => router.push('/privacy-policy')}
+          >
+            <View style={styles.settingContent}>
+              <Ionicons name="shield-checkmark-outline" size={20} color={colors.text} />
+              <Text style={[styles.settingText, { color: colors.text }]}>Privacy Policy</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.border} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -415,6 +504,19 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   logoutText: {
+    color: '#FF3B30',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  deleteAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  deleteAccountText: {
     color: '#FF3B30',
     fontSize: 16,
     fontWeight: '600',
