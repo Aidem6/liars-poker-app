@@ -2,7 +2,7 @@
   "expo": {
     "name": "liars-poker-app",
     "slug": "liars-poker-app",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -10,14 +10,20 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tomczyk006.liarspokerapp"
+      "bundleIdentifier": "com.tomczyk006.liarspokerapp",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#010710"
       },
-      "package": "com.tomczyk006.liarspokerapp"
+      "package": "com.tomczyk006.liarspokerapp",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
