@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Pressable,
   Modal,
+  Animated,
 } from 'react-native';
 import Board from '../components/game/Board';
 import CardList from '../components/game/CardList';
@@ -543,6 +544,8 @@ function Game(): JSX.Element {
   const [gameEvents, setGameEvents] = useState<GameEvent[]>([]);
   const [displayMode, setDisplayMode] = useState<ViewMode>('board');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string>('');
+  const toastOpacity = useRef(new Animated.Value(0)).current;
 
   const { socket, sid } = useContext(SocketContext) as SocketContextType;
   const navigation = useNavigation();
@@ -668,7 +671,28 @@ function Game(): JSX.Element {
     setActiveFigure(figureName);
   };
 
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    Animated.sequence([
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.delay(2000),
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setToastMessage(''));
+  };
+
   const bet = (): void => {
+    if (!isMyTurn) {
+      showToast('Wait for your turn');
+      return;
+    }
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -892,14 +916,6 @@ function Game(): JSX.Element {
         <View style={{ flex: 1 }}>
           {!isLogsFullscreen ?
             <>
-              {/* Floating menu button */}
-              <TouchableOpacity
-                onPress={() => setIsDrawerOpen(true)}
-                style={[styles.floatingMenuButton, { backgroundColor: isDarkMode ? '#303030' : '#fff' }]}
-              >
-                <Icon name="menu" size={24} color={isDarkMode ? '#fff' : '#000'} />
-              </TouchableOpacity>
-
               {/* Display Board or Timeline based on mode */}
               {displayMode === 'board' ? (
                 <Board gameData={gameData} yourHand={yourHand} />
@@ -958,6 +974,16 @@ function Game(): JSX.Element {
         </View>
         <View style={[styles.buttonRow]}>
           <TouchableOpacity
+            onPress={() => setIsDrawerOpen(true)}
+            style={[
+              styles.button,
+              styles.menuButton,
+              isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground
+            ]}
+          >
+            <Icon name="menu" size={16} color={isDarkMode ? '#010710' : '#fff'} />
+          </TouchableOpacity>
+          <TouchableOpacity
             style={[
               styles.button,
               isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
@@ -977,16 +1003,22 @@ function Game(): JSX.Element {
               isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
               (!isMyTurn || !activeFigure) && styles.disabledButton
             ]}
-            disabled={!isMyTurn || !activeFigure}
             onPress={bet}>
             <Text style={[
               styles.buttonText,
               isDarkMode ? styles.darkThemeText : styles.lightThemeText,
               (!isMyTurn || !activeFigure) && styles.disabledButtonText
-            ]}>{isMyTurn ? "Bet" : "Wait for your turn"}</Text>
+            ]}>Bet</Text>
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Toast notification */}
+      {toastMessage ? (
+        <Animated.View style={[styles.toast, { opacity: toastOpacity }]}>
+          <Text style={styles.toastText}>{toastMessage}</Text>
+        </Animated.View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -1004,21 +1036,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 20
   },
-  floatingMenuButton: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 20,
-    left: 16,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+  menuButton: {
+    flexGrow: 0,
+    flexShrink: 0,
+    paddingLeft: 10,
+    paddingRight: 10,
+    minWidth: 0,
   },
   buttonRow: {
     flexDirection: 'row',
@@ -1026,6 +1049,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 20,
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   button: {
     marginTop: 10,
@@ -1099,6 +1123,23 @@ const styles = StyleSheet.create({
   },
   modalLogsContent: {
     padding: 20,
+  },
+  toast: {
+    position: 'absolute',
+    bottom: 150,
+    left: '50%',
+    transform: [{ translateX: -100 }],
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    minWidth: 200,
+    alignItems: 'center',
+  },
+  toastText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
