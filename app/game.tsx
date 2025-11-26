@@ -11,9 +11,10 @@ import {
   Platform,
   KeyboardAvoidingView,
   Pressable,
-  Modal,
   Animated,
+  useWindowDimensions,
 } from 'react-native';
+import { Drawer } from 'react-native-drawer-layout';
 import Board from '../components/game/Board';
 import CardList from '../components/game/CardList';
 import GameTimeline from '../components/game/GameTimeline';
@@ -29,6 +30,8 @@ import { UsernameStorage } from '@/utils/usernameStorage';
 import { useTheme } from './lib/ThemeContext';
 import { GameEvent } from '@/types/gameEvents';
 import { ViewModeStorage, ViewMode } from '@/utils/viewModeStorage';
+
+const TABLET_BREAKPOINT = 768;
 
 interface Player {
   id: string;
@@ -486,6 +489,8 @@ function Game(): JSX.Element {
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background,
   };
+  const { width } = useWindowDimensions();
+  const isTabletOrDesktop = width >= TABLET_BREAKPOINT;
 
   const { roomId } = useLocalSearchParams<{ roomId?: string }>();
 
@@ -783,22 +788,35 @@ function Game(): JSX.Element {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     }
+    setIsDrawerOpen(false);
     if (socket) {
       console.log('Delete room button pressed - emitting leave_game');
       socket.emit('leave_game');
     }
     // Navigate back to home
-    Platform.OS === 'web' ? router.push('/') : router.back();
+    setTimeout(() => {
+      Platform.OS === 'web' ? router.push('/') : router.back();
+    }, 300);
   };
 
   const handleLeaveRoom = () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
+    setIsDrawerOpen(false);
     if (socket) {
       socket.emit('leave_game');
     }
-    Platform.OS === 'web' ? router.push('/') : router.back();
+    setTimeout(() => {
+      Platform.OS === 'web' ? router.push('/') : router.back();
+    }, 300);
+  };
+
+  const handleDisplayModeChange = (mode: ViewMode) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setDisplayMode(mode);
   };
 
   if (!isRoomReady) {
@@ -893,25 +911,30 @@ function Game(): JSX.Element {
         backgroundColor={backgroundStyle.backgroundColor}
       />
 
-      {/* Drawer Modal */}
-      <Modal
-        visible={isDrawerOpen}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={() => setIsDrawerOpen(false)}
+      <Drawer
+        open={isDrawerOpen}
+        onOpen={() => setIsDrawerOpen(true)}
+        onClose={() => setIsDrawerOpen(false)}
+        drawerType={isTabletOrDesktop ? 'permanent' : 'front'}
+        drawerPosition="left"
+        drawerStyle={{
+          width: isTabletOrDesktop ? 280 : '80%',
+          backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background,
+        }}
+        renderDrawerContent={() => (
+          <GameDrawerContent
+            roomName={roomName}
+            isCreator={isCreator}
+            currentRoomId={currentRoomId}
+            onLeaveRoom={handleLeaveRoom}
+            onDeleteRoom={handleDeleteRoom}
+            displayMode={displayMode}
+            onDisplayModeChange={handleDisplayModeChange}
+            onClose={() => setIsDrawerOpen(false)}
+            isCloseable={!isTabletOrDesktop}
+          />
+        )}
       >
-        <GameDrawerContent
-          roomName={roomName}
-          isCreator={isCreator}
-          currentRoomId={currentRoomId}
-          onLeaveRoom={handleLeaveRoom}
-          onDeleteRoom={handleDeleteRoom}
-          onClose={() => setIsDrawerOpen(false)}
-          displayMode={displayMode}
-          onDisplayModeChange={setDisplayMode}
-        />
-      </Modal>
-
       <View style={styles.container}>
         <View style={{ flex: 1 }}>
           {!isLogsFullscreen ?
@@ -973,16 +996,23 @@ function Game(): JSX.Element {
           <CardList chooseFigure={chooseFigure} firstAvailableFigure={firstAvailableFigure} activeFigure={activeFigure} />
         </View>
         <View style={[styles.buttonRow]}>
-          <TouchableOpacity
-            onPress={() => setIsDrawerOpen(true)}
-            style={[
-              styles.button,
-              styles.menuButton,
-              isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground
-            ]}
-          >
-            <Icon name="menu" size={16} color={isDarkMode ? '#010710' : '#fff'} />
-          </TouchableOpacity>
+          {!isTabletOrDesktop && (
+            <TouchableOpacity
+              onPress={() => {
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
+                setIsDrawerOpen(true);
+              }}
+              style={[
+                styles.button,
+                styles.menuButton,
+                isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground
+              ]}
+            >
+              <Icon name="menu" size={16} color={isDarkMode ? '#010710' : '#fff'} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={[
               styles.button,
@@ -1019,6 +1049,7 @@ function Game(): JSX.Element {
           <Text style={styles.toastText}>{toastMessage}</Text>
         </Animated.View>
       ) : null}
+      </Drawer>
     </SafeAreaView>
   );
 }

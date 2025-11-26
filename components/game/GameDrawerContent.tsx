@@ -1,11 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, ScrollView } from 'react-native';
 import { Icon } from 'react-native-elements';
 import { useTheme } from '@/app/lib/ThemeContext';
 import { Colors } from '@/constants/Colors';
 import { router } from 'expo-router';
 import { ThemeToggleButton } from '../../app/components/theme/ThemeToggleButton';
 import { FeedbackButton } from '../../app/components/feedback/FeedbackButton';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 
 interface GameDrawerContentProps {
   roomName: string;
@@ -13,9 +15,10 @@ interface GameDrawerContentProps {
   currentRoomId: string;
   onLeaveRoom: () => void;
   onDeleteRoom: () => void;
-  onClose: () => void;
   displayMode: 'board' | 'timeline';
   onDisplayModeChange: (mode: 'board' | 'timeline') => void;
+  onClose?: () => void;
+  isCloseable?: boolean;
 }
 
 export default function GameDrawerContent({
@@ -24,27 +27,26 @@ export default function GameDrawerContent({
   currentRoomId,
   onLeaveRoom,
   onDeleteRoom,
-  onClose,
   displayMode,
   onDisplayModeChange,
+  onClose,
+  isCloseable = false,
 }: GameDrawerContentProps) {
   const { isLightMode } = useTheme();
   const isDarkMode = !isLightMode;
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={[styles.container, { backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background }]}>
       {/* Header */}
-      <View style={[styles.header, { borderBottomColor: isDarkMode ? '#333' : '#ddd' }]}>
+      <View style={[styles.header, { paddingTop: 20, borderBottomColor: isDarkMode ? '#333' : '#ddd' }]}>
         <Text style={[styles.roomName, { color: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}>
           {roomName}
         </Text>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Icon name="close" size={24} color={isDarkMode ? '#fff' : '#000'} />
-        </TouchableOpacity>
       </View>
 
       {/* Menu Items */}
-      <View style={styles.menuItems}>
+      <ScrollView style={styles.menuItems}>
         {/* Theme Toggle */}
         <View style={styles.menuItem}>
           <Icon name="palette" size={20} color={isDarkMode ? '#fff' : '#000'} style={styles.menuIcon} />
@@ -144,10 +146,7 @@ export default function GameDrawerContent({
         {isCreator ? (
           <TouchableOpacity
             style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => {
-              onClose();
-              onDeleteRoom();
-            }}
+            onPress={onDeleteRoom}
           >
             <Icon name="delete" size={20} color="#fff" />
             <Text style={styles.actionButtonText}>Delete Room</Text>
@@ -155,16 +154,33 @@ export default function GameDrawerContent({
         ) : (
           <TouchableOpacity
             style={[styles.actionButton, styles.leaveButton]}
-            onPress={() => {
-              onClose();
-              onLeaveRoom();
-            }}
+            onPress={onLeaveRoom}
           >
             <Icon name="exit-to-app" size={20} color="#fff" />
             <Text style={styles.actionButtonText}>Leave Room</Text>
           </TouchableOpacity>
         )}
-      </View>
+      </ScrollView>
+
+      {/* Close button - only visible on mobile */}
+      {isCloseable && onClose && (
+        <View style={[styles.closeButtonContainer, { paddingBottom: 10 }]}>
+          <TouchableOpacity
+            onPress={() => {
+              if (Platform.OS !== 'web') {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }
+              onClose();
+            }}
+            style={[
+              styles.closeDrawerButton,
+            ]}
+          >
+            <Icon name="arrow-back" size={16} color={'#fff'} />
+            <Text style={styles.actionButtonText}>Close menu</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -174,19 +190,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    padding: 20,
-    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
     borderBottomWidth: 1,
   },
   roomName: {
     fontSize: 20,
     fontWeight: '700',
-    marginBottom: 8,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 20,
-    right: 20,
   },
   menuItems: {
     flex: 1,
@@ -264,5 +274,31 @@ const styles = StyleSheet.create({
   viewToggleButtonText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  closeButtonContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(150,150,150,0.2)',
+  },
+  closeDrawerButton: {
+    backgroundColor: '#666',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 10,
+    paddingBottom: 10,
+    paddingLeft: 10,
+    paddingRight: 10,
+    borderRadius: 8,
+    minWidth: 0,
+  },
+  darkThemeButtonBackground: {
+    backgroundColor: '#49DDDD',
+  },
+  lightThemeButtonBackground: {
+    backgroundColor: '#222831',
   },
 });
