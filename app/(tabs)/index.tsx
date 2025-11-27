@@ -237,7 +237,9 @@ function Home() {
   const renderDynamicRoom: ListRenderItem<DynamicRoom> = ({ item }) => {
     const statusColor = item.status === 'waiting' ? (isDarkMode ? '#49DDDD' : '#0a7ea4') :
                         item.status === 'in_progress' ? '#FFA500' : '#999';
-    const canJoin = item.status === 'waiting' && item.playerCount < item.maxPlayers;
+    const canJoinAsPlayer = item.status === 'waiting' && item.playerCount < item.maxPlayers;
+    const canSpectate = item.status === 'in_progress';
+    const canJoin = canJoinAsPlayer || canSpectate;
 
     return (
       <TouchableOpacity
@@ -275,7 +277,7 @@ function Home() {
         {canJoin && (
           <View style={[styles.joinButton, { backgroundColor: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}>
             <Text style={[styles.joinButtonText, { color: isDarkMode ? '#010710' : '#fff' }]}>
-              Join Room
+              {canSpectate ? 'Spectate' : 'Join Room'}
             </Text>
           </View>
         )}
@@ -365,7 +367,7 @@ function Home() {
         onRequestClose={() => setShowCreateModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>
+          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1a1a1a' : '#fff' }]}>
             <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
               Create New Room
             </Text>

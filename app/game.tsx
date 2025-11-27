@@ -127,7 +127,8 @@ function useSocketEvents(
   scrollToBottom: () => void,
   setCurrentRoomId: React.Dispatch<React.SetStateAction<string>>,
   setIsCreator: React.Dispatch<React.SetStateAction<boolean>>,
-  setGameEvents: React.Dispatch<React.SetStateAction<GameEvent[]>>
+  setGameEvents: React.Dispatch<React.SetStateAction<GameEvent[]>>,
+  setIsSpectator: React.Dispatch<React.SetStateAction<boolean>>,
 ) {
   useEffect(() => {
     // Early return if socket is null (server not available)
@@ -198,26 +199,22 @@ function useSocketEvents(
           return newLogs;
         });
 
-        const loseCardMatch = data.text?.match(/^(.+?) lost the deal!?$/);
-
-        if (loseCardMatch) {
-          const loserName = loseCardMatch[1];
-          // Find the loser's player info from the players list if available
-          const loserPlayer = data?.json?.players?.find((p: BackendPlayer) => p.username === loserName);
-
-          // Create event even if we can't find the player ID
-          setGameEvents(prev => [...prev, {
-            id: `deal_result_${Date.now()}`,
-            type: 'deal_result',
-            timestamp: Date.now(),
-            playerId: loserPlayer?.sid,
-            playerName: loserPlayer?.username || loserName,
-            result: data.text,
-          }]);
-        }
-
         try {
-          if (!data?.json?.players) return;
+          if (!data?.json?.players) {
+            // If there's no json data, check if this is a "lost the deal" message
+            const loseCardMatch = data.text?.match(/^(.+?) lost the deal!?$/);
+            if (loseCardMatch) {
+              const loserName = loseCardMatch[1];
+              setGameEvents(prev => [...prev, {
+                id: `deal_result_${Date.now()}`,
+                type: 'deal_result',
+                timestamp: Date.now(),
+                playerName: loserName,
+                result: data.text,
+              }]);
+            }
+            return;
+          }
 
           const json = data.json;
           const effectiveSid = getEffectiveSid();
@@ -271,6 +268,9 @@ function useSocketEvents(
                 return { rank: '', suit: '' };
               }) || [];
 
+              // Get the current turn player's ID
+              const currentTurnPlayer = json.players[json.player_turn_index];
+
               setGameEvents(prev => [...prev, {
                 id: `new_deal_${Date.now()}`,
                 type: 'new_deal',
@@ -278,6 +278,7 @@ function useSocketEvents(
                 playerHandCounts,
                 playerIdToName,
                 yourHand: yourHandFormatted,
+                currentTurnPlayerId: currentTurnPlayer?.sid,
               }]);
 
               setFirstAvailableFigure(0);
@@ -306,12 +307,20 @@ function useSocketEvents(
               // Find who called check (might need to be in the data from backend)
               const checkPlayer = json.players[json.player_turn_index];
               if (checkPlayer) {
+                // Create player ID to name mapping
+                const playerIdToName: Record<string, string> = {};
+                json.players.forEach((player: BackendPlayer) => {
+                  playerIdToName[player.sid] = player.username;
+                });
+
                 setGameEvents(prev => [...prev, {
                   id: `check_${Date.now()}`,
                   type: 'check',
                   timestamp: Date.now(),
                   playerId: checkPlayer.sid,
                   playerName: checkPlayer.username,
+                  playerHands: json.player_hands,
+                  playerIdToName: playerIdToName,
                 }]);
               }
             }
@@ -338,8 +347,56 @@ function useSocketEvents(
               }
             });
 
+            // Check for game won action
+            if (json.action === 'game_won') {
+              setGameEvents(prev => [...prev, {
+                id: `game_won_${Date.now()}`,
+                type: 'deal_won',
+                timestamp: Date.now(),
+                playerId: json.winner_sid,
+                playerName: json.winner_username,
+                result: `${json.winner_username} won!`,
+              }]);
+            }
+
             return currentHand;
           });
+
+          // Check for "lost the deal" message AFTER processing action-based events
+          // This ensures check event appears before deal_result event
+          const loseCardMatch = data.text?.match(/^(.+?) lost the deal!?$/);
+          if (loseCardMatch) {
+            const loserName = loseCardMatch[1];
+            // Find the loser's player info from the players list if available
+            const loserPlayer = json.players?.find((p: BackendPlayer) => p.username === loserName);
+
+            // Create event even if we can't find the player ID
+            setGameEvents(prev => [...prev, {
+              id: `deal_result_${Date.now()}`,
+              type: 'deal_result',
+              timestamp: Date.now(),
+              playerId: loserPlayer?.sid,
+              playerName: loserPlayer?.username || loserName,
+              result: data.text,
+            }]);
+          }
+
+          // Fallback: Check for "won!" message if not already handled by action
+          const wonMatch = data.text?.match(/^(.+?) won!?$/);
+          if (wonMatch && json.action !== 'game_won') {
+            const winnerName = wonMatch[1];
+            // Find the winner's player info from the players list if available
+            const winnerPlayer = json.players?.find((p: BackendPlayer) => p.username === winnerName);
+
+            setGameEvents(prev => [...prev, {
+              id: `deal_won_${Date.now()}`,
+              type: 'deal_won',
+              timestamp: Date.now(),
+              playerId: winnerPlayer?.sid,
+              playerName: winnerPlayer?.username || winnerName,
+              result: data.text,
+            }]);
+          }
         } catch (err) {
           console.error('Error handling game_update:', err);
         }
@@ -390,12 +447,49 @@ function useSocketEvents(
         }, 1000);
       },
 
-      joined_room: (data) => {
+      joined_room: (data: any) => {
         console.log('Joined room:', data);
         console.log('Creator status - isCreator:', data.isCreator, 'creatorSid:', data.creatorSid, 'mySid:', getEffectiveSid());
+        console.log('Game started:', data.gameStarted, 'isSpectator:', data.isSpectator);
         setCurrentRoomId(data.roomId);
         setRoomName(data.roomName);
         setQueue(data.players);
+
+        // Set spectator state
+        if (data.isSpectator !== undefined) {
+          setIsSpectator(data.isSpectator);
+          console.log('Setting isSpectator to:', data.isSpectator);
+        }
+
+        // If joining a game that's already started (spectator mode), skip waiting room
+        if (data.gameStarted === true) {
+          console.log('Game already started - setting isRoomReady to true (spectator mode)');
+          setIsRoomReady(true);
+
+          // Initialize game state if provided
+          if (data.currentGameState) {
+            const gameState = data.currentGameState;
+            const effectiveSid = getEffectiveSid();
+
+            const players = gameState.players.map((player: BackendPlayer, index: number) => ({
+              id: player.sid,
+              name: player.username,
+              hand_count: player.hand_count,
+              last_bet: player.last_bet,
+              isYourTurn: index === gameState.player_turn_index,
+              hand: undefined, // Spectators don't see hands
+              isMe: player.sid === effectiveSid, // Should be false for spectators
+              is_active: player.is_active,
+            }));
+
+            setGameData({ players });
+            setLastBetExists(!!gameState.last_bet);
+
+            // Set turn state (spectators can't play, but we track for display)
+            const currentTurnSid = gameState.players[gameState.player_turn_index]?.sid;
+            setIsMyTurn(false); // Spectators never have a turn
+          }
+        }
 
         // Check if this player is the creator
         if (data.isCreator !== undefined) {
@@ -549,8 +643,8 @@ function Game(): JSX.Element {
   const [gameEvents, setGameEvents] = useState<GameEvent[]>([]);
   const [displayMode, setDisplayMode] = useState<ViewMode>('board');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string>('');
-  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const [toastQueue, setToastQueue] = useState<Array<{ id: string; message: string; permanent?: boolean }>>([]);
+  const [isSpectator, setIsSpectator] = useState<boolean>(false);
 
   const { socket, sid } = useContext(SocketContext) as SocketContextType;
   const navigation = useNavigation();
@@ -600,7 +694,8 @@ function Game(): JSX.Element {
     scrollToBottom,
     setCurrentRoomId,
     setIsCreator,
-    setGameEvents
+    setGameEvents,
+    setIsSpectator
   );
 
   // Debug: Track isCreator changes
@@ -626,6 +721,45 @@ function Game(): JSX.Element {
     };
     saveViewMode();
   }, [displayMode]);
+
+  // Clear permanent toasts when switching to list view
+  useEffect(() => {
+    if (displayMode === 'timeline') {
+      setToastQueue(prev => prev.filter(toast => !toast.permanent));
+    }
+  }, [displayMode]);
+
+  // Show toasts for check and lost events in board mode
+  useEffect(() => {
+    if (displayMode !== 'board' || gameEvents.length === 0) return;
+
+    const lastEvent = gameEvents[gameEvents.length - 1];
+    const currentUserIsPlayer = gameData.players.find(p => p.isMe);
+
+    // Show toast for check events
+    if (lastEvent.type === 'check') {
+      const playerName = lastEvent.playerName || 'Unknown';
+      const isMe = currentUserIsPlayer && lastEvent.playerId === currentUserIsPlayer.id;
+      const displayName = isMe ? 'You' : playerName;
+      showToast(`${displayName} called CHECK!`);
+    }
+
+    // Show toast for deal result (lost) events
+    if (lastEvent.type === 'deal_result') {
+      const playerName = lastEvent.playerName || 'Unknown';
+      const isMe = currentUserIsPlayer && lastEvent.playerId === currentUserIsPlayer.id;
+      const displayName = isMe ? 'You' : playerName;
+      showToast(`${displayName} lost the deal!`);
+    }
+
+    // Show toast for deal won events (PERMANENT - doesn't disappear)
+    if (lastEvent.type === 'deal_won') {
+      const playerName = lastEvent.playerName || 'Unknown';
+      const isMe = currentUserIsPlayer && lastEvent.playerId === currentUserIsPlayer.id;
+      const displayName = isMe ? 'You' : playerName;
+      showToast(`🏆 ${displayName} WON! 🏆`, true); // Permanent toast
+    }
+  }, [gameEvents, displayMode, gameData.players]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -676,21 +810,16 @@ function Game(): JSX.Element {
     setActiveFigure(figureName);
   };
 
-  const showToast = (message: string) => {
-    setToastMessage(message);
-    Animated.sequence([
-      Animated.timing(toastOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.delay(2000),
-      Animated.timing(toastOpacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => setToastMessage(''));
+  const showToast = (message: string, permanent: boolean = false) => {
+    const id = `toast_${Date.now()}_${Math.random()}`;
+    setToastQueue(prev => [...prev, { id, message, permanent }]);
+
+    // Remove toast after 3 seconds (unless it's permanent)
+    if (!permanent) {
+      setTimeout(() => {
+        setToastQueue(prev => prev.filter(toast => toast.id !== id));
+      }, 3000);
+    }
   };
 
   const bet = (): void => {
@@ -855,7 +984,7 @@ function Game(): JSX.Element {
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: 15,
-                  backgroundColor: isDarkMode ? '#1a1a2e' : '#f0f0f0',
+                  backgroundColor: isDarkMode ? '#333333ff' : '#f0f0f0',
                   borderRadius: 8,
                 }}>
                   <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
@@ -978,20 +1107,23 @@ function Game(): JSX.Element {
                 />
               )}
 
-              <View style={[styles.logsContainer, {flexDirection: 'row', alignItems: 'center'}]}>
-                <ScrollView
-                  ref={scrollViewRef}
-                  contentContainerStyle={styles.logsContent}
-                  style={{height: 60}}
-                >
-                  <Text style={[styles.logsText, { color: isDarkMode ? '#fff' : '#000' }]}>
-                    {logs}
-                  </Text>
-                </ScrollView>
-                <Pressable onPress={() => setIsLogsFullscreen(true)} style={{margin: 8}}>
-                  <Icon name="keyboard-arrow-up" size={24} color={isDarkMode ? 'white' : 'black'} />
-                </Pressable>
-              </View>
+              {/* Only show logs panel in board mode */}
+              {displayMode === 'board' && (
+                <View style={[styles.logsContainer, {flexDirection: 'row', alignItems: 'center'}]}>
+                  <ScrollView
+                    ref={scrollViewRef}
+                    contentContainerStyle={styles.logsContent}
+                    style={{height: 60}}
+                  >
+                    <Text style={[styles.logsText, { color: isDarkMode ? '#fff' : '#000' }]}>
+                      {logs}
+                    </Text>
+                  </ScrollView>
+                  <Pressable onPress={() => setIsLogsFullscreen(true)} style={{margin: 8}}>
+                    <Icon name="keyboard-arrow-up" size={24} color={isDarkMode ? 'white' : 'black'} />
+                  </Pressable>
+                </View>
+              )}
             </>
             : <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
@@ -1016,11 +1148,64 @@ function Game(): JSX.Element {
           }
         </View>
 
-        <View style={{ minHeight: 120 }}>
-          <CardList chooseFigure={chooseFigure} firstAvailableFigure={firstAvailableFigure} activeFigure={activeFigure} />
-        </View>
-        <View style={[styles.buttonRow]}>
-          {!isTabletOrDesktop && (
+        {/* Show card list and buttons only for non-spectators */}
+        {!isSpectator && (
+          <>
+            <View style={{ minHeight: 120 }}>
+              <CardList chooseFigure={chooseFigure} firstAvailableFigure={firstAvailableFigure} activeFigure={activeFigure} />
+            </View>
+            <View style={[styles.buttonRow]}>
+              {!isTabletOrDesktop && (
+                <TouchableOpacity
+                  onPress={() => {
+                    if (Platform.OS !== 'web') {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }
+                    setIsDrawerOpen(true);
+                  }}
+                  style={[
+                    styles.button,
+                    styles.menuButton,
+                    isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground
+                  ]}
+                >
+                  <Icon name="menu" size={16} color={isDarkMode ? '#010710' : '#fff'} />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
+                  (!isMyTurn || !lastBetExists) && styles.disabledButton
+                ]}
+                disabled={!isMyTurn || !lastBetExists}
+                onPress={handleCheck}>
+                <Text style={[
+                  styles.buttonText,
+                  isDarkMode ? styles.darkThemeText : styles.lightThemeText,
+                  (!isMyTurn || !lastBetExists) && styles.disabledButtonText
+                ]}>Check</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
+                  (!isMyTurn || !activeFigure) && styles.disabledButton
+                ]}
+                onPress={bet}>
+                <Text style={[
+                  styles.buttonText,
+                  isDarkMode ? styles.darkThemeText : styles.lightThemeText,
+                  (!isMyTurn || !activeFigure) && styles.disabledButtonText
+                ]}>Bet</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
+        {/* Show menu button for spectators on mobile */}
+        {isSpectator && !isTabletOrDesktop && (
+          <View style={[styles.buttonRow, { justifyContent: 'flex-start' }]}>
             <TouchableOpacity
               onPress={() => {
                 if (Platform.OS !== 'web') {
@@ -1036,43 +1221,27 @@ function Game(): JSX.Element {
             >
               <Icon name="menu" size={16} color={isDarkMode ? '#010710' : '#fff'} />
             </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={[
-              styles.button,
-              isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
-              (!isMyTurn || !lastBetExists) && styles.disabledButton
-            ]}
-            disabled={!isMyTurn || !lastBetExists}
-            onPress={handleCheck}>
-            <Text style={[
-              styles.buttonText,
-              isDarkMode ? styles.darkThemeText : styles.lightThemeText,
-              (!isMyTurn || !lastBetExists) && styles.disabledButtonText
-            ]}>Check</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
-              (!isMyTurn || !activeFigure) && styles.disabledButton
-            ]}
-            onPress={bet}>
-            <Text style={[
-              styles.buttonText,
-              isDarkMode ? styles.darkThemeText : styles.lightThemeText,
-              (!isMyTurn || !activeFigure) && styles.disabledButtonText
-            ]}>Bet</Text>
-          </TouchableOpacity>
-        </View>
+          </View>
+        )}
       </View>
 
-      {/* Toast notification */}
-      {toastMessage ? (
-        <Animated.View style={[styles.toast, { opacity: toastOpacity }]}>
-          <Text style={styles.toastText}>{toastMessage}</Text>
-        </Animated.View>
-      ) : null}
+      {/* Toast notifications */}
+      <View style={styles.toastContainer}>
+        {toastQueue.map((toast, index) => (
+          <View
+            key={toast.id}
+            style={[
+              styles.toast,
+              toast.permanent && styles.permanentToast,
+              { marginBottom: index < toastQueue.length - 1 ? 10 : 0 }
+            ]}
+          >
+            <Text style={[styles.toastText, toast.permanent && styles.permanentToastText]}>
+              {toast.message}
+            </Text>
+          </View>
+        ))}
+      </View>
       </Drawer>
     </SafeAreaView>
   );
@@ -1179,22 +1348,48 @@ const styles = StyleSheet.create({
   modalLogsContent: {
     padding: 20,
   },
-  toast: {
+  toastContainer: {
     position: 'absolute',
-    bottom: 150,
-    left: '50%',
-    transform: [{ translateX: -100 }],
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minWidth: 200,
+    top: '50%',
+    left: 0,
+    right: 0,
     alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'none',
+    transform: [{ translateY: -50 }],
+  },
+  toast: {
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 10,
+    minWidth: 200,
+    maxWidth: '80%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   toastText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  permanentToast: {
+    backgroundColor: '#FFD700',
+    borderWidth: 3,
+    borderColor: '#FFA500',
+  },
+  permanentToastText: {
+    color: '#000',
+    fontSize: 18,
+    fontWeight: '800',
   },
 });
 

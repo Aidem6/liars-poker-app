@@ -1,4 +1,4 @@
-export type GameEventType = 'game_start' | 'new_deal' | 'bet' | 'check' | 'deal_result' | 'player_eliminated' | 'game_end';
+export type GameEventType = 'game_start' | 'new_deal' | 'bet' | 'check' | 'deal_result' | 'deal_won' | 'player_eliminated' | 'game_end';
 
 export interface GameEvent {
   id: string;
@@ -12,4 +12,6 @@ export interface GameEvent {
   playerIdToName?: Record<string, string>; // Map of player ID to name for new_deal events
   yourHand?: Array<{ rank: string; suit: string }>; // Player's hand for new_deal events
   result?: string; // For game_end and deal_result events
+  playerHands?: Record<string, Array<string>>; // Map of player ID to their hand (for check events)
+  currentTurnPlayerId?: string; // ID of player whose turn it is (for new_deal events)
 }

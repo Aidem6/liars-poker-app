@@ -75,6 +75,55 @@ export default function GameEventItem({ event, myUserId, myUsername }: GameEvent
             {' called CHECK'}
           </Text>
         </View>
+
+        {/* Show all players' hands if available */}
+        {event.playerHands && Object.keys(event.playerHands).length > 0 && (
+          <View style={styles.allHandsContainer}>
+            <Text style={[styles.allHandsLabel, { color: isDarkMode ? '#aaa' : '#666' }]}>
+              All hands revealed:
+            </Text>
+            {Object.entries(event.playerHands).map(([playerId, hand]) => {
+              const playerName = event.playerIdToName?.[playerId] || 'Unknown';
+              const displayPlayerName = getDisplayName(playerId, playerName);
+
+              // Convert hand strings to card objects
+              const handCards = hand.map((cardStr: any) => {
+                // Handle both string format and object format
+                if (typeof cardStr === 'string') {
+                  const suit = cardStr.slice(-1);
+                  const rank = cardStr.slice(0, -1);
+                  return { rank, suit };
+                } else if (cardStr && typeof cardStr === 'object' && cardStr.rank && cardStr.suit) {
+                  // Already an object
+                  return cardStr;
+                }
+                // Fallback
+                return { rank: '', suit: '' };
+              });
+
+              return (
+                <View key={playerId} style={styles.playerHandReveal}>
+                  <Text style={[styles.playerHandName, { color: isDarkMode ? '#fff' : '#000' }]}>
+                    {displayPlayerName}:
+                  </Text>
+                  <View style={styles.playerHandCards}>
+                    {handCards.map((card, index) => (
+                      <View key={index} style={styles.miniCardWrapper}>
+                        <Card
+                          index={0}
+                          value={card.rank === 'T' ? '10' : card.rank}
+                          color={card.suit}
+                          reversed={false}
+                          isActive={false}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
       </View>
     );
   };
@@ -86,12 +135,21 @@ export default function GameEventItem({ event, myUserId, myUsername }: GameEvent
     const itemWidth = 70; // Approximate width per player item
     const playersPerRow = Math.max(3, Math.floor((screenWidth - 32) / itemWidth)); // At least 3, adjust based on screen
 
+    // Get current turn player name
+    const currentTurnPlayerName = event.currentTurnPlayerId && event.playerIdToName?.[event.currentTurnPlayerId];
+    const displayCurrentTurnName = currentTurnPlayerName ? getDisplayName(event.currentTurnPlayerId, currentTurnPlayerName) : null;
+
     return (
       <View style={styles.eventContainer}>
         <View style={[styles.dealHeader, { backgroundColor: isDarkMode ? '#2d4a2b' : '#e8f5e9' }]}>
           <Text style={[styles.dealTitle, { color: isDarkMode ? '#4caf50' : '#2e7d32' }]}>
             New Deal
           </Text>
+          {displayCurrentTurnName && (
+            <Text style={[styles.currentTurnText, { color: isDarkMode ? '#81c784' : '#388e3c' }]}>
+              {displayCurrentTurnName}'s turn
+            </Text>
+          )}
         </View>
 
         {/* Player hand counts in grid */}
@@ -169,6 +227,20 @@ export default function GameEventItem({ event, myUserId, myUsername }: GameEvent
     );
   };
 
+  const renderDealWonEvent = () => {
+    const displayName = getDisplayName(event.playerId, event.playerName);
+
+    return (
+      <View style={styles.eventContainer}>
+        <View style={[styles.dealWonHeader, { backgroundColor: isDarkMode ? '#FFD700' : '#FFD700' }]}>
+          <Text style={[styles.gameWinnerText, { color: '#000' }]}>
+            🏆 {displayName} WON! 🏆
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
   const renderPlayerEliminatedEvent = () => {
     const displayName = getDisplayName(event.playerId, event.playerName);
 
@@ -210,6 +282,8 @@ export default function GameEventItem({ event, myUserId, myUsername }: GameEvent
       return renderCheckEvent();
     case 'deal_result':
       return renderDealResultEvent();
+    case 'deal_won':
+      return renderDealWonEvent();
     case 'new_deal':
       return renderNewDealEvent();
     case 'game_start':
@@ -298,6 +372,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
+  currentTurnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 4,
+  },
   playerGridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -365,6 +444,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  dealWonHeader: {
+    padding: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFA500',
+  },
+  dealWonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  gameWinnerText: {
+    fontSize: 20,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
   eliminatedHeader: {
     padding: 12,
     flexDirection: 'row',
@@ -386,5 +481,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  allHandsContainer: {
+    padding: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(128, 128, 128, 0.2)',
+  },
+  allHandsLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  playerHandReveal: {
+    marginBottom: 12,
+  },
+  playerHandName: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  playerHandCards: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    height: 50,
+    marginLeft: 12,
   },
 });
