@@ -812,6 +812,15 @@ function Game(): JSX.Element {
     }, 300);
   };
 
+  const handleAddBot = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    if (socket && currentRoomId) {
+      socket.emit('add_bot_to_room', { roomId: currentRoomId });
+    }
+  };
+
   const handleDisplayModeChange = (mode: ViewMode) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -839,6 +848,7 @@ function Game(): JSX.Element {
               const playerSid = user[0];
               const playerName = user[1];
               const isMe = playerSid === getEffectiveSid();
+              const isBot = playerSid.startsWith('bot_');
               return (
                 <View key={'userInQueue' + index} style={{
                   flexDirection: 'row',
@@ -848,9 +858,14 @@ function Game(): JSX.Element {
                   backgroundColor: isDarkMode ? '#1a1a2e' : '#f0f0f0',
                   borderRadius: 8,
                 }}>
-                  <Text style={{color: isDarkMode ? '#fff' : '#000', fontSize: 16}}>
-                    {playerName} {isMe && '(You)'}
-                  </Text>
+                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+                    {isBot && (
+                      <Icon name="smart-toy" size={20} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
+                    )}
+                    <Text style={{color: isDarkMode ? '#fff' : '#000', fontSize: 16}}>
+                      {playerName} {isMe && '(You)'}
+                    </Text>
+                  </View>
                   {isCreator && !isMe && (
                     <TouchableOpacity
                       onPress={() => handleRemovePlayer(playerSid)}
@@ -879,6 +894,15 @@ function Game(): JSX.Element {
                 disabled={queue.length < 2}
                 onPress={handleStartGame}>
                 <Text style={[styles.buttonText, isDarkMode ? styles.darkThemeText : styles.lightThemeText]}>Start Game</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.button, {backgroundColor: isDarkMode ? '#2a5f6f' : '#5a9fb5'}]}
+                onPress={handleAddBot}>
+                <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8}}>
+                  <Icon name="smart-toy" size={20} color="#fff" />
+                  <Text style={[styles.buttonText, {color: '#fff'}]}>Add Bot</Text>
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity
