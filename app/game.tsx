@@ -108,6 +108,7 @@ interface SocketEvents {
   removed_from_room: (data: { roomId: string; reason: string }) => void;
   player_removed: (data: { playerId: string; playerName: string }) => void;
   error: (data: { message: string }) => void;
+  timer_settings_updated: (data: { bet_timer_enabled: boolean; bet_timer_duration: number }) => void;
 }
 
 function useSocketEvents(
@@ -129,6 +130,12 @@ function useSocketEvents(
   setIsCreator: React.Dispatch<React.SetStateAction<boolean>>,
   setGameEvents: React.Dispatch<React.SetStateAction<GameEvent[]>>,
   setIsSpectator: React.Dispatch<React.SetStateAction<boolean>>,
+  setTimerActive: React.Dispatch<React.SetStateAction<boolean>>,
+  setTimerRemaining: React.Dispatch<React.SetStateAction<number>>,
+  timerIntervalRef: React.MutableRefObject<NodeJS.Timeout | null>,
+  showToast: (message: string, permanent?: boolean) => void,
+  setTimerEnabled: React.Dispatch<React.SetStateAction<boolean>>,
+  setTimerDuration: React.Dispatch<React.SetStateAction<number>>,
 ) {
   useEffect(() => {
     // Early return if socket is null (server not available)
@@ -193,13 +200,74 @@ function useSocketEvents(
       },
 
       game_update: (data) => {
-        setLogs(oldLogs => {
-          const newLogs = oldLogs + '\n' + data.text;
-          scrollToBottom();
-          return newLogs;
-        });
+        // Only add to logs if there's actual text
+        if (data.text) {
+          setLogs(oldLogs => {
+            const newLogs = oldLogs + '\n' + data.text;
+            scrollToBottom();
+            return newLogs;
+          });
+        }
 
         try {
+          // Handle timer events
+          if (data?.json?.action === 'timer_started') {
+            const expiresAt = data.json.expires_at;
+            const durationSeconds = data.json.duration_seconds;
+            const now = Date.now() / 1000;
+            const remaining = Math.max(0, expiresAt - now);
+
+            setTimerActive(true);
+            setTimerRemaining(remaining);
+
+            // Start countdown interval
+            if (timerIntervalRef.current) {
+              clearInterval(timerIntervalRef.current);
+            }
+
+            timerIntervalRef.current = setInterval(() => {
+              const now = Date.now() / 1000;
+              const remaining = Math.max(0, expiresAt - now);
+              setTimerRemaining(remaining);
+
+              if (remaining <= 0) {
+                setTimerActive(false);
+                if (timerIntervalRef.current) {
+                  clearInterval(timerIntervalRef.current);
+                  timerIntervalRef.current = null;
+                }
+              }
+            }, 100) as unknown as NodeJS.Timeout;
+
+            return;
+          }
+
+          if (data?.json?.action === 'timer_cancelled') {
+            setTimerActive(false);
+            if (timerIntervalRef.current) {
+              clearInterval(timerIntervalRef.current);
+              timerIntervalRef.current = null;
+            }
+            return;
+          }
+
+          if (data?.json?.action === 'player_timeout') {
+            showToast(`${data.json.player_username} timed out!`);
+          }
+
+          if (data?.json?.action === 'player_converted_to_bot') {
+            const isPermanent = data.json.permanent;
+            showToast(`${data.json.player_username} → Bot ${isPermanent ? '(disconnected)' : '(timeout)'}`);
+          }
+
+          if (data?.json?.action === 'player_restored_from_bot') {
+            showToast(`${data.json.player_username} reconnected!`);
+          }
+
+          if (data?.json?.action === 'player_reconnected') {
+            showToast(`${data.json.player_username} reconnected!`);
+          }
+
           if (!data?.json?.players) {
             // If there's no json data, check if this is a "lost the deal" message
             const loseCardMatch = data.text?.match(/^(.+?) lost the deal!?$/);
@@ -556,6 +624,12 @@ function useSocketEvents(
           return newLogs;
         });
       },
+
+      timer_settings_updated: (data: { bet_timer_enabled: boolean; bet_timer_duration: number }) => {
+        console.log('Timer settings updated:', data);
+        setTimerEnabled(data.bet_timer_enabled);
+        setTimerDuration(data.bet_timer_duration);
+      },
     };
 
     // Register all event handlers
@@ -646,6 +720,13 @@ function Game(): JSX.Element {
   const [toastQueue, setToastQueue] = useState<Array<{ id: string; message: string; permanent?: boolean }>>([]);
   const [isSpectator, setIsSpectator] = useState<boolean>(false);
 
+  // Timer state
+  const [timerActive, setTimerActive] = useState(false);
+  const [timerRemaining, setTimerRemaining] = useState(0);
+  const [timerDuration, setTimerDuration] = useState(30);
+  const [timerEnabled, setTimerEnabled] = useState(true);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   const { socket, sid } = useContext(SocketContext) as SocketContextType;
   const navigation = useNavigation();
 
@@ -676,6 +757,18 @@ function Game(): JSX.Element {
     }, 100);
   };
 
+  const showToast = (message: string, permanent: boolean = false) => {
+    const id = `toast_${Date.now()}_${Math.random()}`;
+    setToastQueue(prev => [...prev, { id, message, permanent }]);
+
+    // Remove toast after 3 seconds (unless it's permanent)
+    if (!permanent) {
+      setTimeout(() => {
+        setToastQueue(prev => prev.filter(toast => toast.id !== id));
+      }, 3000);
+    }
+  };
+
   // Use the custom hook
   useSocketEvents(
     socket,
@@ -695,7 +788,13 @@ function Game(): JSX.Element {
     setCurrentRoomId,
     setIsCreator,
     setGameEvents,
-    setIsSpectator
+    setIsSpectator,
+    setTimerActive,
+    setTimerRemaining,
+    timerIntervalRef,
+    showToast,
+    setTimerEnabled,
+    setTimerDuration
   );
 
   // Debug: Track isCreator changes
@@ -808,18 +907,6 @@ function Game(): JSX.Element {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     setActiveFigure(figureName);
-  };
-
-  const showToast = (message: string, permanent: boolean = false) => {
-    const id = `toast_${Date.now()}_${Math.random()}`;
-    setToastQueue(prev => [...prev, { id, message, permanent }]);
-
-    // Remove toast after 3 seconds (unless it's permanent)
-    if (!permanent) {
-      setTimeout(() => {
-        setToastQueue(prev => prev.filter(toast => toast.id !== id));
-      }, 3000);
-    }
   };
 
   const bet = (): void => {
@@ -964,15 +1051,18 @@ function Game(): JSX.Element {
           barStyle={isDarkMode ? 'light-content' : 'dark-content'}
           backgroundColor={backgroundStyle.backgroundColor}
         />
-        <ScrollView contentContainerStyle={[styles.container, {justifyContent: 'center', alignItems: 'center', paddingVertical: 40, gap: 20}]}>
+        <View style={{flex: 1, paddingVertical: 20}}>
+          {/* Header */}
           {roomName && (
             <View style={{alignItems: 'center', marginBottom: 20}}>
               <Text style={{color: isDarkMode ? '#49DDDD' : '#0a7ea4', fontSize: 24, fontWeight: 'bold'}}>{roomName}</Text>
             </View>
           )}
 
-          <Text style={{color: isDarkMode ? '#fff' : '#000', fontSize: 18, fontWeight: '600'}}>Players in Room:</Text>
-          <View style={{width: '100%', paddingHorizontal: 40, gap: 10}}>
+          <Text style={{color: isDarkMode ? '#fff' : '#000', fontSize: 18, fontWeight: '600', textAlign: 'center', marginBottom: 10}}>Players in Room:</Text>
+
+          {/* Scrollable Player List */}
+          <ScrollView style={{flex: 1}} contentContainerStyle={{paddingHorizontal: 40, gap: 10, paddingBottom: 20}}>
             {queue.map((user, index) => {
               const playerSid = user[0];
               const playerName = user[1];
@@ -1006,14 +1096,102 @@ function Game(): JSX.Element {
                 </View>
               );
             })}
-          </View>
 
-          <Text style={{color: isDarkMode ? '#aaa' : '#666', marginTop: 10}}>
-            {queue.length < 2 ? 'Waiting for more players...' : 'Ready to start!'}
-          </Text>
+            <Text style={{color: isDarkMode ? '#aaa' : '#666', marginTop: 10, textAlign: 'center'}}>
+              {queue.length < 2 ? 'Waiting for more players...' : 'Ready to start!'}
+            </Text>
+          </ScrollView>
 
+          {/* Fixed Buttons and Settings at Bottom */}
           {isCreator ? (
-            <View style={{width: '100%', paddingHorizontal: 40, gap: 15, marginTop: 20}}>
+            <View style={{width: '100%', paddingHorizontal: 40, paddingBottom: 20, gap: 15}}>
+              {/* Timer Settings */}
+              <View style={{
+                padding: 15,
+                backgroundColor: isDarkMode ? '#2a2a2a' : '#f5f5f5',
+                borderRadius: 8,
+                gap: 12
+              }}>
+                <Text style={{color: isDarkMode ? '#fff' : '#000', fontSize: 16, fontWeight: '600'}}>
+                  Timer Settings
+                </Text>
+
+                <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+                  <Text style={{color: isDarkMode ? '#aaa' : '#666'}}>Enable Timer</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const newEnabled = !timerEnabled;
+                      setTimerEnabled(newEnabled);
+                      if (socket && currentRoomId) {
+                        socket.emit('update_timer_settings', {
+                          roomId: currentRoomId,
+                          bet_timer_enabled: newEnabled,
+                        });
+                      }
+                    }}
+                    style={{
+                      width: 50,
+                      height: 28,
+                      borderRadius: 14,
+                      backgroundColor: timerEnabled ? '#49DDDD' : '#888',
+                      justifyContent: 'center',
+                      padding: 2,
+                    }}
+                  >
+                    <View style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      backgroundColor: '#fff',
+                      alignSelf: timerEnabled ? 'flex-end' : 'flex-start',
+                    }} />
+                  </TouchableOpacity>
+                </View>
+
+                {timerEnabled && (
+                  <View style={{gap: 8}}>
+                    <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'}}>
+                      <Text style={{color: isDarkMode ? '#aaa' : '#666'}}>Duration: {timerDuration}s</Text>
+                    </View>
+                    <View style={{flexDirection: 'row', gap: 8}}>
+                      {[15, 30, 60, 120].map((seconds) => (
+                        <TouchableOpacity
+                          key={seconds}
+                          onPress={() => {
+                            setTimerDuration(seconds);
+                            if (socket && currentRoomId) {
+                              socket.emit('update_timer_settings', {
+                                roomId: currentRoomId,
+                                bet_timer_duration: seconds,
+                              });
+                            }
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: 8,
+                            borderRadius: 6,
+                            backgroundColor: timerDuration === seconds
+                              ? (isDarkMode ? '#49DDDD' : '#0a7ea4')
+                              : (isDarkMode ? '#3a3a3a' : '#ddd'),
+                          }}
+                        >
+                          <Text style={{
+                            textAlign: 'center',
+                            fontSize: 12,
+                            fontWeight: '600',
+                            color: timerDuration === seconds
+                              ? (isDarkMode ? '#000' : '#fff')
+                              : (isDarkMode ? '#aaa' : '#666'),
+                          }}>
+                            {seconds}s
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </View>
+
               <TouchableOpacity
                 style={[
                   styles.button,
@@ -1041,7 +1219,7 @@ function Game(): JSX.Element {
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={{width: '100%', paddingHorizontal: 40, marginTop: 20}}>
+            <View style={{width: '100%', paddingHorizontal: 40, paddingBottom: 20}}>
               <Text style={{color: isDarkMode ? '#aaa' : '#666', textAlign: 'center', marginBottom: 15}}>
                 Waiting for room creator to start...
               </Text>
@@ -1052,7 +1230,7 @@ function Game(): JSX.Element {
               </TouchableOpacity>
             </View>
           )}
-        </ScrollView>
+        </View>
       </SafeAreaView>
     );
   }
@@ -1092,6 +1270,20 @@ function Game(): JSX.Element {
         <View style={{ flex: 1 }}>
           {!isLogsFullscreen ?
             <>
+              {/* Timer Display - Minimalistic bar visible to all players */}
+              {timerActive && !isSpectator && (
+                <View style={[
+                  styles.timerBar,
+                  timerRemaining < 10 && styles.timerBarWarning
+                ]}>
+                  <View style={[
+                    styles.timerProgress,
+                    { width: `${(timerRemaining / timerDuration) * 100}%` },
+                    timerRemaining < 10 && styles.timerProgressWarning
+                  ]} />
+                </View>
+              )}
+
               {/* Display Board or Timeline based on mode */}
               {displayMode === 'board' ? (
                 <Board gameData={gameData} yourHand={yourHand} />
@@ -1390,6 +1582,31 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 18,
     fontWeight: '800',
+  },
+  timerContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: 8,
+    marginHorizontal: 10,
+    marginBottom: 10,
+  },
+  timerBar: {
+    height: 4,
+    backgroundColor: 'rgba(100, 100, 100, 0.15)',
+    overflow: 'hidden',
+    marginHorizontal: 0,
+    marginVertical: 8,
+  },
+  timerBarWarning: {
+    backgroundColor: 'rgba(255, 100, 100, 0.2)',
+  },
+  timerProgress: {
+    height: '100%',
+    backgroundColor: '#49DDDD',
+  },
+  timerProgressWarning: {
+    backgroundColor: '#ff4444',
   },
 });
 
