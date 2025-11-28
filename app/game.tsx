@@ -107,6 +107,7 @@ interface SocketEvents {
   rooms_list: (data: { rooms: RoomData[] }) => void;
   removed_from_room: (data: { roomId: string; reason: string }) => void;
   player_removed: (data: { playerId: string; playerName: string }) => void;
+  left_room: (data: { success: boolean; roomId: string }) => void;
   error: (data: { message: string }) => void;
 }
 
@@ -548,6 +549,11 @@ function useSocketEvents(
         });
       },
 
+      left_room: (data) => {
+        console.log('Successfully left room:', data.roomId);
+        // Cleanup happens before navigation
+      },
+
       error: (data) => {
         console.error('Socket error:', data.message);
         setLogs(oldLogs => {
@@ -568,11 +574,10 @@ function useSocketEvents(
 
     // Cleanup function - remove only the events we registered
     return () => {
-      // Note: socket.off is not defined in the SocketContextType interface
-      // If needed, this should be added to the interface in socket.tsx
-      // events.forEach((event) => {
-      //   socket.off(event);
-      // });
+      console.log('Cleaning up socket event handlers');
+      events.forEach((event) => {
+        socket.off(event, handlers[event as keyof SocketEvents]);
+      });
     };
   }, [socket]);
 }
@@ -664,7 +669,9 @@ function Game(): JSX.Element {
   }, [sid]);
 
   const getEffectiveSid = () => {
-    return Platform.OS === 'web' ? queueSidRef.current : (sidRef.current || queueSidRef.current);
+    // Always prefer queueSid once set (from you_joined_queue event)
+    // This ensures consistent SID across web and mobile platforms
+    return queueSidRef.current || sidRef.current;
   };
 
   const scrollToBottom = () => {
