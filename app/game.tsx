@@ -970,6 +970,15 @@ function Game(): JSX.Element {
     }
   };
 
+  const handleShufflePlayers = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    if (socket && currentRoomId) {
+      socket.emit('shuffle_players', { roomId: currentRoomId });
+    }
+  };
+
   const handleDisplayModeChange = (mode: ViewMode) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1056,6 +1065,15 @@ function Game(): JSX.Element {
                   <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8}}>
                     <Icon name="smart-toy" size={20} color="#fff" />
                     <Text style={[styles.buttonText, {color: '#fff'}]}>Add Bot</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.button, {backgroundColor: isDarkMode ? '#7a4f9f' : '#9b6bbf'}]}
+                  onPress={handleShufflePlayers}>
+                  <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8}}>
+                    <Icon name="shuffle" size={20} color="#fff" />
+                    <Text style={[styles.buttonText, {color: '#fff'}]}>Shuffle Order</Text>
                   </View>
                 </TouchableOpacity>
 
