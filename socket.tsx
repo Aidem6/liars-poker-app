@@ -14,8 +14,8 @@ const SOCKET_PROD = 'https://liarspoker-server.adamtomczyk.com';
 const SOCKET_DEV = 'http://localhost:4000';
 
 // Use production by default, can switch for local dev
-// const SOCKET_URL = SOCKET_PROD;
-const SOCKET_URL = SOCKET_DEV;  // Uncomment for local development
+const SOCKET_URL = SOCKET_PROD;
+// const SOCKET_URL = SOCKET_DEV;  // Uncomment for local development
 
 export const SocketContext = React.createContext<{
   socket: Socket<DefaultEventsMap, DefaultEventsMap> | null;
