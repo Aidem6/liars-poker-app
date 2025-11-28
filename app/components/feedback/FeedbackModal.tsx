@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
+import Constants from 'expo-constants';
 import { Icon } from 'react-native-elements';
 import { useTheme } from '../../lib/ThemeContext';
 import { feedbackPb } from '../../lib/feedbackPocketbase';
@@ -23,9 +24,17 @@ interface FeedbackModalProps {
   visible: boolean;
   onClose: () => void;
   screenName?: string;
+  debugLogs?: string; // Optional debug logs to attach
+  isBugReport?: boolean; // Flag to indicate this is a bug report
 }
 
-export function FeedbackModal({ visible, onClose, screenName = 'Unknown' }: FeedbackModalProps) {
+export function FeedbackModal({
+  visible,
+  onClose,
+  screenName = 'Unknown',
+  debugLogs,
+  isBugReport = false
+}: FeedbackModalProps) {
   const { isLightMode } = useTheme();
   const isDarkMode = !isLightMode;
 
@@ -33,6 +42,7 @@ export function FeedbackModal({ visible, onClose, screenName = 'Unknown' }: Feed
   const [email, setEmail] = useState('');
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [includeDebugLogs, setIncludeDebugLogs] = useState(isBugReport); // Auto-include for bug reports
 
   const handlePickImage = async () => {
     if (Platform.OS !== 'web') {
@@ -89,11 +99,19 @@ export function FeedbackModal({ visible, onClose, screenName = 'Unknown' }: Feed
     setIsSubmitting(true);
 
     try {
+      let finalMessage = message.trim();
+
+      // Append debug logs if included
+      if (includeDebugLogs && debugLogs) {
+        finalMessage += '\n\n=== DEBUG LOGS ===\n' + debugLogs;
+      }
+
       const feedbackData = new FormData();
-      feedbackData.append('message', message.trim());
+      feedbackData.append('message', finalMessage);
       feedbackData.append('source', 'liars-poker-app');
-      feedbackData.append('priority', 'medium');
+      feedbackData.append('priority', isBugReport ? 'high' : 'medium');
       feedbackData.append('place', screenName);
+      feedbackData.append('version', Constants.expoConfig?.version || '1.1.0');
 
       if (email.trim()) {
         feedbackData.append('sender', email.trim());
@@ -160,7 +178,7 @@ export function FeedbackModal({ visible, onClose, screenName = 'Unknown' }: Feed
           <ScrollView showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
               <Text style={[styles.title, { color: isDarkMode ? '#fff' : '#000' }]}>
-                Send Feedback
+                {isBugReport ? '🐛 Report a Bug' : 'Send Feedback'}
               </Text>
               <TouchableOpacity onPress={handleClose} style={styles.closeButton} disabled={isSubmitting}>
                 <Icon name="close" size={24} color={isDarkMode ? '#aaa' : '#666'} />
@@ -203,6 +221,35 @@ export function FeedbackModal({ visible, onClose, screenName = 'Unknown' }: Feed
               autoCapitalize="none"
               maxLength={100}
             />
+
+            {debugLogs && (
+              <>
+                <Text style={[styles.label, { color: isDarkMode ? '#ccc' : '#333' }]}>
+                  Debug Information
+                </Text>
+                <TouchableOpacity
+                  style={[styles.checkboxRow, {
+                    backgroundColor: isDarkMode ? '#2B2B2B' : '#F0F0F0',
+                    borderColor: isDarkMode ? '#444' : '#ddd',
+                  }]}
+                  onPress={() => setIncludeDebugLogs(!includeDebugLogs)}
+                >
+                  <Icon
+                    name={includeDebugLogs ? "check-box" : "check-box-outline-blank"}
+                    size={24}
+                    color={isDarkMode ? '#49DDDD' : '#0a7ea4'}
+                  />
+                  <View style={styles.checkboxTextContainer}>
+                    <Text style={[styles.checkboxText, { color: isDarkMode ? '#fff' : '#000' }]}>
+                      Include debug logs ({debugLogs.split('\n---\n').length - 2} events)
+                    </Text>
+                    <Text style={[styles.helperText, { color: isDarkMode ? '#888' : '#666' }]}>
+                      Helps us diagnose and fix bugs faster
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </>
+            )}
 
             <Text style={[styles.label, { color: isDarkMode ? '#ccc' : '#333' }]}>
               Screenshot (optional)
@@ -425,5 +472,24 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     fontWeight: '600',
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  checkboxTextContainer: {
+    flex: 1,
+  },
+  checkboxText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  helperText: {
+    fontSize: 13,
+    marginTop: 4,
   },
 });

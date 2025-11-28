@@ -30,6 +30,8 @@ import { UsernameStorage } from '@/utils/usernameStorage';
 import { useTheme } from './lib/ThemeContext';
 import { GameEvent } from '@/types/gameEvents';
 import { ViewModeStorage, ViewMode } from '@/utils/viewModeStorage';
+import { useDebugLogger } from '@/hooks/useDebugLogger';
+import { FeedbackModal } from './components/feedback/FeedbackModal';
 
 const TABLET_BREAKPOINT = 768;
 
@@ -130,6 +132,7 @@ function useSocketEvents(
   setIsCreator: React.Dispatch<React.SetStateAction<boolean>>,
   setGameEvents: React.Dispatch<React.SetStateAction<GameEvent[]>>,
   setIsSpectator: React.Dispatch<React.SetStateAction<boolean>>,
+  debugLogger: ReturnType<typeof useDebugLogger>,
 ) {
   useEffect(() => {
     // Early return if socket is null (server not available)
@@ -149,6 +152,7 @@ function useSocketEvents(
       },
 
       game_start: (data) => {
+        debugLogger.logSocketEvent('game_start', data);
         try {
           const mySid = getEffectiveSid();
           console.log('Game starting! My sid:', mySid);
@@ -194,6 +198,7 @@ function useSocketEvents(
       },
 
       game_update: (data) => {
+        debugLogger.logSocketEvent('game_update', data);
         setLogs(oldLogs => {
           const newLogs = oldLogs + '\n' + data.text;
           scrollToBottom();
@@ -650,11 +655,16 @@ function Game(): JSX.Element {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [toastQueue, setToastQueue] = useState<Array<{ id: string; message: string; permanent?: boolean }>>([]);
   const [isSpectator, setIsSpectator] = useState<boolean>(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showBugReportModal, setShowBugReportModal] = useState(false);
 
   const { socket, sid } = useContext(SocketContext) as SocketContextType;
   const navigation = useNavigation();
 
   const [ queueSid, setQueueSid ] = useState('');
+
+  // Initialize debug logger
+  const debugLogger = useDebugLogger();
 
   // Use refs to always get the latest values
   const queueSidRef = useRef(queueSid);
@@ -702,7 +712,8 @@ function Game(): JSX.Element {
     setCurrentRoomId,
     setIsCreator,
     setGameEvents,
-    setIsSpectator
+    setIsSpectator,
+    debugLogger
   );
 
   // Debug: Track isCreator changes
@@ -837,6 +848,7 @@ function Game(): JSX.Element {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
+    debugLogger.logUserAction('Player placed bet', { bet: activeFigure });
     if (socket) {
       socket.emit('bet', { 'bet': activeFigure });
     }
@@ -846,6 +858,7 @@ function Game(): JSX.Element {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
+    debugLogger.logUserAction('Player called check', {});
     if (socket) {
       socket.emit('bet', {'bet': 'check'});
     }
@@ -971,15 +984,18 @@ function Game(): JSX.Element {
           barStyle={isDarkMode ? 'light-content' : 'dark-content'}
           backgroundColor={backgroundStyle.backgroundColor}
         />
-        <ScrollView contentContainerStyle={[styles.container, {justifyContent: 'center', alignItems: 'center', paddingVertical: 40, gap: 20}]}>
+        <View style={{flex: 1, paddingVertical: 20}}>
+          {/* Fixed Header */}
           {roomName && (
-            <View style={{alignItems: 'center', marginBottom: 20}}>
+            <View style={{alignItems: 'center', marginBottom: 20, paddingHorizontal: 40}}>
               <Text style={{color: isDarkMode ? '#49DDDD' : '#0a7ea4', fontSize: 24, fontWeight: 'bold'}}>{roomName}</Text>
             </View>
           )}
 
-          <Text style={{color: isDarkMode ? '#fff' : '#000', fontSize: 18, fontWeight: '600'}}>Players in Room:</Text>
-          <View style={{width: '100%', paddingHorizontal: 40, gap: 10}}>
+          <Text style={{color: isDarkMode ? '#fff' : '#000', fontSize: 18, fontWeight: '600', textAlign: 'center', marginBottom: 15}}>Players in Room:</Text>
+
+          {/* Scrollable Players List */}
+          <ScrollView style={{flex: 1}} contentContainerStyle={{paddingHorizontal: 40, gap: 10, paddingBottom: 20}}>
             {queue.map((user, index) => {
               const playerSid = user[0];
               const playerName = user[1];
@@ -1013,53 +1029,56 @@ function Game(): JSX.Element {
                 </View>
               );
             })}
+          </ScrollView>
+
+          {/* Fixed Footer with Status and Buttons */}
+          <View style={{paddingHorizontal: 40, paddingTop: 20, borderTopWidth: 1, borderTopColor: isDarkMode ? '#333' : '#ddd'}}>
+            <Text style={{color: isDarkMode ? '#aaa' : '#666', textAlign: 'center', marginBottom: 15}}>
+              {queue.length < 2 ? 'Waiting for more players...' : 'Ready to start!'}
+            </Text>
+
+            {isCreator ? (
+              <View style={{gap: 15}}>
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
+                    queue.length < 2 && styles.disabledButton
+                  ]}
+                  disabled={queue.length < 2}
+                  onPress={handleStartGame}>
+                  <Text style={[styles.buttonText, isDarkMode ? styles.darkThemeText : styles.lightThemeText]}>Start Game</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.button, {backgroundColor: isDarkMode ? '#2a5f6f' : '#5a9fb5'}]}
+                  onPress={handleAddBot}>
+                  <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8}}>
+                    <Icon name="smart-toy" size={20} color="#fff" />
+                    <Text style={[styles.buttonText, {color: '#fff'}]}>Add Bot</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.button, {backgroundColor: '#ff4444'}]}
+                  onPress={handleDeleteRoom}>
+                  <Text style={[styles.buttonText, {color: '#fff'}]}>Delete Room</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View>
+                <Text style={{color: isDarkMode ? '#aaa' : '#666', textAlign: 'center', marginBottom: 15}}>
+                  Waiting for room creator to start...
+                </Text>
+                <TouchableOpacity
+                  style={[styles.button, {backgroundColor: '#666'}]}
+                  onPress={handleLeaveRoom}>
+                  <Text style={[styles.buttonText, {color: '#fff'}]}>Leave Room</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
-
-          <Text style={{color: isDarkMode ? '#aaa' : '#666', marginTop: 10}}>
-            {queue.length < 2 ? 'Waiting for more players...' : 'Ready to start!'}
-          </Text>
-
-          {isCreator ? (
-            <View style={{width: '100%', paddingHorizontal: 40, gap: 15, marginTop: 20}}>
-              <TouchableOpacity
-                style={[
-                  styles.button,
-                  isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
-                  queue.length < 2 && styles.disabledButton
-                ]}
-                disabled={queue.length < 2}
-                onPress={handleStartGame}>
-                <Text style={[styles.buttonText, isDarkMode ? styles.darkThemeText : styles.lightThemeText]}>Start Game</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.button, {backgroundColor: isDarkMode ? '#2a5f6f' : '#5a9fb5'}]}
-                onPress={handleAddBot}>
-                <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8}}>
-                  <Icon name="smart-toy" size={20} color="#fff" />
-                  <Text style={[styles.buttonText, {color: '#fff'}]}>Add Bot</Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.button, {backgroundColor: '#ff4444'}]}
-                onPress={handleDeleteRoom}>
-                <Text style={[styles.buttonText, {color: '#fff'}]}>Delete Room</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={{width: '100%', paddingHorizontal: 40, marginTop: 20}}>
-              <Text style={{color: isDarkMode ? '#aaa' : '#666', textAlign: 'center', marginBottom: 15}}>
-                Waiting for room creator to start...
-              </Text>
-              <TouchableOpacity
-                style={[styles.button, {backgroundColor: '#666'}]}
-                onPress={handleLeaveRoom}>
-                <Text style={[styles.buttonText, {color: '#fff'}]}>Leave Room</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </ScrollView>
+        </View>
       </SafeAreaView>
     );
   }
@@ -1092,6 +1111,8 @@ function Game(): JSX.Element {
             onDisplayModeChange={handleDisplayModeChange}
             onClose={() => setIsDrawerOpen(false)}
             isCloseable={!isTabletOrDesktop}
+            onOpenFeedback={() => setShowFeedbackModal(true)}
+            onOpenBugReport={() => setShowBugReportModal(true)}
           />
         )}
       >
@@ -1249,6 +1270,21 @@ function Game(): JSX.Element {
           </View>
         ))}
       </View>
+
+      {/* Feedback Modals */}
+      <FeedbackModal
+        visible={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        screenName="game"
+      />
+
+      <FeedbackModal
+        visible={showBugReportModal}
+        onClose={() => setShowBugReportModal(false)}
+        screenName="game"
+        debugLogs={debugLogger.exportLogs()}
+        isBugReport={true}
+      />
       </Drawer>
     </SafeAreaView>
   );
@@ -1395,8 +1431,6 @@ const styles = StyleSheet.create({
   },
   permanentToastText: {
     color: '#000',
-    fontSize: 18,
-    fontWeight: '800',
   },
 });
 

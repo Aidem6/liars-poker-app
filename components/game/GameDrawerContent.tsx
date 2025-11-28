@@ -5,7 +5,6 @@ import { useTheme } from '@/app/lib/ThemeContext';
 import { Colors } from '@/constants/Colors';
 import { router } from 'expo-router';
 import { ThemeToggleButton } from '../../app/components/theme/ThemeToggleButton';
-import { FeedbackButton } from '../../app/components/feedback/FeedbackButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
@@ -19,6 +18,8 @@ interface GameDrawerContentProps {
   onDisplayModeChange: (mode: 'board' | 'timeline') => void;
   onClose?: () => void;
   isCloseable?: boolean;
+  onOpenFeedback?: () => void;
+  onOpenBugReport?: () => void;
 }
 
 export default function GameDrawerContent({
@@ -31,10 +32,18 @@ export default function GameDrawerContent({
   onDisplayModeChange,
   onClose,
   isCloseable = false,
+  onOpenFeedback,
+  onOpenBugReport,
 }: GameDrawerContentProps) {
   const { isLightMode } = useTheme();
   const isDarkMode = !isLightMode;
   const insets = useSafeAreaInsets();
+
+  const handleHaptic = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background }]}>
@@ -57,13 +66,38 @@ export default function GameDrawerContent({
         </View>
 
         {/* Feedback */}
-        <View style={styles.menuItem}>
-          <Icon name="feedback" size={20} color={isDarkMode ? '#fff' : '#000'} style={styles.menuIcon} />
-          <Text style={[styles.menuLabel, { color: isDarkMode ? '#fff' : '#000' }]}>
-            Feedback
-          </Text>
-          <FeedbackButton />
-        </View>
+        {onOpenFeedback && (
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              handleHaptic();
+              onOpenFeedback();
+            }}
+          >
+            <Icon name="feedback" size={20} color={isDarkMode ? '#fff' : '#000'} style={styles.menuIcon} />
+            <Text style={[styles.menuLabel, { color: isDarkMode ? '#fff' : '#000' }]}>
+              Send Feedback
+            </Text>
+            <Icon name="chevron-right" size={20} color={isDarkMode ? '#666' : '#999'} />
+          </TouchableOpacity>
+        )}
+
+        {/* Bug Report */}
+        {onOpenBugReport && (
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              handleHaptic();
+              onOpenBugReport();
+            }}
+          >
+            <Icon name="bug-report" size={20} color={isDarkMode ? '#ff6b6b' : '#ff0000'} style={styles.menuIcon} />
+            <Text style={[styles.menuLabel, { color: isDarkMode ? '#fff' : '#000' }]}>
+              Report a Bug
+            </Text>
+            <Icon name="chevron-right" size={20} color={isDarkMode ? '#666' : '#999'} />
+          </TouchableOpacity>
+        )}
 
         {/* Divider */}
         <View style={[styles.divider, { backgroundColor: isDarkMode ? '#333' : '#ddd' }]} />
