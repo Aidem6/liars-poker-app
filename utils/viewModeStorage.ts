@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const VIEW_MODE_KEY = '@liars_poker_view_mode';
 
-export type ViewMode = 'board' | 'timeline';
+export type ViewMode = 'board' | 'timeline' | 'compact';
 
 /**
  * Universal view mode storage that works on both web and mobile

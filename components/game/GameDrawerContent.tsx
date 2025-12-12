@@ -14,8 +14,8 @@ interface GameDrawerContentProps {
   currentRoomId: string;
   onLeaveRoom: () => void;
   onDeleteRoom: () => void;
-  displayMode: 'board' | 'timeline';
-  onDisplayModeChange: (mode: 'board' | 'timeline') => void;
+  displayMode: 'board' | 'timeline' | 'compact';
+  onDisplayModeChange: (mode: 'board' | 'timeline' | 'compact') => void;
   onClose?: () => void;
   isCloseable?: boolean;
   onOpenFeedback?: () => void;
@@ -118,16 +118,11 @@ export default function GameDrawerContent({
                     : (isDarkMode ? '#303030' : '#e4e4e4')
                 }
               ]}
-              onPress={() => onDisplayModeChange('board')}
+              onPress={() => {
+                handleHaptic();
+                onDisplayModeChange('board');
+              }}
             >
-              <Icon
-                name="grid-on"
-                size={18}
-                color={displayMode === 'board'
-                  ? (isDarkMode ? '#0f0f0f' : '#fff')
-                  : (isDarkMode ? '#999' : '#666')
-                }
-              />
               <Text style={[
                 styles.viewToggleButtonText,
                 {
@@ -149,16 +144,11 @@ export default function GameDrawerContent({
                     : (isDarkMode ? '#303030' : '#e4e4e4')
                 }
               ]}
-              onPress={() => onDisplayModeChange('timeline')}
+              onPress={() => {
+                handleHaptic();
+                onDisplayModeChange('timeline');
+              }}
             >
-              <Icon
-                name="timeline"
-                size={18}
-                color={displayMode === 'timeline'
-                  ? (isDarkMode ? '#0f0f0f' : '#fff')
-                  : (isDarkMode ? '#999' : '#666')
-                }
-              />
               <Text style={[
                 styles.viewToggleButtonText,
                 {
@@ -168,6 +158,32 @@ export default function GameDrawerContent({
                 }
               ]}>
                 Timeline
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.viewToggleButton,
+                displayMode === 'compact' && styles.viewToggleButtonActive,
+                {
+                  backgroundColor: displayMode === 'compact'
+                    ? (isDarkMode ? '#49DDDD' : '#0a7ea4')
+                    : (isDarkMode ? '#303030' : '#e4e4e4')
+                }
+              ]}
+              onPress={() => {
+                handleHaptic();
+                onDisplayModeChange('compact');
+              }}
+            >
+              <Text style={[
+                styles.viewToggleButtonText,
+                {
+                  color: displayMode === 'compact'
+                    ? (isDarkMode ? '#0f0f0f' : '#fff')
+                    : (isDarkMode ? '#999' : '#666')
+                }
+              ]}>
+                Compact
               </Text>
             </TouchableOpacity>
           </View>

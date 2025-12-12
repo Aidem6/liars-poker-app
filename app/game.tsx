@@ -19,6 +19,8 @@ import Board from '../components/game/Board';
 import CardList from '../components/game/CardList';
 import GameTimeline from '../components/game/GameTimeline';
 import GameDrawerContent from '../components/game/GameDrawerContent';
+import CompactGameView from '../components/game/CompactGameView';
+import MiniCard from '../components/game/MiniCard';
 import { SocketContext } from '../socket';
 import { cardList } from '../utils/dataUtils';
 import { router, useNavigation, useLocalSearchParams } from 'expo-router';
@@ -132,6 +134,8 @@ function useSocketEvents(
   setIsCreator: React.Dispatch<React.SetStateAction<boolean>>,
   setGameEvents: React.Dispatch<React.SetStateAction<GameEvent[]>>,
   setIsSpectator: React.Dispatch<React.SetStateAction<boolean>>,
+  setWaitingForReady: React.Dispatch<React.SetStateAction<boolean>>,
+  setPlayersReady: React.Dispatch<React.SetStateAction<string[]>>,
   debugLogger: ReturnType<typeof useDebugLogger>,
 ) {
   useEffect(() => {
@@ -199,6 +203,8 @@ function useSocketEvents(
 
       game_update: (data) => {
         debugLogger.logSocketEvent('game_update', data);
+        console.log('📨 GAME_UPDATE MESSAGE:', data?.json?.action);
+
         setLogs(oldLogs => {
           const newLogs = oldLogs + '\n' + data.text;
           scrollToBottom();
@@ -252,6 +258,11 @@ function useSocketEvents(
 
             // Add game events based on action
             if (json.action === 'new_deal') {
+              console.log('🔵 NEW_DEAL EVENT - Resetting waitingForReady to false');
+              // Reset waiting for ready state when new deal starts
+              setWaitingForReady(false);
+              setPlayersReady([]);
+
               // Create hand counts map with player IDs and names
               const playerHandCounts: Record<string, number> = {};
               const playerIdToName: Record<string, string> = {};
@@ -363,6 +374,23 @@ function useSocketEvents(
                 playerName: json.winner_username,
                 result: `${json.winner_username} won!`,
               }]);
+            }
+
+            // Handle waiting_for_ready action
+            if (json.action === 'waiting_for_ready') {
+              console.log('🔴 WAITING_FOR_READY EVENT RECEIVED');
+              console.log('Players ready from backend:', json.players_ready);
+              console.log('Calling setWaitingForReady(true)...');
+              setWaitingForReady(true);
+              setPlayersReady(json.players_ready || []);
+              console.log('✅ After setState calls - should trigger re-render');
+            }
+
+            // Handle player_ready action
+            if (json.action === 'player_ready') {
+              console.log('🟢 PLAYER_READY EVENT RECEIVED');
+              console.log('Players ready from backend:', json.players_ready);
+              setPlayersReady(json.players_ready || []);
             }
 
             return currentHand;
@@ -657,9 +685,23 @@ function Game(): JSX.Element {
   const [isSpectator, setIsSpectator] = useState<boolean>(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showBugReportModal, setShowBugReportModal] = useState(false);
+  const [lastCheckPlayerId, setLastCheckPlayerId] = useState<string | undefined>(undefined);
+  const [lastLosePlayerId, setLastLosePlayerId] = useState<string | undefined>(undefined);
+  const [revealedHands, setRevealedHands] = useState<Record<string, any[]> | undefined>(undefined);
+  const [waitingForReady, setWaitingForReady] = useState<boolean>(false);
+  const [playersReady, setPlayersReady] = useState<string[]>([]);
 
   const { socket, sid } = useContext(SocketContext) as SocketContextType;
   const navigation = useNavigation();
+
+  // DEBUG: Log state changes for ready system
+  useEffect(() => {
+    console.log('🔴 STATE CHANGE: waitingForReady =', waitingForReady);
+  }, [waitingForReady]);
+
+  useEffect(() => {
+    console.log('🟢 STATE CHANGE: playersReady =', playersReady);
+  }, [playersReady]);
 
   const [ queueSid, setQueueSid ] = useState('');
 
@@ -669,6 +711,10 @@ function Game(): JSX.Element {
   // Use refs to always get the latest values
   const queueSidRef = useRef(queueSid);
   const sidRef = useRef(sid);
+
+  // Refs to track active timers
+  const checkTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const loseTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     queueSidRef.current = queueSid;
@@ -713,6 +759,8 @@ function Game(): JSX.Element {
     setIsCreator,
     setGameEvents,
     setIsSpectator,
+    setWaitingForReady,
+    setPlayersReady,
     debugLogger
   );
 
@@ -740,9 +788,9 @@ function Game(): JSX.Element {
     saveViewMode();
   }, [displayMode]);
 
-  // Clear permanent toasts when switching to list view
+  // Clear permanent toasts when switching to list or compact view
   useEffect(() => {
-    if (displayMode === 'timeline') {
+    if (displayMode === 'timeline' || displayMode === 'compact') {
       setToastQueue(prev => prev.filter(toast => !toast.permanent));
     }
   }, [displayMode]);
@@ -778,6 +826,86 @@ function Game(): JSX.Element {
       showToast(`🏆 ${displayName} WON! 🏆`, true); // Permanent toast
     }
   }, [gameEvents, displayMode, gameData.players]);
+
+  // Handle check and lose states with timers
+  useEffect(() => {
+    if (gameEvents.length === 0) return;
+
+    const lastEvent = gameEvents[gameEvents.length - 1];
+
+    // Clear states immediately on new deal and cancel any running timers
+    if (lastEvent.type === 'new_deal') {
+      if (checkTimerRef.current) {
+        clearTimeout(checkTimerRef.current);
+        checkTimerRef.current = null;
+      }
+      if (loseTimerRef.current) {
+        clearTimeout(loseTimerRef.current);
+        loseTimerRef.current = null;
+      }
+      setLastCheckPlayerId(undefined);
+      setLastLosePlayerId(undefined);
+      setRevealedHands(undefined);
+      setWaitingForReady(false);
+      setPlayersReady([]);
+      return;
+    }
+
+    // Handle check event
+    if (lastEvent.type === 'check') {
+      // Clear any existing check timer
+      if (checkTimerRef.current) {
+        clearTimeout(checkTimerRef.current);
+      }
+
+      setLastCheckPlayerId(lastEvent.playerId);
+
+      // Extract revealed hands from check event
+      if (lastEvent.playerHands) {
+        const handsMap: Record<string, any[]> = {};
+        Object.entries(lastEvent.playerHands).forEach(([playerId, hand]: [string, any]) => {
+          if (Array.isArray(hand)) {
+            handsMap[playerId] = hand.map((card: any) => {
+              if (typeof card === 'string') {
+                const suit = card.slice(-1);
+                const rank = card.slice(0, -1);
+                return { rank, suit };
+              }
+              return card;
+            });
+          }
+        });
+        setRevealedHands(handsMap);
+      }
+
+      // Clear ONLY check state after 2 seconds (keep revealed hands visible)
+      checkTimerRef.current = setTimeout(() => {
+        setLastCheckPlayerId(undefined);
+        checkTimerRef.current = null;
+      }, 2000);
+
+      return;
+    }
+
+    // Handle lose event
+    if (lastEvent.type === 'deal_result') {
+      // Clear any existing lose timer
+      if (loseTimerRef.current) {
+        clearTimeout(loseTimerRef.current);
+      }
+
+      setLastLosePlayerId(lastEvent.playerId);
+
+      // Don't clear revealed hands here - they were already set by check event
+      // Just clear the lose state after 2 seconds
+      loseTimerRef.current = setTimeout(() => {
+        setLastLosePlayerId(undefined);
+        loseTimerRef.current = null;
+      }, 2000);
+
+      return;
+    }
+  }, [gameEvents]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -861,6 +989,16 @@ function Game(): JSX.Element {
     debugLogger.logUserAction('Player called check', {});
     if (socket) {
       socket.emit('bet', {'bet': 'check'});
+    }
+  };
+
+  const handleReadyForNextDeal = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    debugLogger.logUserAction('Player ready for next deal', {});
+    if (socket) {
+      socket.emit('ready_for_next_deal');
     }
   };
 
@@ -1138,10 +1276,10 @@ function Game(): JSX.Element {
         <View style={{ flex: 1 }}>
           {!isLogsFullscreen ?
             <>
-              {/* Display Board or Timeline based on mode */}
+              {/* Display Board, Timeline, or Compact view based on mode */}
               {displayMode === 'board' ? (
                 <Board gameData={gameData} yourHand={yourHand} />
-              ) : (
+              ) : displayMode === 'timeline' ? (
                 <GameTimeline
                   events={gameEvents}
                   playerNames={gameData.players.reduce((acc, player) => {
@@ -1151,6 +1289,38 @@ function Game(): JSX.Element {
                   myUserId={gameData.players.find(p => p.isMe)?.id}
                   myUsername={username}
                 />
+              ) : (
+                <CompactGameView
+                  players={gameData.players}
+                  lastCheckPlayerId={lastCheckPlayerId}
+                  lastLosePlayerId={lastLosePlayerId}
+                  revealedHands={revealedHands}
+                />
+              )}
+
+              {/* Show my hand in compact mode */}
+              {displayMode === 'compact' && yourHand && yourHand.length > 0 && (
+                <View style={styles.myHandContainer}>
+                  <Text style={[styles.myHandLabel, { color: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}>
+                    My Hand:
+                  </Text>
+                  <View style={styles.myHandCards}>
+                    {yourHand.map((card: any, index: number) => {
+                      const rank = typeof card === 'string'
+                        ? card.slice(0, -1)
+                        : card.rank;
+                      const suit = typeof card === 'string' ? card.slice(-1) : card.suit;
+
+                      return (
+                        <MiniCard
+                          key={`myhand_${index}`}
+                          rank={rank}
+                          suit={suit}
+                        />
+                      );
+                    })}
+                  </View>
+                </View>
               )}
 
               {/* Only show logs panel in board mode */}
@@ -1197,9 +1367,11 @@ function Game(): JSX.Element {
         {/* Show card list and buttons only for non-spectators */}
         {!isSpectator && (
           <>
-            <View style={{ minHeight: 120 }}>
-              <CardList chooseFigure={chooseFigure} firstAvailableFigure={firstAvailableFigure} activeFigure={activeFigure} />
-            </View>
+            {!waitingForReady && (
+              <View style={{ minHeight: 120 }}>
+                <CardList chooseFigure={chooseFigure} firstAvailableFigure={firstAvailableFigure} activeFigure={activeFigure} />
+              </View>
+            )}
             <View style={[styles.buttonRow]}>
               {!isTabletOrDesktop && (
                 <TouchableOpacity
@@ -1218,33 +1390,64 @@ function Game(): JSX.Element {
                   <Icon name="menu" size={16} color={isDarkMode ? '#010710' : '#fff'} />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity
-                style={[
-                  styles.button,
-                  isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
-                  (!isMyTurn || !lastBetExists) && styles.disabledButton
-                ]}
-                disabled={!isMyTurn || !lastBetExists}
-                onPress={handleCheck}>
-                <Text style={[
-                  styles.buttonText,
-                  isDarkMode ? styles.darkThemeText : styles.lightThemeText,
-                  (!isMyTurn || !lastBetExists) && styles.disabledButtonText
-                ]}>Check</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.button,
-                  isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
-                  (!isMyTurn || !activeFigure) && styles.disabledButton
-                ]}
-                onPress={bet}>
-                <Text style={[
-                  styles.buttonText,
-                  isDarkMode ? styles.darkThemeText : styles.lightThemeText,
-                  (!isMyTurn || !activeFigure) && styles.disabledButtonText
-                ]}>Bet</Text>
-              </TouchableOpacity>
+              {(() => {
+                console.log('🎨 RENDER - waitingForReady:', waitingForReady);
+                console.log('🎨 RENDER - playersReady:', playersReady);
+                return null;
+              })()}
+              {waitingForReady ? (
+                <>
+                  {console.log('✅ Rendering Next Deal button')}
+                  <TouchableOpacity
+                    style={[
+                      styles.button,
+                      styles.nextDealButton,
+                      isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
+                      playersReady.includes(getEffectiveSid()) && styles.disabledButton
+                    ]}
+                    disabled={playersReady.includes(getEffectiveSid())}
+                    onPress={handleReadyForNextDeal}>
+                    <Text style={[
+                      styles.buttonText,
+                      isDarkMode ? styles.darkThemeText : styles.lightThemeText,
+                      playersReady.includes(getEffectiveSid()) && styles.disabledButtonText
+                    ]}>
+                      {playersReady.includes(getEffectiveSid()) ? 'Waiting...' : 'Next Deal'}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  {console.log('❌ Rendering Check/Bet buttons')}
+                  <TouchableOpacity
+                    style={[
+                      styles.button,
+                      isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
+                      (!isMyTurn || !lastBetExists) && styles.disabledButton
+                    ]}
+                    disabled={!isMyTurn || !lastBetExists}
+                    onPress={handleCheck}>
+                    <Text style={[
+                      styles.buttonText,
+                      isDarkMode ? styles.darkThemeText : styles.lightThemeText,
+                      (!isMyTurn || !lastBetExists) && styles.disabledButtonText
+                    ]}>Check</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.button,
+                      isDarkMode ? styles.darkThemeButtonBackground : styles.lightThemeButtonBackground,
+                      (!isMyTurn || !activeFigure) && styles.disabledButton
+                    ]}
+                    onPress={bet}>
+                    <Text style={[
+                      styles.buttonText,
+                      isDarkMode ? styles.darkThemeText : styles.lightThemeText,
+                      (!isMyTurn || !activeFigure) && styles.disabledButtonText
+                    ]}>Bet</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </>
         )}
@@ -1368,6 +1571,9 @@ const styles = StyleSheet.create({
   disabledButtonText: {
     opacity: 0.7,
   },
+  nextDealButton: {
+    flex: 1,
+  },
   logsContainer: {
     maxHeight: 60,
     marginHorizontal: 10,
@@ -1449,6 +1655,28 @@ const styles = StyleSheet.create({
   },
   permanentToastText: {
     color: '#000',
+  },
+  myHandContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+  myHandLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  myHandCards: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  myHandCard: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
