@@ -8,14 +8,10 @@ import type { DefaultEventsMap } from '@socket.io/component-emitter';
 // import {ANDROID, IOS} from '../constants/constants';
 // import {isIOS} from '../helper';
 
-// Production server
-const SOCKET_PROD = 'https://liarspoker-server.adamtomczyk.com';
-// Development server
-const SOCKET_DEV = 'http://localhost:4000';
-
-// Use production by default, can switch for local dev
-const SOCKET_URL = SOCKET_PROD;
-// const SOCKET_URL = SOCKET_DEV;  // Uncomment for local development
+// Socket URL is managed via environment variables
+// Production: uses .env (https://liarspoker-server.adamtomczyk.com)
+// Development: uses .env.local (http://localhost:4000)
+const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'https://liarspoker-server.adamtomczyk.com';
 
 export const SocketContext = React.createContext<{
   socket: Socket<DefaultEventsMap, DefaultEventsMap> | null;
