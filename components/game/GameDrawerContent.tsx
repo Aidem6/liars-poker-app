@@ -4,7 +4,6 @@ import { Icon } from 'react-native-elements';
 import { useTheme } from '@/app/lib/ThemeContext';
 import { Colors } from '@/constants/Colors';
 import { router } from 'expo-router';
-import { ThemeToggleButton } from '../../app/components/theme/ThemeToggleButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
@@ -35,7 +34,7 @@ export default function GameDrawerContent({
   onOpenFeedback,
   onOpenBugReport,
 }: GameDrawerContentProps) {
-  const { isLightMode } = useTheme();
+  const { isLightMode, toggleTheme } = useTheme();
   const isDarkMode = !isLightMode;
   const insets = useSafeAreaInsets();
 
@@ -57,13 +56,23 @@ export default function GameDrawerContent({
       {/* Menu Items */}
       <ScrollView style={styles.menuItems}>
         {/* Theme Toggle */}
-        <View style={styles.menuItem}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => {
+            handleHaptic();
+            toggleTheme();
+          }}
+        >
           <Icon name="palette" size={20} color={isDarkMode ? '#fff' : '#000'} style={styles.menuIcon} />
           <Text style={[styles.menuLabel, { color: isDarkMode ? '#fff' : '#000' }]}>
             Theme
           </Text>
-          <ThemeToggleButton />
-        </View>
+          <Icon
+            name={isDarkMode ? 'light-mode' : 'dark-mode'}
+            size={20}
+            color={isDarkMode ? '#49DDDD' : '#0a7ea4'}
+          />
+        </TouchableOpacity>
 
         {/* Feedback */}
         {onOpenFeedback && (
