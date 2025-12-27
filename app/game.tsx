@@ -34,6 +34,7 @@ import { GameEvent } from '@/types/gameEvents';
 import { ViewModeStorage, ViewMode } from '@/utils/viewModeStorage';
 import { useDebugLogger } from '@/hooks/useDebugLogger';
 import { FeedbackModal } from './components/feedback/FeedbackModal';
+import { InstructionsModal } from './components/instructions/InstructionsModal';
 
 const TABLET_BREAKPOINT = 768;
 
@@ -685,6 +686,7 @@ function Game(): JSX.Element {
   const [isSpectator, setIsSpectator] = useState<boolean>(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showBugReportModal, setShowBugReportModal] = useState(false);
+  const [showInstructionsModal, setShowInstructionsModal] = useState(false);
   const [lastCheckPlayerId, setLastCheckPlayerId] = useState<string | undefined>(undefined);
   const [lastLosePlayerId, setLastLosePlayerId] = useState<string | undefined>(undefined);
   const [revealedHands, setRevealedHands] = useState<Record<string, any[]> | undefined>(undefined);
@@ -1269,6 +1271,7 @@ function Game(): JSX.Element {
             isCloseable={!isTabletOrDesktop}
             onOpenFeedback={() => setShowFeedbackModal(true)}
             onOpenBugReport={() => setShowBugReportModal(true)}
+            onOpenInstructions={() => setShowInstructionsModal(true)}
           />
         )}
       >
@@ -1505,6 +1508,12 @@ function Game(): JSX.Element {
         screenName="game"
         debugLogs={debugLogger.exportLogs()}
         isBugReport={true}
+      />
+
+      {/* Instructions Modal */}
+      <InstructionsModal
+        visible={showInstructionsModal}
+        onClose={() => setShowInstructionsModal(false)}
       />
       </Drawer>
     </SafeAreaView>

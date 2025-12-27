@@ -19,6 +19,7 @@ interface GameDrawerContentProps {
   isCloseable?: boolean;
   onOpenFeedback?: () => void;
   onOpenBugReport?: () => void;
+  onOpenInstructions?: () => void;
 }
 
 export default function GameDrawerContent({
@@ -33,6 +34,7 @@ export default function GameDrawerContent({
   isCloseable = false,
   onOpenFeedback,
   onOpenBugReport,
+  onOpenInstructions,
 }: GameDrawerContentProps) {
   const { isLightMode, toggleTheme } = useTheme();
   const isDarkMode = !isLightMode;
@@ -103,6 +105,23 @@ export default function GameDrawerContent({
             <Icon name="bug-report" size={20} color={isDarkMode ? '#ff6b6b' : '#ff0000'} style={styles.menuIcon} />
             <Text style={[styles.menuLabel, { color: isDarkMode ? '#fff' : '#000' }]}>
               Report a Bug
+            </Text>
+            <Icon name="chevron-right" size={20} color={isDarkMode ? '#666' : '#999'} />
+          </TouchableOpacity>
+        )}
+
+        {/* Instructions */}
+        {onOpenInstructions && (
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              handleHaptic();
+              onOpenInstructions();
+            }}
+          >
+            <Icon name="help-outline" size={20} color={isDarkMode ? '#fff' : '#000'} style={styles.menuIcon} />
+            <Text style={[styles.menuLabel, { color: isDarkMode ? '#fff' : '#000' }]}>
+              How to Play
             </Text>
             <Icon name="chevron-right" size={20} color={isDarkMode ? '#666' : '#999'} />
           </TouchableOpacity>

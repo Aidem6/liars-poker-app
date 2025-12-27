@@ -26,6 +26,7 @@ import { UsernameStorage } from '@/utils/usernameStorage';
 import { useTheme } from '../lib/ThemeContext';
 import { ThemeMode } from '@/utils/themeStorage';
 import { FeedbackButton } from '../components/feedback/FeedbackButton';
+import { InstructionsButton } from '../components/instructions/InstructionsButton';
 
 interface DynamicRoom {
   id: string;
@@ -309,6 +310,7 @@ function Home() {
               </Text>
               <View style={styles.headerButtons}>
                 <FeedbackButton screenName="Home" />
+                <InstructionsButton />
                 <TouchableOpacity onPress={handleThemeToggle} style={styles.themeButton}>
                   <Icon name={getThemeIcon()} size={24} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
                 </TouchableOpacity>
