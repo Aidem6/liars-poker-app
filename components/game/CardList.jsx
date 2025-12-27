@@ -13,17 +13,17 @@ import { Colors } from '@/constants/Colors';
 import { FontAwesome } from '@expo/vector-icons';
 import { useTheme } from '@/app/lib/ThemeContext';
 
-// Define figure categories with their starting indices and display names
+// Define figure categories with their starting and ending indices and display names
 const CATEGORIES = [
-  { name: 'High Card', startIndex: 0, displayName: 'High Card' },
-  { name: 'Pair', startIndex: 6, displayName: 'One Pair' },
-  { name: 'Two Pair', startIndex: 12, displayName: 'Two Pair' },
-  { name: 'Straight', startIndex: 27, displayName: 'Straight' },
-  { name: 'Three of a Kind', startIndex: 29, displayName: 'Three of a Kind' },
-  { name: 'Full House', startIndex: 35, displayName: 'Full House' },
-  { name: 'Four of a Kind', startIndex: 65, displayName: 'Four of a Kind' },
-  { name: 'Flush', startIndex: 71, displayName: 'Flush' },
-  { name: 'Straight Flush', startIndex: 75, displayName: 'Straight Flush' },
+  { name: 'High Card', startIndex: 0, endIndex: 5, displayName: 'High Card' },
+  { name: 'Pair', startIndex: 6, endIndex: 11, displayName: 'One Pair' },
+  { name: 'Two Pair', startIndex: 12, endIndex: 26, displayName: 'Two Pair' },
+  { name: 'Straight', startIndex: 27, endIndex: 28, displayName: 'Straight' },
+  { name: 'Three of a Kind', startIndex: 29, endIndex: 34, displayName: 'Three of a Kind' },
+  { name: 'Full House', startIndex: 35, endIndex: 64, displayName: 'Full House' },
+  { name: 'Four of a Kind', startIndex: 65, endIndex: 70, displayName: 'Four of a Kind' },
+  { name: 'Flush', startIndex: 71, endIndex: 74, displayName: 'Flush' },
+  { name: 'Straight Flush', startIndex: 75, endIndex: 82, displayName: 'Straight Flush' },
 ];
 
 function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
@@ -33,8 +33,10 @@ function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
   const categoryScrollRef = useRef();
   const categoryButtonRefs = useRef({});
   const scrollXRef = useRef(0);
+  const categoryScrollXRef = useRef(0);
   const updateTimeoutRef = useRef(null);
   const [elementWidths, setElementWidths] = React.useState([]);
+  const [categoryButtonWidths, setCategoryButtonWidths] = React.useState({});
   const [scrollX, setScrollX] = useState(0);
   const [activeCategory, setActiveCategory] = useState(null);
 
@@ -74,13 +76,24 @@ function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
     });
   };
 
+  const handleCategoryButtonLayout = (event, categoryName) => {
+    const { width } = event.nativeEvent.layout;
+    setCategoryButtonWidths(prev => ({
+      ...prev,
+      [categoryName]: width
+    }));
+  };
+
   // Update active category based on scroll position
   useEffect(() => {
     if (elementWidths.length === 0) return;
 
-    const categoryPositions = CATEGORIES
-      .map(cat => cat.startIndex - firstAvailableFigure)
-      .filter(pos => pos >= 0);
+    // Get available categories using the same logic as availableCategories
+    const adjustedCategories = CATEGORIES.filter(cat => firstAvailableFigure <= cat.endIndex);
+
+    // Calculate the actual first figure index for each available category
+    const categoryPositions = adjustedCategories
+      .map(cat => Math.max(cat.startIndex, firstAvailableFigure) - firstAvailableFigure);
 
     const categoryWidths = categoryPositions.map(position => {
       return elementWidths
@@ -94,8 +107,6 @@ function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
       return scrollX >= width && (nextWidth === undefined || scrollX < nextWidth);
     });
 
-    const adjustedCategories = CATEGORIES.filter(cat => cat.startIndex >= firstAvailableFigure);
-
     if (currentCategoryIndex >= 0) {
       const newCategory = adjustedCategories[currentCategoryIndex]?.name;
       setActiveCategory(prev => prev === newCategory ? prev : newCategory);
@@ -105,124 +116,87 @@ function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
     }
   }, [scrollX, elementWidths.length, firstAvailableFigure]);
 
-  // Auto-scroll category list when active category changes
   useEffect(() => {
     if (!activeCategory || !categoryScrollRef.current) return;
 
-    const categoryButton = categoryButtonRefs.current[activeCategory];
-    if (categoryButton) {
-      categoryButton.measureLayout(
-        categoryScrollRef.current,
-        (x) => {
-          // Scroll to show the active category button
-          categoryScrollRef.current?.scrollTo({
-            x: Math.max(0, x - 16), // 16px padding offset
-            animated: true
-          });
-        },
-        () => {} // error callback
-      );
-    }
-  }, [activeCategory]);
+    const adjustedCategories = CATEGORIES.filter(cat => firstAvailableFigure <= cat.endIndex);
+    const activeCategoryIndex = adjustedCategories.findIndex(cat => cat.name === activeCategory);
 
-  const scrollToCategory = (categoryStartIndex) => {
+    if (activeCategoryIndex === -1) return;
+
+    const previousCategoryButtons = adjustedCategories.slice(0, activeCategoryIndex);
+    let targetScrollX = 16;
+
+    previousCategoryButtons.forEach(cat => {
+      const buttonWidth = categoryButtonWidths[cat.name];
+      if (buttonWidth) {
+        targetScrollX += buttonWidth + 8;
+      }
+    });
+
+    categoryScrollRef.current?.scrollTo({
+      x: targetScrollX,
+      animated: true
+    });
+  }, [activeCategory, categoryButtonWidths, firstAvailableFigure]);
+
+  const scrollToCategory = (categoryStartIndex, categoryName) => {
     if (!scrollRef.current) return;
 
-    const adjustedIndex = categoryStartIndex - firstAvailableFigure;
+    const actualStartIndex = Math.max(categoryStartIndex, firstAvailableFigure);
+    const adjustedIndex = actualStartIndex - firstAvailableFigure;
+
     if (adjustedIndex < 0) return;
 
     const targetWidth = elementWidths
       .slice(0, adjustedIndex)
       .reduce((sum, width) => sum + width, 0);
 
+    setActiveCategory(categoryName);
+
     scrollRef.current.scrollTo({
       x: targetWidth,
       animated: true
     });
-  };
-  
-  const scrollToNextCategory = () => {
-    if (!scrollRef.current) return;
 
-    // Define category positions (card indices where categories start)
-    const categoryPositions = [6, 12, 27, 29, 35, 65, 71, 75, 79];
-    
-    // Adjust positions based on first available figure
-    const adjustedPositions = categoryPositions
-      .map(pos => pos - firstAvailableFigure)
-      .filter(pos => pos > 0);
+    if (categoryScrollRef.current && categoryName) {
+      const clickedCategoryIndex = availableCategories.findIndex(cat => cat.name === categoryName);
+      if (clickedCategoryIndex === -1) return;
 
-    // Calculate cumulative widths up to each category position
-    const categoryWidths = adjustedPositions.map(position => {
-      return elementWidths
-        .slice(0, position)
-        .reduce((sum, width) => sum + width, 0);
-    });
+      const previousCategoryButtons = availableCategories.slice(0, clickedCategoryIndex);
+      let targetScrollX = 16;
 
-    // Find the next category position that's beyond current scroll position
-    const nextCategoryIndex = categoryWidths.findIndex(width => width > scrollX);
-    if (nextCategoryIndex === -1) return;
+      previousCategoryButtons.forEach(cat => {
+        const buttonWidth = categoryButtonWidths[cat.name];
+        if (buttonWidth) {
+          targetScrollX += buttonWidth + 8;
+        }
+      });
 
-    // Scroll to the next category
-    scrollRef.current.scrollTo({
-      x: categoryWidths[nextCategoryIndex],
-      animated: true
-    });
-  };
-
-  const scrollToPreviousCategory = () => {
-    if (!scrollRef.current) return;
-
-    // Define category positions (card indices where categories start)
-    const categoryPositions = [6, 12, 27, 29, 35, 65, 71, 75, 79];
-    
-    // Adjust positions based on first available figure
-    const adjustedPositions = categoryPositions
-      .map(pos => pos - firstAvailableFigure)
-      .filter(pos => pos > 0);
-
-    // Calculate cumulative widths up to each category position
-    const categoryWidths = adjustedPositions.map(position => {
-      return elementWidths
-        .slice(0, position)
-        .reduce((sum, width) => sum + width, 0);
-    });
-
-    // Find the previous category position
-    const previousCategoryIndex = categoryWidths.findIndex(width => width >= scrollX) - 1;
-    if (previousCategoryIndex < 0) {
-      // If we're before the first category or at it, scroll to start
-      scrollRef.current.scrollTo({
-        x: 0,
+      categoryScrollRef.current?.scrollTo({
+        x: targetScrollX,
         animated: true
       });
-      return;
     }
-
-    // Scroll to the previous category
-    scrollRef.current.scrollTo({
-      x: categoryWidths[previousCategoryIndex],
-      animated: true
-    });
   };
-
-  // Handle scroll with debouncing to prevent infinite loops
+  
   const handleScroll = useCallback((event) => {
     const newScrollX = event.nativeEvent.contentOffset.x;
     scrollXRef.current = newScrollX;
 
-    // Clear existing timeout
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
     }
 
-    // Debounce the state update
     updateTimeoutRef.current = setTimeout(() => {
       setScrollX(newScrollX);
     }, 50);
   }, []);
 
-  // Cleanup timeout on unmount
+  const handleCategoryScroll = useCallback((event) => {
+    categoryScrollXRef.current = event.nativeEvent.contentOffset.x;
+  }, []);
+
   useEffect(() => {
     return () => {
       if (updateTimeoutRef.current) {
@@ -231,8 +205,7 @@ function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
     };
   }, []);
 
-  // Filter categories based on firstAvailableFigure
-  const availableCategories = CATEGORIES.filter(cat => cat.startIndex >= firstAvailableFigure);
+  const availableCategories = CATEGORIES.filter(cat => firstAvailableFigure <= cat.endIndex);
 
   return (
     <View style={styles.outerWrapper}>
@@ -269,34 +242,6 @@ function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
             </Pressable>
           )}
         </ScrollView>
-
-        <Pressable
-          style={[
-            styles.prevButton,
-            { backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background }
-          ]}
-          onPress={scrollToPreviousCategory}
-        >
-          <FontAwesome
-            name="chevron-left"
-            size={20}
-            color={isDarkMode ? Colors.dark.text : Colors.light.text}
-          />
-        </Pressable>
-
-        <Pressable
-          style={[
-            styles.nextButton,
-            { backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background }
-          ]}
-          onPress={scrollToNextCategory}
-        >
-          <FontAwesome
-            name="chevron-right"
-            size={20}
-            color={isDarkMode ? Colors.dark.text : Colors.light.text}
-          />
-        </Pressable>
       </View>
 
       {/* Categories horizontal list */}
@@ -304,6 +249,8 @@ function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
         ref={categoryScrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={handleCategoryScroll}
         style={[
           styles.categoriesContainer,
           { backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background }
@@ -318,7 +265,8 @@ function CardList({ chooseFigure, firstAvailableFigure, activeFigure }) {
                 categoryButtonRefs.current[category.name] = ref;
               }
             }}
-            onPress={() => scrollToCategory(category.startIndex)}
+            onLayout={(event) => handleCategoryButtonLayout(event, category.name)}
+            onPress={() => scrollToCategory(category.startIndex, category.name)}
             style={[
               styles.categoryButton,
               activeCategory === category.name && styles.categoryButtonActive,
@@ -400,6 +348,7 @@ const styles = StyleSheet.create({
     height: 0,
     borderTopWidth: 1,
     borderTopColor: 'rgba(128, 128, 128, 0.2)',
+    scrollBehavior: 'smooth',
   },
   categoriesContent: {
     paddingHorizontal: 16,
