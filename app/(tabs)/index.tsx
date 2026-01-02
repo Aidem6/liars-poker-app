@@ -13,6 +13,7 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
+  Linking,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,6 +28,8 @@ import { useTheme } from '../lib/ThemeContext';
 import { ThemeMode } from '@/utils/themeStorage';
 import { FeedbackButton } from '../components/feedback/FeedbackButton';
 import { InstructionsButton } from '../components/instructions/InstructionsButton';
+// @ts-ignore
+import QRCode from 'react-qr-code';
 
 interface DynamicRoom {
   id: string;
@@ -52,6 +55,20 @@ function Home() {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [tempUsername, setTempUsername] = useState<string>('');
   const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [selectedStoreUrl, setSelectedStoreUrl] = useState<string>('');
+  const [selectedStoreName, setSelectedStoreName] = useState<string>('');
+
+  // Detect if user is on a mobile device using user agent
+  const isMobileDevice = () => {
+    if (Platform.OS !== 'web') return true; // Native apps are mobile
+
+    // Check user agent for mobile devices
+    const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent : '';
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+  };
+
+  const isDesktop = Platform.OS === 'web' && !isMobileDevice();
 
   // Load username on mount
   useEffect(() => {
@@ -235,6 +252,22 @@ function Home() {
     return isDarkMode ? 'nights-stay' : 'wb-sunny';
   };
 
+  const handleOpenStore = (url: string, storeName: string) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    // On desktop: Show QR modal for users to scan
+    // On mobile: Redirect directly to the store
+    if (isDesktop) {
+      setSelectedStoreUrl(url);
+      setSelectedStoreName(storeName);
+      setShowQRModal(true);
+    } else {
+      Linking.openURL(url);
+    }
+  };
+
   const renderDynamicRoom: ListRenderItem<DynamicRoom> = ({ item }) => {
     const statusColor = item.status === 'waiting' ? (isDarkMode ? '#49DDDD' : '#0a7ea4') :
                         item.status === 'in_progress' ? '#FFA500' : '#999';
@@ -346,6 +379,34 @@ function Home() {
           </>
         )}
       </TouchableOpacity>
+
+      {Platform.OS === 'web' && (
+        <View style={styles.storeLinksContainer}>
+          <Text style={[styles.storeLinksTitle, { color: isDarkMode ? '#aaa' : '#666' }]}>
+            Download the app
+          </Text>
+          <View style={styles.storeButtons}>
+            <TouchableOpacity
+              style={[styles.storeButton, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}
+              onPress={() => handleOpenStore('https://apps.apple.com/pl/app/liars-poker-game/id6741585397', 'App Store')}
+            >
+              <Icon name="apple" type="font-awesome" size={20} color={isDarkMode ? '#fff' : '#000'} />
+              <Text style={[styles.storeButtonText, { color: isDarkMode ? '#fff' : '#000' }]}>
+                App Store
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.storeButton, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}
+              onPress={() => handleOpenStore('https://play.google.com/store/apps/details?id=com.tomczyk006.liarspokerapp&pcampaignid=web_share', 'Google Play')}
+            >
+              <Icon name="android" size={20} color={isDarkMode ? '#fff' : '#000'} />
+              <Text style={[styles.storeButtonText, { color: isDarkMode ? '#fff' : '#000' }]}>
+                Google Play
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       <FlatList
         data={rooms}
@@ -464,6 +525,44 @@ function Home() {
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* QR Code Modal */}
+      <Modal
+        visible={showQRModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowQRModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>
+            <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+              Scan to Download
+            </Text>
+            <Text style={[styles.modalDescription, { color: isDarkMode ? '#aaa' : '#666' }]}>
+              Scan this QR code with your camera to download from {selectedStoreName}
+            </Text>
+            <View style={styles.qrModalCodeWrapper}>
+              <View style={[styles.qrCodeWrapper, { backgroundColor: '#fff' }]}>
+                <QRCode
+                  value={selectedStoreUrl}
+                  size={200}
+                  level="M"
+                />
+              </View>
+            </View>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton, { backgroundColor: isDarkMode ? '#49DDDD' : '#0a7ea4', flex: 1 }]}
+                onPress={() => setShowQRModal(false)}
+              >
+                <Text style={[styles.confirmButtonText, { color: isDarkMode ? '#010710' : '#fff' }]}>
+                  Close
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -680,6 +779,52 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 16,
     marginBottom: 24,
+  },
+  storeLinksContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  storeLinksTitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 12,
+    fontWeight: '500',
+  },
+  storeButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+  },
+  storeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  storeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  qrCodeWrapper: {
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  qrModalCodeWrapper: {
+    alignItems: 'center',
+    marginVertical: 20,
   },
 });
 
