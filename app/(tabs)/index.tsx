@@ -18,16 +18,16 @@ import {
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/Colors';
-import { RoomCard, Room } from '@/components/RoomCard';
 import { SocketContext } from '@/socket';
 import { Icon } from 'react-native-elements';
 import { router, useFocusEffect } from 'expo-router';
 import { pb } from '../lib/pocketbase';
 import { UsernameStorage } from '@/utils/usernameStorage';
 import { useTheme } from '../lib/ThemeContext';
-import { ThemeMode } from '@/utils/themeStorage';
-import { FeedbackButton } from '../components/feedback/FeedbackButton';
-import { InstructionsButton } from '../components/instructions/InstructionsButton';
+import { FeedbackModal } from '../components/feedback/FeedbackModal';
+import { InstructionsModal } from '../components/instructions/InstructionsModal';
+import { HeaderMenu } from '../components/menu/HeaderMenu';
+import { ShareCardsModal } from '../components/share/ShareCardsModal';
 // @ts-ignore
 import QRCode from 'react-qr-code';
 
@@ -41,7 +41,7 @@ interface DynamicRoom {
 }
 
 function Home() {
-  const { setThemeMode, isLightMode } = useTheme();
+  const { isLightMode } = useTheme();
   const isDarkMode = !isLightMode;
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background,
@@ -58,6 +58,9 @@ function Home() {
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedStoreUrl, setSelectedStoreUrl] = useState<string>('');
   const [selectedStoreName, setSelectedStoreName] = useState<string>('');
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showInstructionsModal, setShowInstructionsModal] = useState(false);
 
   // Detect if user is on a mobile device using user agent
   const isMobileDevice = () => {
@@ -240,18 +243,6 @@ function Home() {
     }
   };
 
-  const handleThemeToggle = async () => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    const nextTheme: ThemeMode = isDarkMode ? 'light' : 'dark';
-    await setThemeMode(nextTheme);
-  };
-
-  const getThemeIcon = () => {
-    return isDarkMode ? 'nights-stay' : 'wb-sunny';
-  };
-
   const handleOpenStore = (url: string, storeName: string) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -342,11 +333,11 @@ function Home() {
                 Liar's Poker
               </Text>
               <View style={styles.headerButtons}>
-                <FeedbackButton screenName="Home" />
-                <InstructionsButton />
-                <TouchableOpacity onPress={handleThemeToggle} style={styles.themeButton}>
-                  <Icon name={getThemeIcon()} size={24} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
-                </TouchableOpacity>
+                <HeaderMenu
+                  onOpenInstructions={() => setShowInstructionsModal(true)}
+                  onOpenFeedback={() => setShowFeedbackModal(true)}
+                  onOpenShare={() => setShowShareModal(true)}
+                />
               </View>
             </View>
             <View style={styles.usernameRow}>
@@ -564,6 +555,25 @@ function Home() {
           </View>
         </View>
       </Modal>
+
+      {/* Share Cards Modal */}
+      <ShareCardsModal
+        visible={showShareModal}
+        onClose={() => setShowShareModal(false)}
+      />
+
+      {/* Feedback Modal */}
+      <FeedbackModal
+        visible={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        screenName="Home"
+      />
+
+      {/* Instructions Modal */}
+      <InstructionsModal
+        visible={showInstructionsModal}
+        onClose={() => setShowInstructionsModal(false)}
+      />
     </View>
   );
 }
