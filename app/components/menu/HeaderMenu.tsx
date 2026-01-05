@@ -11,6 +11,7 @@ import { Icon } from 'react-native-elements';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../lib/ThemeContext';
 import { ThemeMode } from '@/utils/themeStorage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface HeaderMenuProps {
   onOpenInstructions: () => void;
@@ -22,6 +23,7 @@ export function HeaderMenu({ onOpenInstructions, onOpenFeedback, onOpenShare }: 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { setThemeMode, isLightMode } = useTheme();
   const isDarkMode = !isLightMode;
+  const insets = useSafeAreaInsets();
 
   const handleHaptic = () => {
     if (Platform.OS !== 'web') {
@@ -62,13 +64,14 @@ export function HeaderMenu({ onOpenInstructions, onOpenFeedback, onOpenShare }: 
         transparent
         animationType="fade"
         onRequestClose={() => setIsMenuOpen(false)}
+        statusBarTranslucent
       >
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
           onPress={() => setIsMenuOpen(false)}
         >
-          <View style={styles.menuContainer}>
+          <View style={[styles.menuContainer, { top: insets.top + 10 }]}>
             <View style={[styles.menuContent, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>
               <TouchableOpacity
                 style={styles.menuItem}
@@ -137,7 +140,6 @@ const styles = StyleSheet.create({
   },
   menuContainer: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 50,
     right: 20,
     minWidth: 200,
     shadowColor: '#000',

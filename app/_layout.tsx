@@ -14,6 +14,7 @@ import { FeedbackButton } from './components/feedback/FeedbackButton';
 import { ThemeMetaTag } from '@/components/ThemeMetaTag';
 import { ThemeToggleButton } from './components/theme/ThemeToggleButton';
 import { View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -23,30 +24,32 @@ function RootNavigator() {
   const router = useRouter();
 
   return (
-    <SocketProvider>
-      <ThemeProvider value={isLightMode ? DefaultTheme : DarkTheme}>
-        <ThemeMetaTag />
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="game" options={{
-            headerShown: true,
-            headerLeft: () => (
-              <Pressable onPress={() => Platform.OS === 'web' ? router.push('/') : router.back()}>
-                <Icon name="arrow-back" size={24} color={isLightMode ? 'black' : 'white'} />
-              </Pressable>
-            ),
-            headerRight: () => (
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <FeedbackButton screenName="Game" />
-                <ThemeToggleButton />
-              </View>
-            )
-          }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-        <StatusBar style={isLightMode ? 'dark' : 'light'} />
-      </ThemeProvider>
-    </SocketProvider>
+    <SafeAreaProvider>
+      <SocketProvider>
+        <ThemeProvider value={isLightMode ? DefaultTheme : DarkTheme}>
+          <ThemeMetaTag />
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="game" options={{
+              headerShown: true,
+              headerLeft: () => (
+                <Pressable onPress={() => Platform.OS === 'web' ? router.push('/') : router.back()}>
+                  <Icon name="arrow-back" size={24} color={isLightMode ? 'black' : 'white'} />
+                </Pressable>
+              ),
+              headerRight: () => (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <FeedbackButton screenName="Game" />
+                  <ThemeToggleButton />
+                </View>
+              )
+            }} />
+            <Stack.Screen name="+not-found" />
+          </Stack>
+          <StatusBar style={isLightMode ? 'dark' : 'light'} translucent backgroundColor="transparent" />
+        </ThemeProvider>
+      </SocketProvider>
+    </SafeAreaProvider>
   );
 }
 

@@ -1,6 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
 import {
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
@@ -15,6 +14,7 @@ import {
   KeyboardAvoidingView,
   Linking,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/Colors';
@@ -326,7 +326,7 @@ function Home() {
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
       >
-        <SafeAreaView>
+        <SafeAreaView edges={['top']}>
           <View style={styles.header}>
             <View style={styles.headerTop}>
               <Text style={[styles.headerText, isDarkMode ? styles.lightThemeText : styles.darkThemeText]}>
@@ -419,6 +419,7 @@ function Home() {
         transparent
         animationType="fade"
         onRequestClose={() => setShowCreateModal(false)}
+        statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1a1a1a' : '#fff' }]}>
@@ -459,6 +460,7 @@ function Home() {
         transparent
         animationType="fade"
         onRequestClose={() => !isEditingUsername && setShowUsernameModal(false)}
+        statusBarTranslucent
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -524,6 +526,7 @@ function Home() {
         transparent
         animationType="fade"
         onRequestClose={() => setShowQRModal(false)}
+        statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>

@@ -149,6 +149,7 @@ export function InstructionsModal({ visible, onClose }: InstructionsModalProps) 
       transparent
       animationType="fade"
       onRequestClose={handleClose}
+      statusBarTranslucent
     >
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>

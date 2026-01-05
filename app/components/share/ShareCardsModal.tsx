@@ -107,6 +107,7 @@ export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
       transparent
       animationType="fade"
       onRequestClose={handleClose}
+      statusBarTranslucent
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>

@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  SafeAreaView,
   Image,
   TextInput,
   Modal,
@@ -13,6 +12,7 @@ import {
   useColorScheme,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { pb, clearAuthData, saveAuthData } from '../lib/pocketbase';
 import { useRouter, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -379,6 +379,7 @@ export default function Settings() {
         visible={showEmailModal}
         transparent={true}
         animationType="slide"
+        statusBarTranslucent
       >
         <View style={styles.modalContainer}>
           <View style={[styles.modalContent, { backgroundColor: colors.secondary }]}>
@@ -421,6 +422,7 @@ export default function Settings() {
         visible={showUsernameModal}
         transparent={true}
         animationType="slide"
+        statusBarTranslucent
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>

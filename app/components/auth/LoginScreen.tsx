@@ -10,9 +10,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Icon } from 'react-native-elements';
 import { pb, saveAuthData } from '../../lib/pocketbase';
@@ -100,7 +100,7 @@ export default function LoginScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
       >
-        <SafeAreaView>
+        <SafeAreaView edges={['top']}>
           <View style={styles.feedbackButtonContainer}>
             <FeedbackButton screenName="Login" />
           </View>
@@ -229,6 +229,7 @@ export default function LoginScreen() {
         transparent
         animationType="fade"
         onRequestClose={() => setShowResetModal(false)}
+        statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>

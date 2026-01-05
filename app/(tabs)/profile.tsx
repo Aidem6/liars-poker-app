@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProfileHeader } from '../components/profile/ProfileHeader';
 import Avatar from '../components/profile/Avatar';
 import { FriendsSection } from '../components/profile/FriendsSection';
