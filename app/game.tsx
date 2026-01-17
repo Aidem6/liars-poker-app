@@ -21,7 +21,9 @@ import GameTimeline from '../components/game/GameTimeline';
 import GameDrawerContent from '../components/game/GameDrawerContent';
 import CompactGameView from '../components/game/CompactGameView';
 import MiniCard from '../components/game/MiniCard';
-import { SocketContext } from '../socket';
+import ConnectionStatusIndicator from '../components/game/ConnectionStatusIndicator';
+import TurnTimeoutTimer from '../components/game/TurnTimeoutTimer';
+import { SocketContext, ConnectionStatus } from '../socket';
 import { cardList } from '../utils/dataUtils';
 import { router, useNavigation, useLocalSearchParams } from 'expo-router';
 import { Colors } from '@/constants/Colors';
@@ -82,10 +84,14 @@ interface MessageData {
 interface SocketContextType {
   socket: {
     on: (event: string, callback: (data: any) => void) => void;
+    off: (event: string, callback?: (data: any) => void) => void;
     emit: (event: string, data?: any) => void;
     removeAllListeners: () => void;
   };
   sid: string;
+  connectionStatus: ConnectionStatus;
+  latency: number | null;
+  wasDisconnected: boolean;
 }
 
 interface RoomData {
@@ -114,6 +120,9 @@ interface SocketEvents {
   player_removed: (data: { playerId: string; playerName: string }) => void;
   left_room: (data: { success: boolean; roomId: string }) => void;
   error: (data: { message: string }) => void;
+  // Connectivity events
+  move_ack: (data: { move_id: string; success: boolean; error?: string; bet?: string }) => void;
+  game_state_response: (data: { success: boolean; state?: any; error?: string; message?: string }) => void;
 }
 
 function useSocketEvents(
@@ -138,6 +147,8 @@ function useSocketEvents(
   setWaitingForReady: React.Dispatch<React.SetStateAction<boolean>>,
   setPlayersReady: React.Dispatch<React.SetStateAction<string[]>>,
   debugLogger: ReturnType<typeof useDebugLogger>,
+  setTurnTimeoutSeconds: React.Dispatch<React.SetStateAction<number>>,
+  setTurnTimerKey: React.Dispatch<React.SetStateAction<number>>,
 ) {
   useEffect(() => {
     // Early return if socket is null (server not available)
@@ -264,6 +275,12 @@ function useSocketEvents(
               setWaitingForReady(false);
               setPlayersReady([]);
 
+              // Update turn timeout and reset timer
+              if (json.turn_timeout_seconds) {
+                setTurnTimeoutSeconds(json.turn_timeout_seconds);
+              }
+              setTurnTimerKey(prev => prev + 1); // Force timer reset
+
               // Create hand counts map with player IDs and names
               const playerHandCounts: Record<string, number> = {};
               const playerIdToName: Record<string, string> = {};
@@ -321,6 +338,12 @@ function useSocketEvents(
               const indexOfFigure = cardList.findIndex((figure) => figure.name === json.last_bet);
               setFirstAvailableFigure(indexOfFigure + 1);
               setActiveFigure('');
+
+              // Reset turn timer for next player
+              if (json.turn_timeout_seconds) {
+                setTurnTimeoutSeconds(json.turn_timeout_seconds);
+              }
+              setTurnTimerKey(prev => prev + 1); // Force timer reset
             } else if (json.action === 'check') {
               // Find who called check (might need to be in the data from backend)
               const checkPlayer = json.players[json.player_turn_index];
@@ -392,6 +415,52 @@ function useSocketEvents(
               console.log('🟢 PLAYER_READY EVENT RECEIVED');
               console.log('Players ready from backend:', json.players_ready);
               setPlayersReady(json.players_ready || []);
+            }
+
+            // Handle turn_timeout action
+            if (json.action === 'turn_timeout') {
+              console.log('⏰ TURN_TIMEOUT EVENT - Player timed out:', json.timed_out_player_username);
+              setGameEvents(prev => [...prev, {
+                id: `turn_timeout_${Date.now()}`,
+                type: 'player_disconnected',
+                timestamp: Date.now(),
+                playerId: json.timed_out_player_sid,
+                playerName: json.timed_out_player_username,
+              }]);
+            }
+
+            // Handle turn_skipped action (after timeout)
+            if (json.action === 'turn_skipped') {
+              console.log('⏭️ TURN_SKIPPED EVENT - Turn advanced to:', json.current_player_username);
+              // Reset turn timer for the new player
+              if (json.turn_timeout_seconds) {
+                setTurnTimeoutSeconds(json.turn_timeout_seconds);
+              }
+              setTurnTimerKey(prev => prev + 1); // Force timer reset
+            }
+
+            // Handle ready_timeout action
+            if (json.action === 'ready_timeout') {
+              console.log('⏰ READY_TIMEOUT EVENT - Ready phase timed out');
+              setWaitingForReady(false);
+              setPlayersReady([]);
+            }
+
+            // Handle player_reconnected action
+            if (json.action === 'player_reconnected') {
+              console.log('🔄 PLAYER_RECONNECTED EVENT:', json.reconnected_player_username);
+              setGameEvents(prev => [...prev, {
+                id: `player_reconnected_${Date.now()}`,
+                type: 'player_reconnected',
+                timestamp: Date.now(),
+                playerId: json.reconnected_player_sid,
+                playerName: json.reconnected_player_username,
+              }]);
+            }
+
+            // Handle player_disconnected action (from heartbeat timeout)
+            if (json.action === 'player_disconnected') {
+              console.log('📴 PLAYER_DISCONNECTED EVENT:', json.disconnected_player_sid);
             }
 
             return currentHand;
@@ -596,6 +665,65 @@ function useSocketEvents(
           return newLogs;
         });
       },
+
+      // Connectivity event handlers
+      move_ack: (data) => {
+        console.log('[MOVE ACK] Received:', data);
+        if (data.success) {
+          console.log(`[MOVE ACK] Move ${data.move_id} acknowledged`);
+        } else {
+          console.log(`[MOVE ACK] Move ${data.move_id} failed:`, data.error);
+          setLogs(oldLogs => {
+            const newLogs = oldLogs + `\nMove failed: ${data.error || 'unknown error'}`;
+            scrollToBottom();
+            return newLogs;
+          });
+        }
+      },
+
+      game_state_response: (data) => {
+        console.log('[RESYNC] Received game state response:', data);
+        if (data.success && data.state) {
+          const state = data.state;
+          setLogs(oldLogs => {
+            const newLogs = oldLogs + '\nGame state synced!';
+            scrollToBottom();
+            return newLogs;
+          });
+
+          // Update game state from resync
+          const effectiveSid = getEffectiveSid();
+          const players = state.players?.map((player: BackendPlayer, index: number) => ({
+            id: player.sid,
+            name: player.username,
+            hand_count: player.hand_count,
+            last_bet: player.last_bet,
+            isYourTurn: index === state.player_turn_index,
+            hand: player.sid === effectiveSid ? state.your_hand : undefined,
+            isMe: player.sid === effectiveSid,
+            is_active: player.is_active,
+          })) || [];
+
+          setGameData({ players });
+          setLastBetExists(!!state.last_bet);
+
+          if (effectiveSid) {
+            const isMyTurnNow = state.players[state.player_turn_index]?.sid === effectiveSid;
+            setIsMyTurn(isMyTurnNow);
+          }
+
+          if (state.your_hand) {
+            setYourHand(state.your_hand);
+          }
+        } else if (data.error !== 'not_in_game') {
+          console.log('[RESYNC] Failed:', data.error);
+          setLogs(oldLogs => {
+            const newLogs = oldLogs + `\nFailed to sync game state: ${data.message || data.error}`;
+            scrollToBottom();
+            return newLogs;
+          });
+        }
+      },
     };
 
     // Register all event handlers
@@ -692,8 +820,10 @@ function Game(): JSX.Element {
   const [revealedHands, setRevealedHands] = useState<Record<string, any[]> | undefined>(undefined);
   const [waitingForReady, setWaitingForReady] = useState<boolean>(false);
   const [playersReady, setPlayersReady] = useState<string[]>([]);
+  const [turnTimeoutSeconds, setTurnTimeoutSeconds] = useState<number>(60); // Default 60 seconds
+  const [turnTimerKey, setTurnTimerKey] = useState<number>(0); // Key to force timer reset
 
-  const { socket, sid } = useContext(SocketContext) as SocketContextType;
+  const { socket, sid, connectionStatus, latency, wasDisconnected } = useContext(SocketContext) as SocketContextType;
   const navigation = useNavigation();
 
   // DEBUG: Log state changes for ready system
@@ -725,6 +855,15 @@ function Game(): JSX.Element {
   useEffect(() => {
     sidRef.current = sid;
   }, [sid]);
+
+  // Auto-resync game state when reconnecting after disconnect
+  useEffect(() => {
+    if (wasDisconnected && connectionStatus === 'connected' && isRoomReady && socket) {
+      console.log('[RESYNC] Requesting game state after reconnect');
+      setLogs(oldLogs => oldLogs + '\nReconnected! Syncing game state...');
+      socket.emit('request_game_state');
+    }
+  }, [wasDisconnected, connectionStatus, isRoomReady, socket]);
 
   const getEffectiveSid = () => {
     // Always prefer queueSid once set (from you_joined_queue event)
@@ -763,7 +902,9 @@ function Game(): JSX.Element {
     setIsSpectator,
     setWaitingForReady,
     setPlayersReady,
-    debugLogger
+    debugLogger,
+    setTurnTimeoutSeconds,
+    setTurnTimerKey
   );
 
   // Debug: Track isCreator changes
@@ -1248,6 +1389,11 @@ function Game(): JSX.Element {
         backgroundColor={backgroundStyle.backgroundColor}
       />
 
+      {/* Connection Status Indicator - Always visible */}
+      <View style={styles.connectionIndicatorContainer}>
+        <ConnectionStatusIndicator status={connectionStatus} latency={latency} />
+      </View>
+
       <Drawer
         open={isDrawerOpen}
         onOpen={() => setIsDrawerOpen(true)}
@@ -1298,6 +1444,17 @@ function Game(): JSX.Element {
                   lastCheckPlayerId={lastCheckPlayerId}
                   lastLosePlayerId={lastLosePlayerId}
                   revealedHands={revealedHands}
+                />
+              )}
+
+              {/* Turn Timeout Timer - Shows countdown for current player's turn */}
+              {!waitingForReady && (
+                <TurnTimeoutTimer
+                  key={turnTimerKey}
+                  timeoutSeconds={turnTimeoutSeconds}
+                  isMyTurn={isMyTurn}
+                  isActive={gameData.players.some(p => p.isYourTurn && p.is_active)}
+                  playerName={gameData.players.find(p => p.isYourTurn)?.name}
                 />
               )}
 
@@ -1525,6 +1682,12 @@ const styles = StyleSheet.create({
     flex: 1,
     flexGrow: 1,
     justifyContent: 'space-between',
+  },
+  connectionIndicatorContainer: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 1000,
   },
   highlight: {
     fontWeight: '700',

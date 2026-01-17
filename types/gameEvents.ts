@@ -1,4 +1,4 @@
-export type GameEventType = 'game_start' | 'new_deal' | 'bet' | 'check' | 'deal_result' | 'deal_won' | 'player_eliminated' | 'game_end';
+export type GameEventType = 'game_start' | 'new_deal' | 'bet' | 'check' | 'deal_result' | 'deal_won' | 'player_eliminated' | 'game_end' | 'player_disconnected' | 'player_reconnected';
 
 export interface GameEvent {
   id: string;
