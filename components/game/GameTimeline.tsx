@@ -2,8 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { StyleSheet, View, ScrollView, Text } from 'react-native';
 import { GameEvent } from '@/types/gameEvents';
 import GameEventItem from './GameEventItem';
-import { useTheme } from '@/app/lib/ThemeContext';
-import { Colors } from '@/constants/Colors';
+import { theme } from '@/constants/theme';
 
 interface GameTimelineProps {
   events: GameEvent[];
@@ -13,8 +12,6 @@ interface GameTimelineProps {
 }
 
 export default function GameTimeline({ events, playerNames = {}, myUserId, myUsername }: GameTimelineProps) {
-  const { isLightMode } = useTheme();
-  const isDarkMode = !isLightMode;
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Auto-scroll to bottom when new events are added
@@ -39,10 +36,10 @@ export default function GameTimeline({ events, playerNames = {}, myUserId, myUse
 
   if (events.length === 0) {
     return (
-      <View style={[styles.container, { backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background }]}>
+      <View style={styles.container}>
         <View style={styles.emptyContainer}>
-          <Text style={[styles.emptyText, { color: isDarkMode ? '#666' : '#999' }]}>
-            No events yet. Game events will appear here.
+          <Text style={styles.emptyText}>
+            Bets, checks and results will be listed here as the game goes on.
           </Text>
         </View>
       </View>
@@ -50,7 +47,7 @@ export default function GameTimeline({ events, playerNames = {}, myUserId, myUse
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background }]}>
+    <View style={styles.container}>
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
@@ -73,7 +70,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   emptyContainer: {
     flex: 1,
@@ -82,8 +80,9 @@ const styles = StyleSheet.create({
     padding: 40,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 14,
+    lineHeight: 20,
     textAlign: 'center',
-    fontStyle: 'italic',
+    color: theme.color.textMuted,
   },
 });

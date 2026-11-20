@@ -45,7 +45,7 @@ export function SettingsSection() {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#161618',
     marginHorizontal: 16,
     borderRadius: 12,
     marginTop: 16,

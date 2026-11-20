@@ -1,10 +1,8 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
 
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useTheme } from '../lib/ThemeContext';
 
@@ -18,13 +16,12 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme].tint,
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            position: 'absolute',
-          },
-          default: {},
-        }),
+        tabBarInactiveTintColor: Colors[colorScheme].tabIconDefault,
+        // The bar is opaque and in the layout flow, so screens never render underneath it.
+        tabBarStyle: {
+          backgroundColor: Colors[colorScheme].background,
+          borderTopColor: 'rgba(255,255,255,0.08)',
+        },
       }}>
       <Tabs.Screen
         name="index"

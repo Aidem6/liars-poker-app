@@ -38,13 +38,13 @@ interface ShareCardData {
 
 const SHARE_DATA: ShareCardData[] = [
   {
-    title: 'Web Version',
+    title: 'Web version',
     platform: 'WEB',
     url: 'https://liarspoker.adamtomczyk.com/',
     icon: 'web',
   },
   {
-    title: 'iOS App',
+    title: 'iOS app',
     platform: 'iOS',
     url: 'https://apps.apple.com/pl/app/liars-poker-game/id6741585397',
     icon: 'apple',
@@ -52,7 +52,7 @@ const SHARE_DATA: ShareCardData[] = [
     storeButtonText: 'Open App Store',
   },
   {
-    title: 'Android App',
+    title: 'Android app',
     platform: 'Android',
     url: 'https://play.google.com/store/apps/details?id=com.tomczyk006.liarspokerapp&pcampaignid=web_share',
     icon: 'android',
@@ -112,12 +112,12 @@ export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           {/* Header */}
-          <View style={[styles.modalHeader, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>
+          <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
               Share Liar's Poker
             </Text>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <Icon name="close" size={28} color={isDarkMode ? '#fff' : '#000'} />
+              <Icon name="close" size={24} color="#85858A" />
             </TouchableOpacity>
           </View>
 
@@ -140,7 +140,7 @@ export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
                 style={[
                   styles.card,
                   {
-                    backgroundColor: isDarkMode ? '#1a1a2e' : '#fff',
+                    backgroundColor: '#1C1C1F',
                     width: CARD_WIDTH,
                     marginRight: index === SHARE_DATA.length - 1 ? CARD_MARGIN : CARD_MARGIN,
                   },
@@ -151,8 +151,8 @@ export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
                   <Icon
                     name={data.icon}
                     type={data.iconType}
-                    size={40}
-                    color={isDarkMode ? '#49DDDD' : '#0a7ea4'}
+                    size={28}
+                    color="#85858A"
                   />
                   <Text style={[styles.cardTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
                     {data.title}
@@ -186,13 +186,13 @@ export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
                     style={[
                       styles.actionButton,
                       styles.copyButton,
-                      { backgroundColor: isDarkMode ? '#2B2B2B' : '#f0f0f0' },
+                      { backgroundColor: '#242427' },
                     ]}
                     onPress={() => handleCopyLink(data.url)}
                   >
                     <Icon name="content-copy" size={20} color={isDarkMode ? '#fff' : '#000'} />
                     <Text style={[styles.actionButtonText, { color: isDarkMode ? '#fff' : '#000' }]}>
-                      Copy Link
+                      Copy link
                     </Text>
                   </TouchableOpacity>
 
@@ -201,19 +201,19 @@ export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
                       style={[
                         styles.actionButton,
                         styles.storeButton,
-                        { backgroundColor: isDarkMode ? '#49DDDD' : '#0a7ea4' },
+                        { backgroundColor: isDarkMode ? '#EDEDED' : '#0a7ea4' },
                       ]}
                       onPress={() => handleOpenStore(data.url)}
                     >
                       <Icon
                         name="open-in-new"
                         size={20}
-                        color={isDarkMode ? '#010710' : '#fff'}
+                        color={isDarkMode ? '#0B0B0C' : '#fff'}
                       />
                       <Text
                         style={[
                           styles.actionButtonText,
-                          { color: isDarkMode ? '#010710' : '#fff' },
+                          { color: isDarkMode ? '#0B0B0C' : '#fff' },
                         ]}
                       >
                         {data.storeButtonText}
@@ -236,7 +236,7 @@ export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
                     backgroundColor:
                       currentCardIndex === index
                         ? isDarkMode
-                          ? '#49DDDD'
+                          ? '#EDEDED'
                           : '#0a7ea4'
                         : isDarkMode
                         ? '#444'
@@ -256,7 +256,7 @@ export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -269,19 +269,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 24,
-    paddingVertical: 16,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   closeButton: {
     padding: 4,
@@ -291,28 +284,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   card: {
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-    minHeight: 500,
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    minHeight: 460,
   },
   cardHeader: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   cardTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginTop: 12,
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 10,
   },
   platformLabel: {
-    fontSize: 14,
-    marginTop: 4,
-    fontWeight: '500',
+    fontSize: 13,
+    marginTop: 2,
   },
   qrContainer: {
     alignItems: 'center',
@@ -320,13 +309,8 @@ const styles = StyleSheet.create({
   },
   qrCodeWrapper: {
     backgroundColor: '#fff',
-    padding: 16,
+    padding: 14,
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   urlContainer: {
     paddingHorizontal: 12,
@@ -339,26 +323,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   actionsContainer: {
-    gap: 12,
+    gap: 8,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    height: 50,
     paddingHorizontal: 20,
-    borderRadius: 10,
+    borderRadius: 14,
     gap: 8,
   },
   copyButton: {
-    borderWidth: 1,
-    borderColor: '#666',
+    // fill set inline
   },
   storeButton: {
     // backgroundColor set dynamically
   },
   actionButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   indicators: {
@@ -369,8 +352,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   indicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
 });

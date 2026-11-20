@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     right: 20,
     width: 400,
     maxHeight: 500,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#161618',
     borderRadius: 12,
     padding: 16,
     shadowColor: '#000',
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   info: {
-    backgroundColor: '#2a2a2a',
+    backgroundColor: '#1C1C1F',
     padding: 12,
     borderRadius: 6,
   },

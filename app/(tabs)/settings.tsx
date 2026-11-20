@@ -352,14 +352,6 @@ export default function Settings() {
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.settingItem, { borderBottomColor: colors.border }]}>
-          <Text style={[styles.text, { color: colors.text }]}>Light Mode</Text>
-          <Switch
-            value={isLightMode}
-            onValueChange={toggleTheme}
-          />
-        </View>
-
         <View style={[styles.section, styles.marginTop, { backgroundColor: colors.secondary }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Legal</Text>
           <TouchableOpacity
@@ -470,7 +462,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: '#161618',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -489,7 +481,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   section: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#161618',
     borderRadius: 12,
     padding: 16,
   },
@@ -550,7 +542,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalContent: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#161618',
     borderRadius: 12,
     padding: 20,
     width: '80%',
@@ -562,7 +554,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   input: {
-    backgroundColor: '#2a2a2a',
+    backgroundColor: '#1C1C1F',
     borderRadius: 8,
     padding: 12,
     color: '#fff',

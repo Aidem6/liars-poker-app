@@ -176,31 +176,31 @@ export function FeedbackModal({
         style={styles.modalOverlay}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>
+        <View style={[styles.modalContent, { backgroundColor: '#1C1C1F' }]}>
           <ScrollView
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.header}>
               <Text style={[styles.title, { color: isDarkMode ? '#fff' : '#000' }]}>
-                {isBugReport ? '🐛 Report a Bug' : 'Send Feedback'}
+                {isBugReport ? 'Report a bug' : 'Send feedback'}
               </Text>
               <TouchableOpacity onPress={handleClose} style={styles.closeButton} disabled={isSubmitting}>
-                <Icon name="close" size={24} color={isDarkMode ? '#aaa' : '#666'} />
+                <Icon name="close" size={24} color={'#85858A'} />
               </TouchableOpacity>
             </View>
 
-            <Text style={[styles.label, { color: isDarkMode ? '#ccc' : '#333' }]}>
+            <Text style={[styles.label, { color: '#85858A' }]}>
               Message <Text style={styles.required}>*</Text>
             </Text>
             <TextInput
               style={[styles.messageInput, {
-                backgroundColor: isDarkMode ? '#2B2B2B' : '#F0F0F0',
+                backgroundColor: isDarkMode ? '#161618' : '#F0F0F0',
                 color: isDarkMode ? '#fff' : '#000',
-                borderColor: isDarkMode ? '#444' : '#ddd',
+                borderColor: 'rgba(255,255,255,0.14)',
               }]}
               placeholder="Tell us what you think..."
-              placeholderTextColor={isDarkMode ? '#888' : '#999'}
+              placeholderTextColor={'#5C5C61'}
               value={message}
               onChangeText={setMessage}
               multiline
@@ -210,17 +210,17 @@ export function FeedbackModal({
               maxLength={1000}
             />
 
-            <Text style={[styles.label, { color: isDarkMode ? '#ccc' : '#333' }]}>
+            <Text style={[styles.label, { color: '#85858A' }]}>
               Email (optional)
             </Text>
             <TextInput
               style={[styles.input, {
-                backgroundColor: isDarkMode ? '#2B2B2B' : '#F0F0F0',
+                backgroundColor: isDarkMode ? '#161618' : '#F0F0F0',
                 color: isDarkMode ? '#fff' : '#000',
-                borderColor: isDarkMode ? '#444' : '#ddd',
+                borderColor: 'rgba(255,255,255,0.14)',
               }]}
               placeholder="your.email@example.com"
-              placeholderTextColor={isDarkMode ? '#888' : '#999'}
+              placeholderTextColor={'#5C5C61'}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -230,26 +230,26 @@ export function FeedbackModal({
 
             {debugLogs && (
               <>
-                <Text style={[styles.label, { color: isDarkMode ? '#ccc' : '#333' }]}>
+                <Text style={[styles.label, { color: '#85858A' }]}>
                   Debug Information
                 </Text>
                 <TouchableOpacity
                   style={[styles.checkboxRow, {
-                    backgroundColor: isDarkMode ? '#2B2B2B' : '#F0F0F0',
-                    borderColor: isDarkMode ? '#444' : '#ddd',
+                    backgroundColor: isDarkMode ? '#161618' : '#F0F0F0',
+                    borderColor: 'rgba(255,255,255,0.14)',
                   }]}
                   onPress={() => setIncludeDebugLogs(!includeDebugLogs)}
                 >
                   <Icon
                     name={includeDebugLogs ? "check-box" : "check-box-outline-blank"}
                     size={24}
-                    color={isDarkMode ? '#49DDDD' : '#0a7ea4'}
+                    color={isDarkMode ? '#EDEDED' : '#0a7ea4'}
                   />
                   <View style={styles.checkboxTextContainer}>
                     <Text style={[styles.checkboxText, { color: isDarkMode ? '#fff' : '#000' }]}>
                       Include debug logs ({debugLogs.split('\n---\n').length - 2} events)
                     </Text>
-                    <Text style={[styles.helperText, { color: isDarkMode ? '#888' : '#666' }]}>
+                    <Text style={[styles.helperText, { color: '#85858A' }]}>
                       Helps us diagnose and fix bugs faster
                     </Text>
                   </View>
@@ -257,14 +257,14 @@ export function FeedbackModal({
               </>
             )}
 
-            <Text style={[styles.label, { color: isDarkMode ? '#ccc' : '#333' }]}>
+            <Text style={[styles.label, { color: '#85858A' }]}>
               Screenshot (optional)
             </Text>
             {screenshot ? (
               <View style={styles.screenshotContainer}>
                 <Image source={{ uri: screenshot }} style={styles.screenshotImage} />
                 <TouchableOpacity
-                  style={[styles.removeImageButton, { backgroundColor: isDarkMode ? '#ff4444' : '#ff0000' }]}
+                  style={[styles.removeImageButton, { backgroundColor: '#E5484D' }]}
                   onPress={handleRemoveImage}
                 >
                   <Icon name="close" size={20} color="#fff" />
@@ -273,14 +273,14 @@ export function FeedbackModal({
             ) : (
               <TouchableOpacity
                 style={[styles.uploadButton, {
-                  backgroundColor: isDarkMode ? '#2B2B2B' : '#F0F0F0',
-                  borderColor: isDarkMode ? '#444' : '#ddd',
+                  backgroundColor: isDarkMode ? '#161618' : '#F0F0F0',
+                  borderColor: 'rgba(255,255,255,0.14)',
                 }]}
                 onPress={handlePickImage}
               >
-                <Icon name="image" size={24} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
-                <Text style={[styles.uploadText, { color: isDarkMode ? '#aaa' : '#666' }]}>
-                  Add Screenshot
+                <Icon name="image" size={22} color="#85858A" />
+                <Text style={[styles.uploadText, { color: '#85858A' }]}>
+                  Add screenshot
                 </Text>
               </TouchableOpacity>
             )}
@@ -297,16 +297,16 @@ export function FeedbackModal({
                 style={[
                   styles.button,
                   styles.submitButton,
-                  { backgroundColor: isDarkMode ? '#49DDDD' : '#0a7ea4' },
+                  { backgroundColor: isDarkMode ? '#EDEDED' : '#0a7ea4' },
                   !message.trim() && styles.disabledButton,
                 ]}
                 onPress={handleSubmit}
                 disabled={!message.trim() || isSubmitting}
               >
                 {isSubmitting ? (
-                  <ActivityIndicator color={isDarkMode ? '#010710' : '#fff'} />
+                  <ActivityIndicator color={isDarkMode ? '#0B0B0C' : '#fff'} />
                 ) : (
-                  <Text style={[styles.submitButtonText, { color: isDarkMode ? '#010710' : '#fff' }]}>
+                  <Text style={[styles.submitButtonText, { color: isDarkMode ? '#0B0B0C' : '#fff' }]}>
                     Submit
                   </Text>
                 )}
@@ -317,8 +317,8 @@ export function FeedbackModal({
           {/* Loading Overlay */}
           {isSubmitting && (
             <View style={styles.loadingOverlay}>
-              <View style={[styles.loadingContainer, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>
-                <ActivityIndicator size="large" color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
+              <View style={[styles.loadingContainer, { backgroundColor: '#1C1C1F' }]}>
+                <ActivityIndicator size="large" color={isDarkMode ? '#EDEDED' : '#0a7ea4'} />
                 <Text style={[styles.loadingText, { color: isDarkMode ? '#fff' : '#000' }]}>
                   {screenshot ? 'Uploading feedback...' : 'Submitting feedback...'}
                 </Text>
@@ -334,56 +334,53 @@ export function FeedbackModal({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
   },
   modalContent: {
     width: '100%',
     maxWidth: 500,
     maxHeight: '90%',
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 8,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   closeButton: {
     padding: 4,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    marginTop: 12,
+    fontSize: 13,
+    marginBottom: 6,
+    marginTop: 14,
   },
   required: {
-    color: '#ff0000',
+    color: '#E5484D',
   },
   input: {
     height: 50,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 14,
     paddingHorizontal: 16,
     fontSize: 16,
   },
   messageInput: {
     minHeight: 120,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
@@ -392,20 +389,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 100,
-    borderWidth: 2,
+    height: 72,
+    borderWidth: 1,
     borderStyle: 'dashed',
-    borderRadius: 8,
-    gap: 12,
+    borderRadius: 14,
+    gap: 10,
   },
   uploadText: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 14,
   },
   screenshotContainer: {
     position: 'relative',
     height: 200,
-    borderRadius: 8,
+    borderRadius: 14,
     overflow: 'hidden',
   },
   screenshotImage: {
@@ -425,33 +421,33 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 24,
+    gap: 8,
+    marginTop: 20,
   },
   button: {
     flex: 1,
     height: 50,
-    borderRadius: 8,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#666',
+    backgroundColor: '#242427',
   },
   cancelButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: '#EDEDED',
+    fontSize: 15,
     fontWeight: '600',
   },
   submitButton: {
     // backgroundColor set dynamically
   },
   submitButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   disabledButton: {
-    opacity: 0.5,
+    opacity: 0.35,
   },
   loadingOverlay: {
     position: 'absolute',
@@ -462,7 +458,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: 20,
   },
   loadingContainer: {
     padding: 32,
@@ -476,22 +472,22 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '500',
   },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 14,
     borderWidth: 1,
   },
   checkboxTextContainer: {
     flex: 1,
   },
   checkboxText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
   },
   helperText: {

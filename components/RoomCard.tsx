@@ -27,7 +27,7 @@ export function RoomCard({ item, isDarkMode, onPress }: RoomCardProps) {
         <Pressable>
           <LinearGradient
             colors={isDarkMode
-              ? ['#49DDDD', '#3BC9C9']
+              ? ['#EDEDED', '#3BC9C9']
               : ['#2D3748', '#1A202C']
             }
             style={styles.roomCard2}
@@ -38,7 +38,7 @@ export function RoomCard({ item, isDarkMode, onPress }: RoomCardProps) {
               <Ionicons
                 name={item.icon}
                 size={40}
-                color={isDarkMode ? '#010710' : '#49DDDD'}
+                color={isDarkMode ? '#0B0B0C' : '#EDEDED'}
               />
             </View>
             <View style={styles.textContainer}>
@@ -124,13 +124,13 @@ const styles = StyleSheet.create({
     width: 30,
   },
   darkThemeText: {
-    color: '#010710',
+    color: '#0B0B0C',
   },
   lightThemeText: {
     color: '#FFFFFF',
   },
   darkThemeSubtext: {
-    color: '#010710',
+    color: '#0B0B0C',
   },
   lightThemeSubtext: {
     color: '#FFFFFF',

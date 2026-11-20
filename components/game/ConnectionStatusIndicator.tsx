@@ -1,11 +1,11 @@
 /**
  * Connection Status Indicator Component
- * Shows connection state and latency to the user
+ * A quiet dot while the connection is healthy; a labelled dot when it is not.
  */
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ConnectionStatus } from '../../socket';
-import { useTheme } from '../../app/lib/ThemeContext';
+import { theme } from '@/constants/theme';
 
 interface ConnectionStatusIndicatorProps {
   status: ConnectionStatus;
@@ -16,62 +16,31 @@ export const ConnectionStatusIndicator: React.FC<ConnectionStatusIndicatorProps>
   status,
   latency,
 }) => {
-  const { isLightMode } = useTheme();
-  const isDarkMode = !isLightMode;
+  const unstable = status === 'connected' && latency !== null && latency > 500;
 
-  const getStatusColor = (): string => {
-    switch (status) {
-      case 'connected':
-        if (latency !== null && latency > 500) {
-          return '#FF9800'; // Orange for high latency
-        }
-        return '#4CAF50'; // Green
-      case 'connecting':
-      case 'reconnecting':
-        return '#FFC107'; // Yellow
-      case 'disconnected':
-        return '#F44336'; // Red
-      default:
-        return '#9E9E9E'; // Grey
-    }
-  };
+  let color: string = theme.color.green;
+  let label = '';
+  if (status === 'disconnected') {
+    color = theme.color.red;
+    label = 'Offline';
+  } else if (status === 'connecting') {
+    color = theme.color.amber;
+    label = 'Connecting';
+  } else if (status === 'reconnecting') {
+    color = theme.color.amber;
+    label = 'Reconnecting';
+  } else if (unstable) {
+    color = theme.color.amber;
+    label = 'Unstable';
+  }
 
-  const getStatusText = (): string => {
-    switch (status) {
-      case 'connected':
-        if (latency !== null && latency > 500) {
-          return 'Unstable';
-        }
-        return 'Connected';
-      case 'connecting':
-        return 'Connecting...';
-      case 'reconnecting':
-        return 'Reconnecting...';
-      case 'disconnected':
-        return 'Disconnected';
-      default:
-        return 'Unknown';
-    }
-  };
-
-  const getLatencyColor = (): string => {
-    if (latency === null) return isDarkMode ? '#666' : '#999';
-    if (latency > 500) return '#F44336'; // Red
-    if (latency > 200) return '#FF9800'; // Orange
-    return '#4CAF50'; // Green
-  };
+  const description =
+    label || (latency !== null ? `Connected, ${latency} milliseconds` : 'Connected');
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.dot, { backgroundColor: getStatusColor() }]} />
-      <Text style={[styles.statusText, { color: isDarkMode ? '#fff' : '#000' }]}>
-        {getStatusText()}
-      </Text>
-      {latency !== null && status === 'connected' && (
-        <Text style={[styles.latencyText, { color: getLatencyColor() }]}>
-          {latency}ms
-        </Text>
-      )}
+    <View style={styles.container} accessibilityLabel={description}>
+      {label ? <Text style={styles.label}>{label}</Text> : null}
+      <View style={[styles.dot, { backgroundColor: color }]} />
     </View>
   );
 };
@@ -80,24 +49,16 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 5,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    gap: 6,
   },
   dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 8,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  latencyText: {
-    fontSize: 12,
-    marginLeft: 8,
+  label: {
+    fontSize: theme.font.caption,
+    color: theme.color.textMuted,
   },
 });
 

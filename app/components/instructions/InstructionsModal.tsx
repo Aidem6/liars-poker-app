@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Icon } from 'react-native-elements';
-import { useTheme } from '../../lib/ThemeContext';
+import { theme, elevation } from '@/constants/theme';
 
 interface InstructionsModalProps {
   visible: boolean;
@@ -24,7 +24,7 @@ const translations = {
     title: 'How to Play',
     gameOverview: {
       title: 'Game Overview',
-      content: 'Liar\'s Poker is a bluffing game for 2-4 players. The objective is simple: be the last player standing! Players bet on poker hands that exist across ALL players\' cards combined, and can challenge each other by calling "check." Lose too many challenges and you\'re out!',
+      content: 'Liar\'s Poker is a bluffing game for 2 to 10 players. The objective is simple: be the last player standing! Players bet on poker hands that exist across ALL players\' cards combined, and can challenge each other by calling "check." Lose too many challenges and you\'re out!',
     },
     theDeck: {
       title: 'The Deck',
@@ -74,7 +74,7 @@ const translations = {
     title: 'Jak Grać',
     gameOverview: {
       title: 'Przegląd Gry',
-      content: 'Liar\'s Poker to gra blefowa dla 2-4 graczy. Cel jest prosty: zostań ostatnim graczem! Gracze obstawiają układy pokerowe, które istnieją we wszystkich kartach graczy razem wziętych, i mogą wzajemnie się sprawdzać mówiąc "check". Przegraj zbyt wiele rozdań, a odpadniesz!',
+      content: 'Liar\'s Poker to gra blefowa dla 2 do 10 graczy. Cel jest prosty: zostań ostatnim graczem! Gracze obstawiają układy pokerowe, które istnieją we wszystkich kartach graczy razem wziętych, i mogą wzajemnie się sprawdzać mówiąc "check". Przegraj zbyt wiele rozdań, a odpadniesz!',
     },
     theDeck: {
       title: 'Talia Kart',
@@ -82,7 +82,7 @@ const translations = {
     },
     howToPlay: {
       title: 'Jak Grać',
-      content: 'Gracze na zmianę obstawiają układy pokerowe, które istnieją gdy połączy się karty wszystkich graczy. Na przykład, jeśli jest 3 graczy po 1 karcie każdy, razem jest 5 kart, z których można tworzyć układy.\n\nKażdy zakład musi być wyższy niż poprzedni zgodnie z poniższą hierarchią układów. Każdy gracz może sprawdzić obecny zakład naciskając "Check" zamiast dalej licytować.',
+      content: 'Gracze na zmianę obstawiają układy pokerowe, które istnieją gdy połączy się karty wszystkich graczy. Na przykład, jeśli jest 3 graczy po 1 karcie każdy, razem są 3 karty, z których można tworzyć układy.\n\nKażdy zakład musi być wyższy niż poprzedni zgodnie z poniższą hierarchią układów. Każdy gracz może sprawdzić obecny zakład naciskając "Check" zamiast dalej licytować.',
     },
     handRankings: {
       title: 'Hierarchia Układów (Od Najniższego)',
@@ -123,8 +123,6 @@ const translations = {
 };
 
 export function InstructionsModal({ visible, onClose }: InstructionsModalProps) {
-  const { isLightMode } = useTheme();
-  const isDarkMode = !isLightMode;
   const [language, setLanguage] = useState<Language>('en');
 
   const t = translations[language];
@@ -152,53 +150,53 @@ export function InstructionsModal({ visible, onClose }: InstructionsModalProps) 
       statusBarTranslucent
     >
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>
+        <View style={[styles.modalContent, undefined]}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: isDarkMode ? '#fff' : '#000' }]}>
+            <Text style={[styles.title, { color: theme.color.text }]}>
               {t.title}
             </Text>
             <View style={styles.headerButtons}>
               <TouchableOpacity onPress={toggleLanguage} style={styles.languageButton}>
-                <Text style={[styles.languageText, { color: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}>
+                <Text style={[styles.languageText, { color: theme.color.text }]}>
                   {language === 'en' ? 'PL' : 'EN'}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                <Icon name="close" size={24} color={isDarkMode ? '#aaa' : '#666'} />
+                <Icon name="close" size={24} color={theme.color.textMuted} />
               </TouchableOpacity>
             </View>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Game Overview */}
-            <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
               {t.gameOverview.title}
             </Text>
-            <Text style={[styles.paragraph, { color: isDarkMode ? '#ccc' : '#333' }]}>
+            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
               {t.gameOverview.content}
             </Text>
 
             {/* Setup & Deck */}
-            <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
               {t.theDeck.title}
             </Text>
-            <Text style={[styles.paragraph, { color: isDarkMode ? '#ccc' : '#333' }]}>
+            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
               {t.theDeck.content}
             </Text>
 
             {/* How to Play */}
-            <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
               {t.howToPlay.title}
             </Text>
-            <Text style={[styles.paragraph, { color: isDarkMode ? '#ccc' : '#333' }]}>
+            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
               {t.howToPlay.content}
             </Text>
 
             {/* Hand Rankings */}
-            <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
               {t.handRankings.title}
             </Text>
-            <Text style={[styles.paragraph, { color: isDarkMode ? '#ccc' : '#333' }]}>
+            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
               {t.handRankings.intro}
               <Text style={styles.bold}>
                 {t.handRankings.highCard}
@@ -216,42 +214,42 @@ export function InstructionsModal({ visible, onClose }: InstructionsModalProps) 
             </Text>
 
             {/* Betting Rules */}
-            <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
               {t.bettingRules.title}
             </Text>
-            <Text style={[styles.paragraph, { color: isDarkMode ? '#ccc' : '#333' }]}>
+            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
               {t.bettingRules.content}
             </Text>
 
             {/* Checking & Challenges */}
-            <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
               {t.checking.title}
             </Text>
-            <Text style={[styles.paragraph, { color: isDarkMode ? '#ccc' : '#333' }]}>
+            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
               {t.checking.content}
             </Text>
 
             {/* Elimination & Winning */}
-            <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
               {t.elimination.title}
             </Text>
-            <Text style={[styles.paragraph, { color: isDarkMode ? '#ccc' : '#333' }]}>
+            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
               {t.elimination.content}
             </Text>
 
             {/* Bot Behavior */}
-            <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
               {t.bots.title}
             </Text>
-            <Text style={[styles.paragraph, { color: isDarkMode ? '#ccc' : '#333' }]}>
+            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
               {t.bots.content}
             </Text>
 
             {/* Tips */}
-            <Text style={[styles.sectionTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
               {t.tips.title}
             </Text>
-            <Text style={[styles.paragraph, { color: isDarkMode ? '#ccc' : '#333' }]}>
+            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
               {t.tips.content}
             </Text>
 
@@ -266,67 +264,69 @@ export function InstructionsModal({ visible, onClose }: InstructionsModalProps) 
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: theme.color.overlay,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
   },
   modalContent: {
     width: '100%',
     maxWidth: 500,
     maxHeight: '90%',
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    borderRadius: theme.radius.xl,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    backgroundColor: theme.color.surfaceRaised,
+    borderWidth: 1,
+    borderColor: theme.color.hairline,
+    ...(elevation('raised') as object),
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 8,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '600',
+    letterSpacing: -0.2,
     flex: 1,
   },
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
   languageButton: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    borderRadius: theme.radius.sm,
+    backgroundColor: theme.color.control,
   },
   languageText: {
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '600',
   },
   closeButton: {
     padding: 4,
+    marginRight: -4,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 8,
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 18,
+    marginBottom: 6,
   },
   paragraph: {
-    fontSize: 15,
-    lineHeight: 24,
-    marginBottom: 12,
+    fontSize: 14,
+    lineHeight: 22,
+    marginBottom: 6,
   },
   bold: {
-    fontWeight: 'bold',
+    fontWeight: '400',
   },
   bottomSpacer: {
-    height: 20,
+    height: 24,
   },
 });

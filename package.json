@@ -13,7 +13,13 @@
     "lint": "expo lint"
   },
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "moduleNameMapper": {
+      "^pocketbase$": "<rootDir>/node_modules/pocketbase/dist/pocketbase.cjs.js"
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|react-native-elements|react-native-ratings|react-native-size-matters|pocketbase|socket.io-client|engine.io-client|react-qr-code)"
+    ]
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

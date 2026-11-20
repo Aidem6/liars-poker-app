@@ -4,7 +4,7 @@
  */
 
 const tintColorLight = '#0a7ea4';
-const tintColorDark = '#49DDDD';
+const tintColorDark = '#EDEDED';
 
 export const Colors = {
   light: {
@@ -18,13 +18,13 @@ export const Colors = {
     cardText: '#FFFFFF',
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#0D0D0D',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
-    cardBackground: '#49DDDD',
-    cardText: '#010710',
+    text: '#EDEDED',
+    background: '#0B0B0C',
+    tint: '#EDEDED',
+    icon: '#85858A',
+    tabIconDefault: '#85858A',
+    tabIconSelected: '#EDEDED',
+    cardBackground: '#EDEDED',
+    cardText: '#0B0B0C',
   },
 };
