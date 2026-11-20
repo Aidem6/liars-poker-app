@@ -24,7 +24,7 @@ export function ThemeMetaTag() {
       // Using the gradient colors to match the app's header
       // Light mode: light blue/teal - rgb(10, 126, 164) with 10% opacity over white = #dbeaea
       // Dark mode: cyan/teal - rgb(73, 221, 221) with 15% opacity over black = #0b2323
-      const themeColor = isLightMode ? '#DFEDF3' : '#132D36';
+      const themeColor = '#0B0B0C';
       metaTag.setAttribute('content', themeColor);
 
       // Also update apple-mobile-web-app-status-bar-style for better iOS support

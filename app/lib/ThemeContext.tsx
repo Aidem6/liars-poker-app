@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import { ThemeStorage, ThemeMode } from '@/utils/themeStorage';
+import { theme } from '@/constants/theme';
 
 type ThemeContextType = {
   isLightMode: boolean;
@@ -26,9 +27,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return systemColorScheme === 'light' ? 'light' : 'dark';
   });
 
-  const isLightMode = themeMode === 'system'
-    ? systemColorScheme === 'light'
-    : themeMode === 'light';
+  // The app ships a single dark skin. The stored preference is kept so a
+  // light skin can be added later without a storage migration.
+  const isLightMode = false;
 
   // Load theme on mount
   useEffect(() => {
@@ -47,12 +48,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [systemColorScheme]);
 
   const colors = {
-    background: isLightMode ? '#fff' : '#000',
-    text: isLightMode ? '#000' : '#fff',
-    primary: isLightMode ? '#2196F3' : '#007AFF',
-    secondary: isLightMode ? '#f0f0f0' : '#1a1a1a',
-    border: isLightMode ? '#ccc' : '#666',
-    secondaryText: isLightMode ? '#666' : '#ccc',
+    background: theme.color.bg,
+    text: theme.color.text,
+    primary: theme.color.primary,
+    secondary: theme.color.surface,
+    border: theme.color.hairlineStrong,
+    secondaryText: theme.color.textMuted,
   };
 
   const toggleTheme = async () => {

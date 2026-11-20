@@ -20,7 +20,7 @@ export function FriendsSection() {
       </TouchableOpacity>
 
       <TouchableOpacity style={[styles.addFriendsButton, { borderColor: colors.text }]}>
-        <Text style={[styles.addFriendsText, { color: colors.text }]}>ADD FRIENDS</Text>
+        <Text style={[styles.addFriendsText, { color: colors.text }]}>Add friends</Text>
       </TouchableOpacity>
     </View>
   );

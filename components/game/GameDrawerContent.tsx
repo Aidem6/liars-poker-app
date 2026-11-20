@@ -1,10 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, ScrollView } from 'react-native';
 import { Icon } from 'react-native-elements';
-import { useTheme } from '@/app/lib/ThemeContext';
-import { Colors } from '@/constants/Colors';
-import { router } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { theme } from '@/constants/theme';
+import { Button } from '@/components/ui/Button';
 import * as Haptics from 'expo-haptics';
 
 interface GameDrawerContentProps {
@@ -36,229 +34,86 @@ export default function GameDrawerContent({
   onOpenBugReport,
   onOpenInstructions,
 }: GameDrawerContentProps) {
-  const { isLightMode, toggleTheme } = useTheme();
-  const isDarkMode = !isLightMode;
-  const insets = useSafeAreaInsets();
-
   const handleHaptic = () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
+  const row = (icon: string, label: string, onPress: () => void) => (
+    <TouchableOpacity
+      style={styles.menuItem}
+      onPress={() => {
+        handleHaptic();
+        onPress();
+      }}
+    >
+      <Icon name={icon} size={20} color={theme.color.textMuted} />
+      <Text style={styles.menuLabel}>{label}</Text>
+      <Icon name="chevron-right" size={20} color={theme.color.textFaint} />
+    </TouchableOpacity>
+  );
+
+  const views: Array<{ mode: 'board' | 'timeline'; label: string }> = [
+    { mode: 'board', label: 'Table' },
+    { mode: 'timeline', label: 'Timeline' },
+  ];
+  const activeMode = displayMode === 'timeline' ? 'timeline' : 'board';
+
   return (
-    <View style={[styles.container, { backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: 20, borderBottomColor: isDarkMode ? '#333' : '#ddd' }]}>
-        <Text style={[styles.roomName, { color: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}>
-          {roomName}
-        </Text>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.eyebrow}>Room</Text>
+        <Text style={styles.roomName} numberOfLines={1}>{roomName}</Text>
       </View>
 
-      {/* Menu Items */}
-      <ScrollView style={styles.menuItems}>
-        {/* Theme Toggle */}
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => {
-            handleHaptic();
-            toggleTheme();
-          }}
-        >
-          <Icon name="palette" size={20} color={isDarkMode ? '#fff' : '#000'} style={styles.menuIcon} />
-          <Text style={[styles.menuLabel, { color: isDarkMode ? '#fff' : '#000' }]}>
-            Theme
-          </Text>
-          <Icon
-            name={isDarkMode ? 'light-mode' : 'dark-mode'}
-            size={20}
-            color={isDarkMode ? '#49DDDD' : '#0a7ea4'}
-          />
-        </TouchableOpacity>
-
-        {/* Feedback */}
-        {onOpenFeedback && (
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              handleHaptic();
-              onOpenFeedback();
-            }}
-          >
-            <Icon name="feedback" size={20} color={isDarkMode ? '#fff' : '#000'} style={styles.menuIcon} />
-            <Text style={[styles.menuLabel, { color: isDarkMode ? '#fff' : '#000' }]}>
-              Send Feedback
-            </Text>
-            <Icon name="chevron-right" size={20} color={isDarkMode ? '#666' : '#999'} />
-          </TouchableOpacity>
-        )}
-
-        {/* Bug Report */}
-        {onOpenBugReport && (
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              handleHaptic();
-              onOpenBugReport();
-            }}
-          >
-            <Icon name="bug-report" size={20} color={isDarkMode ? '#ff6b6b' : '#ff0000'} style={styles.menuIcon} />
-            <Text style={[styles.menuLabel, { color: isDarkMode ? '#fff' : '#000' }]}>
-              Report a Bug
-            </Text>
-            <Icon name="chevron-right" size={20} color={isDarkMode ? '#666' : '#999'} />
-          </TouchableOpacity>
-        )}
-
-        {/* Instructions */}
-        {onOpenInstructions && (
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              handleHaptic();
-              onOpenInstructions();
-            }}
-          >
-            <Icon name="help-outline" size={20} color={isDarkMode ? '#fff' : '#000'} style={styles.menuIcon} />
-            <Text style={[styles.menuLabel, { color: isDarkMode ? '#fff' : '#000' }]}>
-              How to Play
-            </Text>
-            <Icon name="chevron-right" size={20} color={isDarkMode ? '#666' : '#999'} />
-          </TouchableOpacity>
-        )}
-
-        {/* Divider */}
-        <View style={[styles.divider, { backgroundColor: isDarkMode ? '#333' : '#ddd' }]} />
-
-        {/* View Mode Toggle */}
-        <View style={styles.viewToggleSection}>
-          <Text style={[styles.sectionLabel, { color: isDarkMode ? '#999' : '#666' }]}>
-            View Mode
-          </Text>
-          <View style={styles.viewToggleButtons}>
-            <TouchableOpacity
-              style={[
-                styles.viewToggleButton,
-                displayMode === 'board' && styles.viewToggleButtonActive,
-                {
-                  backgroundColor: displayMode === 'board'
-                    ? (isDarkMode ? '#49DDDD' : '#0a7ea4')
-                    : (isDarkMode ? '#303030' : '#e4e4e4')
-                }
-              ]}
-              onPress={() => {
-                handleHaptic();
-                onDisplayModeChange('board');
-              }}
-            >
-              <Text style={[
-                styles.viewToggleButtonText,
-                {
-                  color: displayMode === 'board'
-                    ? (isDarkMode ? '#0f0f0f' : '#fff')
-                    : (isDarkMode ? '#999' : '#666')
-                }
-              ]}>
-                Board
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.viewToggleButton,
-                displayMode === 'timeline' && styles.viewToggleButtonActive,
-                {
-                  backgroundColor: displayMode === 'timeline'
-                    ? (isDarkMode ? '#49DDDD' : '#0a7ea4')
-                    : (isDarkMode ? '#303030' : '#e4e4e4')
-                }
-              ]}
-              onPress={() => {
-                handleHaptic();
-                onDisplayModeChange('timeline');
-              }}
-            >
-              <Text style={[
-                styles.viewToggleButtonText,
-                {
-                  color: displayMode === 'timeline'
-                    ? (isDarkMode ? '#0f0f0f' : '#fff')
-                    : (isDarkMode ? '#999' : '#666')
-                }
-              ]}>
-                Timeline
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.viewToggleButton,
-                displayMode === 'compact' && styles.viewToggleButtonActive,
-                {
-                  backgroundColor: displayMode === 'compact'
-                    ? (isDarkMode ? '#49DDDD' : '#0a7ea4')
-                    : (isDarkMode ? '#303030' : '#e4e4e4')
-                }
-              ]}
-              onPress={() => {
-                handleHaptic();
-                onDisplayModeChange('compact');
-              }}
-            >
-              <Text style={[
-                styles.viewToggleButtonText,
-                {
-                  color: displayMode === 'compact'
-                    ? (isDarkMode ? '#0f0f0f' : '#fff')
-                    : (isDarkMode ? '#999' : '#666')
-                }
-              ]}>
-                Compact
-              </Text>
-            </TouchableOpacity>
-          </View>
+      <ScrollView style={styles.menuItems} contentContainerStyle={styles.menuContent}>
+        <Text style={styles.sectionLabel}>View</Text>
+        {/* Outer radius = inner radius (9) + padding (3). */}
+        <View style={styles.segment}>
+          {views.map((view) => {
+            const selected = activeMode === view.mode;
+            return (
+              <TouchableOpacity
+                key={view.mode}
+                style={[styles.segmentItem, selected && styles.segmentItemSelected]}
+                onPress={() => {
+                  handleHaptic();
+                  onDisplayModeChange(view.mode);
+                }}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+              >
+                <Text style={[styles.segmentLabel, selected && styles.segmentLabelSelected]}>{view.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        {/* Divider */}
-        <View style={[styles.divider, { backgroundColor: isDarkMode ? '#333' : '#ddd' }]} />
+        <View style={styles.divider} />
 
-        {/* Leave/Delete Room */}
-        {isCreator ? (
-          <TouchableOpacity
-            style={[styles.actionButton, styles.deleteButton]}
-            onPress={onDeleteRoom}
-          >
-            <Icon name="delete" size={20} color="#fff" />
-            <Text style={styles.actionButtonText}>Delete Room</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={[styles.actionButton, styles.leaveButton]}
-            onPress={onLeaveRoom}
-          >
-            <Icon name="exit-to-app" size={20} color="#fff" />
-            <Text style={styles.actionButtonText}>Leave Room</Text>
-          </TouchableOpacity>
-        )}
+        {onOpenInstructions && row('help-outline', 'How to play', onOpenInstructions)}
+        {onOpenFeedback && row('chat-bubble-outline', 'Send feedback', onOpenFeedback)}
+        {onOpenBugReport && row('bug-report', 'Report a bug', onOpenBugReport)}
       </ScrollView>
 
-      {/* Close button - only visible on mobile */}
-      {isCloseable && onClose && (
-        <View style={[styles.closeButtonContainer, { paddingBottom: 10 }]}>
-          <TouchableOpacity
+      <View style={styles.footer}>
+        <Button
+          label="Leave room"
+          variant="danger"
+          onPress={onLeaveRoom}
+        />
+        {isCloseable && onClose && (
+          <Button
+            label="Close menu"
+            variant="secondary"
             onPress={() => {
-              if (Platform.OS !== 'web') {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }
+              handleHaptic();
               onClose();
             }}
-            style={[
-              styles.closeDrawerButton,
-            ]}
-          >
-            <Icon name="arrow-back" size={16} color={'#fff'} />
-            <Text style={styles.actionButtonText}>Close menu</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -266,117 +121,81 @@ export default function GameDrawerContent({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.color.bg,
   },
   header: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
+    paddingTop: 24,
+    paddingBottom: 16,
+  },
+  eyebrow: {
+    fontSize: theme.font.small,
+    color: theme.color.textMuted,
   },
   roomName: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+    color: theme.color.text,
+    marginTop: 2,
   },
   menuItems: {
     flex: 1,
-    padding: 20,
+  },
+  menuContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  sectionLabel: {
+    fontSize: theme.font.small,
+    color: theme.color.textMuted,
+    marginBottom: 8,
+  },
+  segment: {
+    flexDirection: 'row',
+    gap: 2,
+    padding: 3,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.color.surface,
+  },
+  segmentItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderRadius: theme.radius.sm,
+  },
+  segmentItemSelected: {
+    backgroundColor: theme.color.surfaceActive,
+  },
+  segmentLabel: {
+    fontSize: theme.font.body,
+    color: theme.color.textMuted,
+  },
+  segmentLabelSelected: {
+    color: theme.color.text,
+    fontWeight: '600',
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: theme.color.hairlineStrong,
+    marginTop: 20,
+    marginBottom: 4,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
+    minHeight: 52,
     gap: 12,
-  },
-  menuIcon: {
-    width: 24,
   },
   menuLabel: {
     fontSize: 16,
-    fontWeight: '500',
+    color: theme.color.text,
     flex: 1,
   },
-  divider: {
-    height: 1,
-    marginVertical: 16,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 8,
-    gap: 8,
-    marginTop: 8,
-  },
-  deleteButton: {
-    backgroundColor: '#ff4444',
-  },
-  leaveButton: {
-    backgroundColor: '#666',
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  viewToggleSection: {
-    paddingVertical: 8,
-  },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  viewToggleButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  viewToggleButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    gap: 8,
-  },
-  viewToggleButtonActive: {
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
-  viewToggleButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  closeButtonContainer: {
+  footer: {
     paddingHorizontal: 20,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(150,150,150,0.2)',
-  },
-  closeDrawerButton: {
-    backgroundColor: '#666',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingTop: 12,
+    paddingBottom: 16,
     gap: 8,
-    marginTop: 10,
-    paddingTop: 10,
-    paddingBottom: 10,
-    paddingLeft: 10,
-    paddingRight: 10,
-    borderRadius: 8,
-    minWidth: 0,
-  },
-  darkThemeButtonBackground: {
-    backgroundColor: '#49DDDD',
-  },
-  lightThemeButtonBackground: {
-    backgroundColor: '#222831',
   },
 });

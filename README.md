@@ -1,50 +1,55 @@
-# Welcome to your Expo app 👋
+# Liar's Poker — app
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo (React Native + web) client for Liar's Poker, a bluffing card game for 2–8 players.
+The game server lives in a separate repo: [Firlej/liars-poker](https://github.com/Firlej/liars-poker).
 
-## Get started
+- Website: deployed from `master` by `.github/workflows/deploy.yml`
+- Status and launch checklist: [`public/launch-review.html`](public/launch-review.html), published with the website at `/launch-review.html`
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-    npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Run locally
 
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Press `w` for the browser, `i` / `a` for the iOS or Android simulator.
 
-## Learn more
+The app connects to `EXPO_PUBLIC_SOCKET_URL`. For local work put this in `.env.local` and run the server from the other repo:
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+EXPO_PUBLIC_SOCKET_URL=http://localhost:4000
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+To test on a phone, use your computer's network address instead of `localhost` and start the server with `--host 0.0.0.0`.
 
-## Join the community
+To see a game without other people, tap **Watch bots play** in the lobby: a table of bots that starts a new game after each one ends.
 
-Join our community of developers creating universal apps.
+## Checks
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+npx tsc --noEmit
+npx jest --watchAll=false
+```
+
+## How it is built
+
+| Path | What it does |
+| --- | --- |
+| `net/client.ts` | The one connection to the server. Starts on long-polling and upgrades to WebSocket, reconnects forever and when the app returns to the foreground, keeps a session token, resends moves safely after a dropped connection |
+| `net/protocol.ts` | Types for what the server sends, and text for its error codes |
+| `net/view.ts` | Turns a server snapshot into what the game screen draws |
+| `net/errorReporter.ts` | Sends crashes and unexpected errors to the PocketBase `feedbacks` collection (off in development builds) |
+| `socket.tsx` | React provider and hooks around the client |
+| `app/game.tsx` | Game screen: waiting room, table, reveal, game over |
+| `app/(tabs)/index.tsx` | Lobby |
+| `components/game/` | Table, hand panel, bet picker, timeline, turn timer |
+| `constants/theme.ts` | Colors, spacing and type tokens |
+| `utils/bets.ts`, `utils/dataUtils.js` | The 83 bets in order, their names and card pictures |
+
+The server is the only source of truth. After every change it sends each player the complete room state with a version number; the app draws it as received and never patches state from individual events. A lost message or a reconnect can't leave a player out of sync.
+
+## Releasing
+
+- **Website:** merging into `master` builds and deploys it. The game server must already be running the matching version.
+- **Stores:** build with EAS (`eas.json`). Bump `version` in `app.json` first.

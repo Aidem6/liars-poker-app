@@ -1,93 +1,50 @@
 /**
- * Socket Provider
+ * React bindings for the game connection (see net/client.ts).
  */
-import React, {useEffect, useRef, useState, ReactNode} from 'react';
-import socketIOClient from 'socket.io-client';
-import { Socket } from 'socket.io-client';
-import type { DefaultEventsMap } from '@socket.io/component-emitter';
-// import {ANDROID, IOS} from '../constants/constants';
-// import {isIOS} from '../helper';
+import React, { ReactNode, useEffect, useSyncExternalStore } from 'react';
+import { gameClient, GameClient, ClientSnapshot, ConnectionStatus } from './net/client';
+import { pb } from './app/lib/pocketbase';
+import { UsernameStorage } from './utils/usernameStorage';
+import { setErrorContext } from './net/errorReporter';
 
-// Socket URL is managed via environment variables
-// Production: uses .env (https://liarspoker-server.adamtomczyk.com)
-// Development: uses .env.local (http://localhost:4000)
-const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'https://liarspoker-server.adamtomczyk.com';
+// Every automatic error report says where the player was.
+setErrorContext(() => {
+  const snap = gameClient.getSnapshot();
+  const game = snap.room?.game;
+  return {
+    connection: snap.status,
+    latency: snap.latency,
+    player: snap.playerId,
+    room: snap.roomId,
+    room_status: snap.room?.room.status,
+    v: snap.room?.v,
+    phase: game?.phase,
+    deal: game?.deal_no,
+    turn_seq: game?.turn_seq,
+  };
+});
 
-export const SocketContext = React.createContext<{
-  socket: Socket<DefaultEventsMap, DefaultEventsMap> | null;
-  sid: string;
-}>({ socket: null, sid: '' });
+export type { ConnectionStatus };
 
-/**
- * connectionConfig
- */
-const connectionConfig = {
-  jsonp: false,
-  reconnection: true,
-  reconnectionDelay: 100,
-  reconnectionAttempts: 100000,
-  transports: ['websocket'],
+const ClientContext = React.createContext<GameClient>(gameClient);
 
-// //optional
-//   query: {
-//     source: 'auction:mobile',
-//     platform: isIOS() ? IOS : ANDROID,
-//   },
+async function initialName(): Promise<string> {
+  const model = pb.authStore.model as { username?: string } | null;
+  if (pb.authStore.isValid && model?.username) return model.username;
+  return (await UsernameStorage.getUsername()) || '';
+}
 
-};
-
-/**
- * SocketProvider
- * @param {*} param0
- * @returns
- */
-export const SocketProvider = ({children}: {children: ReactNode}) => {
-  const socket = useRef<Socket<DefaultEventsMap, DefaultEventsMap> | null>(null);
-  const [ sid, setSid ] = useState('');
-
+export const SocketProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
-    // Initialize socket only once inside useEffect to avoid double-mounting issues
-    if (!socket.current) {
-      console.log('SocketIO: Initializing connection to', SOCKET_URL);
-      socket.current = socketIOClient(SOCKET_URL, connectionConfig);
-    }
-
-    const currentSocket = socket.current;
-
-    currentSocket.on('connected', function(data) {
-      console.log('SocketIO: Connected', data);
-      setSid(data.sid);
-    });
-
-    currentSocket.on('disconnect', msg => {
-      console.log('SocketIO: Disconnect', msg);
-      // Don't create a new socket here - let reconnection config handle it
-    });
-
-    currentSocket.on('reconnect', (attemptNumber) => {
-      console.log('SocketIO: Reconnected after', attemptNumber, 'attempts');
-    });
-
-    currentSocket.on('reconnect_attempt', (attemptNumber) => {
-      console.log('SocketIO: Reconnection attempt', attemptNumber);
-    });
-
-    // Note: Cleanup function intentionally left minimal
-    // Socket should persist across navigation and screen changes
-    // Only disconnect when the entire app unmounts
-    return () => {
-      console.log('SocketIO: Provider cleanup called - this should rarely happen');
-      // Only remove the global event listeners, not component-specific ones
-      currentSocket.off('connected');
-      currentSocket.off('disconnect');
-      currentSocket.off('reconnect');
-      currentSocket.off('reconnect_attempt');
-    };
+    initialName().then((name) => gameClient.start(name));
   }, []);
-
-  return (
-    <SocketContext.Provider value={{socket: socket.current, sid: sid}} >
-      {children}
-    </SocketContext.Provider>
-  );
+  return <ClientContext.Provider value={gameClient}>{children}</ClientContext.Provider>;
 };
+
+export const useGameClient = () => React.useContext(ClientContext);
+
+/** Re-renders whenever the connection, room list or room state changes. */
+export function useClientState(): ClientSnapshot {
+  const client = useGameClient();
+  return useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
+}

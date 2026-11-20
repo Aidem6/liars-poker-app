@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Liar's Poker Launch Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column (status → game flow → why it feels generated → launch checklist → order of work), wide tables scroll in place. */
+:root {
+  --paper: #f7f8f6;
+  --card: #ffffff;
+  --ink: #1b1f1d;
+  --muted: #5d6662;
+  --rule: #dde2df;
+  --felt: #1f6b4f;
+  --red: #b3261e;
+  --amber: #8a5a00;
+  --chip-done-bg: #e3f1ea;
+  --chip-part-bg: #fbefd6;
+  --chip-miss-bg: #f8e1df;
+  --code-bg: #eef1ef;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #121614; --card: #1a1f1d; --ink: #e8ece9; --muted: #9aa49f; --rule: #2c3431;
+    --felt: #5cc08f; --red: #ff8a80; --amber: #f0b851;
+    --chip-done-bg: #173126; --chip-part-bg: #3a2d10; --chip-miss-bg: #3d1c1a; --code-bg: #202725;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #121614; --card: #1a1f1d; --ink: #e8ece9; --muted: #9aa49f; --rule: #2c3431;
+  --felt: #5cc08f; --red: #ff8a80; --amber: #f0b851;
+  --chip-done-bg: #173126; --chip-part-bg: #3a2d10; --chip-miss-bg: #3d1c1a; --code-bg: #202725;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 80px;
+}
+main { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+section { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(32px, 6vw, 48px); letter-spacing: -0.02em; }
+h2 { font-size: 26px; letter-spacing: -0.01em; }
+h3 { font-size: 18px; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--felt); }
+.lede { font-size: 18px; color: var(--muted); }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+a { color: var(--felt); }
+.suits { font-size: 22px; letter-spacing: 6px; }
+.suits .r { color: var(--red); }
+
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+.fact { background: var(--card); padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
+.fact b { font-family: var(--display); font-size: 22px; font-variant-numeric: tabular-nums; }
+.fact span { font-size: 13px; color: var(--muted); }
+
+ul.plain { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; max-width: 72ch; }
+
+.chip { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.done { background: var(--chip-done-bg); color: var(--felt); }
+.part { background: var(--chip-part-bg); color: var(--amber); }
+.miss { background: var(--chip-miss-bg); color: var(--red); }
+
+.flow { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; overflow-x: auto; }
+.flow pre.mermaid { margin: 0; background: transparent; }
+
+.issue { display: grid; grid-template-columns: 34px 1fr; gap: 4px 14px; padding: 18px 0; border-top: 1px solid var(--rule); }
+.issue:last-child { border-bottom: 1px solid var(--rule); }
+.issue .n { font-family: var(--display); font-size: 22px; color: var(--red); font-variant-numeric: tabular-nums; }
+.issue > div { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.issue .seen { color: var(--muted); font-size: 15px; }
+.issue .fix { font-size: 15px; }
+.issue .fix b { color: var(--felt); }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--card); }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 15px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--rule); }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td:first-child { font-weight: 500; }
+td.why { color: var(--muted); }
+.group { font-family: var(--display); font-size: 15px; background: var(--code-bg); }
+
+ol.steps { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; max-width: 72ch; }
+ol.steps li::marker { font-family: var(--display); font-weight: 700; color: var(--felt); }
+.note { font-size: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<main>
+  <header style="display:flex;flex-direction:column;gap:12px">
+    <div class="eyebrow">Liar's Poker · status on 20 November 2026</div>
+    <h1>Liar's Poker Launch Review</h1>
+    <p class="lede">The rewrite works and survives bad connections. It is not yet a game strangers can pick up and enjoy. This page says where things stand, why the game still feels generated, and what has to happen before real players see it.</p>
+    <div class="suits" aria-hidden="true">♠<span class="r">♥</span>♣<span class="r">♦</span></div>
+  </header>
+
+  <section>
+    <div class="eyebrow">Where it stands</div>
+    <h2>The engine is solid; the product around it is not</h2>
+    <div class="facts">
+      <div class="fact"><b>85</b><span>server tests passing</span></div>
+      <div class="fact"><b>19</b><span>app tests passing</span></div>
+      <div class="fact"><b>2 PRs</b><span>open, app PR is a draft</span></div>
+      <div class="fact"><b>0</b><span>real players on the new version</span></div>
+    </div>
+    <h3>Verified</h3>
+    <ul class="plain">
+      <li>Full games against bots and a second scripted player, in the browser.</li>
+      <li>Server restarted mid-turn: the game came back, and a bet placed while offline went through once.</li>
+      <li>Page reload returns you to the same seat. WebSocket and long-polling both work.</li>
+      <li>18 complete bot games with every state change checked against the rules (no duplicate cards, bets only go up, turn always on a player still in).</li>
+      <li>"Watch bots play" runs a self-restarting bot table.</li>
+    </ul>
+    <h3>Not verified</h3>
+    <ul class="plain">
+      <li>Native iOS and Android builds of the new client.</li>
+      <li>An automatic error report actually arriving in the PocketBase <code>feedbacks</code> collection.</li>
+      <li>Anything on a real phone network, with more than two humans, or with people who have never played.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="eyebrow">Game state</div>
+    <h2>How a room moves</h2>
+    <p>The server owns this flow and sends every player the full table after each change. The app only draws what it receives.</p>
+    <div class="flow">
+<pre class="mermaid">
+stateDiagram-v2
+    [*] --> Lobby: create room
+    Lobby --> Betting: host starts (2–8 seats)
+    Betting --> Betting: bet higher (60 s per turn)
+    Betting --> Reveal: check
+    Betting --> Betting: timeout, server plays for you
+    Betting --> Betting: player leaves, cards dealt again
+    Reveal --> Betting: everyone ready, or 20 s
+    Reveal --> Over: one player left
+    Betting --> Over: everyone else left
+    Over --> Betting: play again
+    Over --> [*]: last person leaves
+</pre>
+    </div>
+    <p class="note">One deal: everyone gets as many cards as they have losses + 1. Bets claim a hand exists across all cards in play. A check reveals everything; whoever was wrong takes a card. A fourth card puts you out.</p>
+  </section>
+
+  <section>
+    <div class="eyebrow">Why it feels generated</div>
+    <h2>Engineered states, undesigned experience</h2>
+    <p>Every case is handled, but nobody decided what a first-time player should understand in their first ten seconds. The UI exposes how the system is built instead of how the game feels. These are the specific reasons, worst first.</p>
+
+    <div>
+      <div class="issue"><span class="n">1</span><div>
+        <h3>"Check" means the opposite of what poker players expect</h3>
+        <p class="seen">In poker, check means "pass". Here it means "I think you're lying, show the cards". The most important button in the game is mislabelled for anyone who knows poker, and meaningless for anyone who doesn't.</p>
+        <p class="fix"><b>Fix:</b> call it "Call bluff" or "Challenge". Say what happens next on the button's first use: "All cards are shown. Whoever is wrong takes a card."</p>
+      </div></div>
+
+      <div class="issue"><span class="n">2</span><div>
+        <h3>83 bets in 9 tabs, ranked unlike real poker</h3>
+        <p class="seen">Straights rank below three of a kind, four of a kind below a flush, "Small poker" means straight flush. Players must learn a private ladder, and the picker never shows where a bet sits on it or how likely it is.</p>
+        <p class="fix"><b>Fix:</b> one scrolling ladder with the current bet marked and everything below it greyed out; a "Raise by one" shortcut; plain names ("Straight flush 9–K"); an optional odds hint while learning.</p>
+      </div></div>
+
+      <div class="issue"><span class="n">3</span><div>
+        <h3>The number that matters is printed small</h3>
+        <p class="seen">The whole game is reasoning about how many cards are in play and how many you hold. That sits in an 11 px subtitle ("5 cards in play"). The table centre is mostly empty space.</p>
+        <p class="fix"><b>Fix:</b> make the pool the centrepiece: "5 cards on the table · 2 are yours · 3 hidden", drawn as cards, updating every deal.</p>
+      </div></div>
+
+      <div class="issue"><span class="n">4</span><div>
+        <h3>No teaching, only a wall of text</h3>
+        <p class="seen">Rules live in a 16-section modal. It still says "2 to 10 players" (the limit is 8), while the hand panel says "out at 4" and the rules talk about holding 3. A new player is dropped straight into a live bet picker.</p>
+        <p class="fix"><b>Fix:</b> a guided first game against bots with three or four prompts at the moment they matter; fix the copy so limits match; keep the modal as reference only.</p>
+      </div></div>
+
+      <div class="issue"><span class="n">5</span><div>
+        <h3>Placeholder screens that look real</h3>
+        <p class="seen">The profile shows hard-coded Texas Hold'em statistics ("Flop 14%", "River 16%", "Time played 3.4h") that have nothing to do with this game. "Friends", "Add friends" and "Emotes" do nothing. This is the clearest sign of generated filler.</p>
+        <p class="fix"><b>Fix:</b> delete them now. Bring back only what the server records: games played, wins, average finishing place.</p>
+      </div></div>
+
+      <div class="issue"><span class="n">6</span><div>
+        <h3>The reveal, the best moment, is a text summary</h3>
+        <p class="seen">"1 of 2 on the table · Bot 3 takes a card" plus tiny cards inside small opponent cells. No pause, no flip, no clear "this card proves it". The 20-second auto-continue is not shown.</p>
+        <p class="fix"><b>Fix:</b> a short sequence: the claim, cards flip one hand at a time, matching cards light up and move to a row under the claim, then the verdict and the +1 card landing on the loser.</p>
+      </div></div>
+
+      <div class="issue"><span class="n">7</span><div>
+        <h3>Silent and surprising on timeouts</h3>
+        <p class="seen">No sound and no notification when it becomes your turn with the app in the background. If 60 seconds pass, the server checks for you, which can cost you a card without you understanding why.</p>
+        <p class="fix"><b>Fix:</b> a turn sound and push notification; a visible warning at 15 seconds; a timeline line that says "Time ran out, so you challenged automatically".</p>
+      </div></div>
+
+      <div class="issue"><span class="n">8</span><div>
+        <h3>Generic look, system-side wording</h3>
+        <p class="seen">Dark grey minimal theme, grey-on-grey text, a permanent 280 px sidebar on desktop holding four links. Copy like "Cards revealed", "Away · waiting", "Waiting for others (1)", and "deal" and "round" used for the same thing. The timeline mixes game moves with "lost connection / is back" noise.</p>
+        <p class="fix"><b>Fix:</b> one visual idea that belongs to this game (a table, cards with weight), higher contrast, one word per concept, connection events shown as a small marker instead of timeline rows.</p>
+      </div></div>
+
+      <div class="issue"><span class="n">9</span><div>
+        <h3>Hard to get friends into a game</h3>
+        <p class="seen">Rooms show a code, but there is no "Join with code" field and no invite link to share. Every room is public in the lobby list.</p>
+        <p class="fix"><b>Fix:</b> "Invite" button that shares a link and code, a code field in the lobby, private rooms by default.</p>
+      </div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Launch checklist</div>
+    <h2>What has to be true before real players arrive</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Item</th><th>Status</th><th>Why it matters</th></tr></thead>
+        <tbody>
+          <tr><td class="group" colspan="3">Must have before launch</td></tr>
+          <tr><td>Deploy the new server on its own address, keep the old one running</td><td><span class="chip miss">Missing</span></td><td class="why">Store apps speak the old protocol and break the moment the old server is replaced.</td></tr>
+          <tr><td>Set <code>EXPO_PUBLIC_SOCKET_URL</code> in <code>deploy.yml</code></td><td><span class="chip miss">Missing</span></td><td class="why">The web build otherwise falls back to the old server and the website stops working on merge.</td></tr>
+          <tr><td>Protocol version in the handshake, with an "Update the app" screen</td><td><span class="chip miss">Missing</span></td><td class="why">Without it, the next breaking change strands old installs silently again.</td></tr>
+          <tr><td>Native iOS and Android builds tested on real phones</td><td><span class="chip miss">Missing</span></td><td class="why">Only the web build was exercised; backgrounding and reconnect behave differently on native.</td></tr>
+          <tr><td>Remove placeholder profile, friends and emotes</td><td><span class="chip miss">Missing</span></td><td class="why">Fake numbers destroy trust faster than missing features.</td></tr>
+          <tr><td>Rename Check, fix rules copy (8 players, card limit wording)</td><td><span class="chip miss">Missing</span></td><td class="why">Players currently misread the central action.</td></tr>
+          <tr><td>Confirm error reports land in PocketBase</td><td><span class="chip part">Built, untested</span></td><td class="why">The <code>feedbacks</code> fields may reject <code>place: error:…</code> values; then you hear about nothing.</td></tr>
+          <tr><td>Uptime check on <code>/health</code> and daily SQLite backup</td><td><span class="chip miss">Missing</span></td><td class="why">One process holds every game; you should know within minutes when it is down.</td></tr>
+          <tr><td>Privacy policy mentions automatic error reports</td><td><span class="chip miss">Missing</span></td><td class="why">Reports include player ids and room state; store reviews check this.</td></tr>
+          <tr><td>Reconnect, keep seat, safe resends, restarts</td><td><span class="chip done">Done</span></td><td class="why">The original reason for the rewrite. Covered by tests and a manual restart test.</td></tr>
+          <tr><td>Game rules engine with invariant checks</td><td><span class="chip done">Done</span></td><td class="why">Every move is validated on the server; bugs get reported instead of corrupting games.</td></tr>
+
+          <tr><td class="group" colspan="3">Should have soon after</td></tr>
+          <tr><td>Guided first game against bots</td><td><span class="chip miss">Missing</span></td><td class="why">The ladder and the pooled-cards idea are not learnable from a modal.</td></tr>
+          <tr><td>Invite link, join with code, private rooms</td><td><span class="chip part">Codes exist</span></td><td class="why">Most games will be among friends; today they must find each other in a public list.</td></tr>
+          <tr><td>Turn sound and push notification</td><td><span class="chip miss">Missing</span></td><td class="why">With 60-second turns, people switch apps and come back to an automatic loss.</td></tr>
+          <tr><td>Redesigned reveal sequence</td><td><span class="chip miss">Missing</span></td><td class="why">It is the payoff of every deal and currently reads like a log line.</td></tr>
+          <tr><td>Real stats recorded by the server</td><td><span class="chip miss">Missing</span></td><td class="why">Gives returning players a reason to come back; replaces the fake numbers honestly.</td></tr>
+          <tr><td>Accounts linked to sessions</td><td><span class="chip part">Token only</span></td><td class="why">Identity is a per-device token; switching phones loses your seat and history.</td></tr>
+
+          <tr><td class="group" colspan="3">Later</td></tr>
+          <tr><td>Polish translation of the game screen</td><td><span class="chip part">Rules only</span></td><td class="why">The rules modal already has Polish; the table does not.</td></tr>
+          <tr><td>Name filtering and reporting players</td><td><span class="chip miss">Missing</span></td><td class="why">Needed once strangers play together in public rooms.</td></tr>
+          <tr><td>Load test with many rooms</td><td><span class="chip miss">Missing</span></td><td class="why">Single process is fine for hundreds of players; find the real ceiling before a launch push.</td></tr>
+          <tr><td>Retire the old server</td><td><span class="chip miss">Later</span></td><td class="why">Only after store updates have rolled out and old traffic has stopped.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Order of work</div>
+    <h2>Suggested sequence</h2>
+    <ol class="steps">
+      <li><b>Strip the fake parts.</b> Remove placeholder profile stats, friends and emotes; rename Check; fix the rules copy. One small PR, biggest trust gain.</li>
+      <li><b>Put the new server online next to the old one</b> on a test address, with uptime checks and backups, and confirm an error report reaches PocketBase.</li>
+      <li><b>Playtest with five people who have never played.</b> Watch them without helping, write down every pause. This decides what step 4 actually contains.</li>
+      <li><b>Design pass on the table:</b> the card pool as centrepiece, the bet ladder, the reveal sequence, one visual identity. Then a guided first game.</li>
+      <li><b>Invites and notifications:</b> share link, join with code, private rooms, turn sound and push.</li>
+      <li><b>Add the protocol version check, ship store builds,</b> point the web build at the new server, merge the draft PR.</li>
+      <li><b>Retire the old server</b> once store traffic has moved over.</li>
+    </ol>
+    <p class="note">Code lives on <span class="mono">python-server-rewrite</span> (Firlej/liars-poker#1) and <span class="mono">snapshot-client-rewrite</span> (Aidem6/liars-poker-app#1, draft). Merging the app PR publishes the website, so it waits until step 6.</p>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+  const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'neutral' });
+</script>
+</body>
+</html>

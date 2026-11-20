@@ -13,7 +13,13 @@
     "lint": "expo lint"
   },
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "moduleNameMapper": {
+      "^pocketbase$": "<rootDir>/node_modules/pocketbase/dist/pocketbase.cjs.js"
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|react-native-elements|react-native-ratings|react-native-size-matters|pocketbase|socket.io-client|engine.io-client|react-qr-code)"
+    ]
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -24,6 +30,7 @@
     "@socket.io/component-emitter": "^3.1.2",
     "expo": "~54.0.25",
     "expo-blur": "~15.0.7",
+    "expo-camera": "~17.0.10",
     "expo-clipboard": "^8.0.8",
     "expo-constants": "~18.0.10",
     "expo-font": "~14.0.9",

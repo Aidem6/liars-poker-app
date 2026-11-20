@@ -23,7 +23,7 @@ export function InstructionsButton() {
         <Icon
           name="help-outline"
           size={24}
-          color={isDarkMode ? '#49DDDD' : '#0a7ea4'}
+          color={isDarkMode ? '#EDEDED' : '#0a7ea4'}
         />
       </TouchableOpacity>
       <InstructionsModal

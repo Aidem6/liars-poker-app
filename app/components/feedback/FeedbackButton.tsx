@@ -27,7 +27,7 @@ export function FeedbackButton({ screenName = 'Unknown' }: FeedbackButtonProps) 
         <Icon
           name="feedback"
           size={24}
-          color={isDarkMode ? '#49DDDD' : '#0a7ea4'}
+          color="#85858A"
         />
       </TouchableOpacity>
       <FeedbackModal

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   Alert,
@@ -13,16 +12,14 @@ import {
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Icon } from 'react-native-elements';
 import { pb, saveAuthData } from '../../lib/pocketbase';
-import { useTheme } from '../../lib/ThemeContext';
+import { theme, elevation } from '@/constants/theme';
+import { Button } from '@/components/ui/Button';
+import { TextField } from '@/components/ui/TextField';
 import * as Haptics from 'expo-haptics';
 import { FeedbackButton } from '../feedback/FeedbackButton';
 
 export default function LoginScreen() {
-  const { colors, isLightMode } = useTheme();
-  const isDarkMode = !isLightMode;
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -84,28 +81,12 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: isDarkMode ? colors.background : colors.background }]}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor="transparent"
-        translucent
-      />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      <LinearGradient
-        colors={isDarkMode
-          ? ['rgba(73, 221, 221, 0.15)', 'rgba(0, 0, 0, 0)']
-          : ['rgba(10, 126, 164, 0.1)', 'rgba(255, 255, 255, 0)']
-        }
-        style={styles.headerGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      >
-        <SafeAreaView edges={['top']}>
-          <View style={styles.feedbackButtonContainer}>
-            <FeedbackButton screenName="Login" />
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
+      <SafeAreaView edges={['top']} style={styles.topBar}>
+        <FeedbackButton screenName="Login" />
+      </SafeAreaView>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -118,109 +99,85 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          <View style={styles.header}>
-            <Icon
-              name="account-circle"
-              size={60}
-              color={isDarkMode ? '#49DDDD' : '#0a7ea4'}
-              style={styles.headerIcon}
-            />
-            <Text style={[styles.title, { color: isDarkMode ? '#fff' : '#010710' }]}>
-              {isLogin ? 'Welcome Back' : 'Create Account'}
+          <View style={styles.content}>
+            <Text style={styles.title}>{isLogin ? 'Sign in' : 'Create an account'}</Text>
+            <Text style={styles.subtitle}>
+              {isLogin
+                ? 'Keep your name, stats and friends across devices.'
+                : 'Save your name, stats and friends across devices.'}
             </Text>
-            <Text style={[styles.subtitle, { color: isDarkMode ? '#aaa' : '#666' }]}>
-              {isLogin ? 'Sign in to continue' : 'Join us to play Liar\'s Poker'}
-            </Text>
-          </View>
-          <View style={[styles.card, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>
-            {!isLogin && (
-              <View style={styles.inputContainer}>
-                <Icon name="person" size={20} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
-                <TextInput
-                  style={[styles.input, {
-                    backgroundColor: isDarkMode ? '#2B2B2B' : '#F0F0F0',
-                    color: isDarkMode ? '#fff' : '#000'
-                  }]}
-                  placeholder="Username"
-                  placeholderTextColor={isDarkMode ? '#888' : '#999'}
-                  value={username}
-                  onChangeText={setUsername}
+
+            <View style={styles.fields}>
+              {!isLogin && (
+                <View>
+                  <Text style={styles.label}>Username</Text>
+                  <TextField
+                    placeholder="Ada"
+                    value={username}
+                    onChangeText={setUsername}
+                    autoCapitalize="none"
+                    maxLength={20}
+                  />
+                </View>
+              )}
+              <View>
+                <Text style={styles.label}>Email</Text>
+                <TextField
+                  placeholder="name@example.com"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
                 />
               </View>
-            )}
-
-            <View style={styles.inputContainer}>
-              <Icon name="email" size={20} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
-              <TextInput
-                style={[styles.input, {
-                  backgroundColor: isDarkMode ? '#2B2B2B' : '#F0F0F0',
-                  color: isDarkMode ? '#fff' : '#000'
-                }]}
-                placeholder="Email"
-                placeholderTextColor={isDarkMode ? '#888' : '#999'}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
+              <View>
+                <View style={styles.labelRow}>
+                  <Text style={styles.label}>Password</Text>
+                  {isLogin && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        handleButtonPress();
+                        handleForgotPassword();
+                      }}
+                      hitSlop={8}
+                    >
+                      <Text style={styles.link}>Forgot password</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <TextField
+                  placeholder={isLogin ? 'Your password' : 'At least 8 characters'}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  autoComplete={isLogin ? 'current-password' : 'new-password'}
+                  onSubmitEditing={handleAuth}
+                />
+              </View>
             </View>
 
-            <View style={styles.inputContainer}>
-              <Icon name="lock" size={20} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
-              <TextInput
-                style={[styles.input, {
-                  backgroundColor: isDarkMode ? '#2B2B2B' : '#F0F0F0',
-                  color: isDarkMode ? '#fff' : '#000'
-                }]}
-                placeholder="Password"
-                placeholderTextColor={isDarkMode ? '#888' : '#999'}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, { backgroundColor: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}
+            <Button
+              label={isLogin ? 'Sign in' : 'Create account'}
               onPress={() => {
                 handleButtonPress();
                 handleAuth();
               }}
+            />
+
+            <TouchableOpacity
+              onPress={() => {
+                handleButtonPress();
+                setIsLogin(!isLogin);
+              }}
+              style={styles.switchContainer}
             >
-              <Text style={[styles.buttonText, { color: isDarkMode ? '#010710' : '#fff' }]}>
-                {isLogin ? 'Login' : 'Create Account'}
+              <Text style={styles.switchText}>
+                {isLogin ? 'New here? ' : 'Already have an account? '}
+                <Text style={styles.switchTextBold}>{isLogin ? 'Create an account' : 'Sign in'}</Text>
               </Text>
             </TouchableOpacity>
-
-            {isLogin && (
-              <TouchableOpacity
-                onPress={() => {
-                  handleButtonPress();
-                  handleForgotPassword();
-                }}
-                style={styles.forgotPasswordButton}
-              >
-                <Text style={[styles.forgotPasswordText, { color: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}>
-                  Forgot Password?
-                </Text>
-              </TouchableOpacity>
-            )}
           </View>
-
-          <TouchableOpacity
-            onPress={() => {
-              handleButtonPress();
-              setIsLogin(!isLogin);
-            }}
-            style={styles.switchContainer}
-          >
-            <Text style={[styles.switchText, { color: isDarkMode ? '#aaa' : '#666' }]}>
-              {isLogin ? 'Don\'t have an account? ' : 'Already have an account? '}
-              <Text style={[styles.switchTextBold, { color: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}>
-                {isLogin ? 'Sign up' : 'Login'}
-              </Text>
-            </Text>
-          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -232,51 +189,38 @@ export default function LoginScreen() {
         statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>
-            <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
-              Reset Password
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Reset your password</Text>
+            <Text style={styles.modalDescription}>
+              Enter your email and we'll send you a link to set a new password.
             </Text>
-            <Text style={[styles.modalDescription, { color: isDarkMode ? '#aaa' : '#666' }]}>
-              Enter your email address and we'll send you instructions to reset your password.
-            </Text>
-            <View style={styles.inputContainer}>
-              <Icon name="email" size={20} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
-              <TextInput
-                style={[styles.input, {
-                  backgroundColor: isDarkMode ? '#2B2B2B' : '#F0F0F0',
-                  color: isDarkMode ? '#fff' : '#000',
-                  borderColor: isDarkMode ? '#444' : '#ddd'
-                }]}
-                placeholder="Email address"
-                placeholderTextColor={isDarkMode ? '#888' : '#999'}
-                value={resetEmail}
-                onChangeText={setResetEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
+            <TextField
+              placeholder="name@example.com"
+              value={resetEmail}
+              onChangeText={setResetEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={{ marginBottom: 16 }}
+            />
             <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
+              <Button
+                label="Cancel"
+                variant="secondary"
                 onPress={() => {
                   handleButtonPress();
                   setShowResetModal(false);
                   setResetEmail('');
                 }}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton, { backgroundColor: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}
+                style={{ flex: 1 }}
+              />
+              <Button
+                label="Send link"
                 onPress={() => {
                   handleButtonPress();
                   submitPasswordReset();
                 }}
-              >
-                <Text style={[styles.confirmButtonText, { color: isDarkMode ? '#010710' : '#fff' }]}>
-                  Send Link
-                </Text>
-              </TouchableOpacity>
+                style={{ flex: 1 }}
+              />
             </View>
           </View>
         </View>
@@ -288,156 +232,102 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.color.bg,
   },
-  feedbackButtonContainer: {
+  topBar: {
     alignItems: 'flex-end',
     paddingRight: 16,
     paddingTop: 8,
-  },
-  headerGradient: {
-    paddingBottom: 30,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 0,
-    alignItems: 'center',
-  },
-  headerIcon: {
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textAlign: 'center',
-    letterSpacing: 0.5,
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 20,
   },
   formContainer: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+    justifyContent: 'center',
+    paddingHorizontal: theme.space.xl,
+    paddingBottom: 60,
   },
-  card: {
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+  content: {
+    width: '100%',
+    maxWidth: 380,
+    alignSelf: 'center',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '600',
+    letterSpacing: -0.4,
+    color: theme.color.text,
+  },
+  subtitle: {
+    fontSize: theme.font.body,
+    lineHeight: 20,
+    color: theme.color.textMuted,
+    marginTop: 6,
+  },
+  fields: {
+    gap: 14,
+    marginTop: 24,
     marginBottom: 20,
   },
-  inputContainer: {
+  labelRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 12,
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
   },
-  input: {
-    flex: 1,
-    height: 50,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 16,
+  label: {
+    fontSize: 13,
+    color: theme.color.textMuted,
+    marginBottom: 6,
   },
-  button: {
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  buttonText: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  forgotPasswordButton: {
-    marginTop: 16,
-    padding: 8,
-    alignItems: 'center',
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    fontWeight: '500',
+  link: {
+    fontSize: 13,
+    color: theme.color.textMuted,
+    textDecorationLine: 'underline',
   },
   switchContainer: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 18,
   },
   switchText: {
-    fontSize: 15,
+    fontSize: theme.font.body,
+    color: theme.color.textMuted,
     textAlign: 'center',
   },
   switchTextBold: {
-    fontWeight: '600',
+    color: theme.color.text,
+    fontWeight: '500',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: theme.color.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    width: '85%',
-    maxWidth: 400,
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    width: '88%',
+    maxWidth: 380,
+    borderRadius: theme.radius.xl,
+    padding: 20,
+    backgroundColor: theme.color.surfaceRaised,
+    borderWidth: 1,
+    borderColor: theme.color.hairline,
+    ...(elevation('raised') as object),
   },
   modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.color.text,
   },
   modalDescription: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 24,
+    fontSize: theme.font.body,
     lineHeight: 20,
+    color: theme.color.textMuted,
+    marginTop: 6,
+    marginBottom: 20,
   },
   modalButtons: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
+    gap: 8,
   },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#666',
-  },
-  cancelButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  confirmButton: {
-    // backgroundColor set dynamically
-  },
-  confirmButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-}); 
+});

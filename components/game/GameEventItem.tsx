@@ -1,9 +1,9 @@
 import React from 'react';
-import { StyleSheet, View, Text, Dimensions } from 'react-native';
+import { StyleSheet, View, Text } from 'react-native';
 import { GameEvent } from '@/types/gameEvents';
-import Card from './Card';
-import { useTheme } from '@/app/lib/ThemeContext';
-import { Colors } from '@/constants/Colors';
+import PlayingCard from '@/components/ui/PlayingCard';
+import { theme, tabularNums } from '@/constants/theme';
+import { betTitle, findFigure, parseCard } from '@/utils/bets';
 
 interface GameEventItemProps {
   event: GameEvent;
@@ -11,10 +11,8 @@ interface GameEventItemProps {
   myUsername?: string;
 }
 
+/** One entry in the game timeline: a plain row, separated from the next by a hairline. */
 export default function GameEventItem({ event, myUserId, myUsername }: GameEventItemProps) {
-  const { isLightMode } = useTheme();
-  const isDarkMode = !isLightMode;
-
   // Helper to replace player name with "You" if it's the current user
   const getDisplayName = (playerId?: string, playerName?: string) => {
     // First try matching by player ID
@@ -28,484 +26,207 @@ export default function GameEventItem({ event, myUserId, myUsername }: GameEvent
     return playerName || 'Unknown';
   };
 
-  const renderBetEvent = () => {
-    if (!event.betCards) return null;
+  const cards = (hand: Array<{ rank: string; suit: string }>) => (
+    <View style={styles.cards}>
+      {hand.map((card, index) => (
+        <PlayingCard key={index} rank={card.rank} suit={card.suit} size="md" />
+      ))}
+    </View>
+  );
 
-    const displayName = getDisplayName(event.playerId, event.playerName);
+  const line = (name: string, action: string, tone?: 'red' | 'muted') => (
+    <Text style={[styles.text, tone === 'muted' && styles.muted]}>
+      <Text style={[styles.name, tone === 'red' && styles.red, tone === 'muted' && styles.muted]}>{name}</Text>
+      {` ${action}`}
+    </Text>
+  );
 
-    return (
-      <View style={styles.betEventContainer}>
-        {/* Cards behind banner - only show top half */}
-        <View style={styles.betCardsBackground}>
-          {event.betCards.map((card, index) => (
-            <View key={`${card.rank}${card.suit}${index}`} style={styles.betCardWrapper}>
-              <Card
-                index={0}
-                value={card.rank === 'T' ? '10' : card.rank}
-                color={card.suit}
-                reversed={false}
-                isActive={false}
-              />
-            </View>
-          ))}
-        </View>
-        {/* Banner overlay */}
-        <View style={[styles.betBanner, { backgroundColor: isDarkMode ? '#1a1a2e' : '#f0f0f0' }]}>
-          <Text style={[styles.betBannerText, { color: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}>
-            {displayName}
-          </Text>
-          <Text style={[styles.betBannerText, { color: isDarkMode ? '#fff' : '#000' }]}>
-            {' made a bet'}
-          </Text>
-        </View>
-      </View>
-    );
-  };
-
-  const renderCheckEvent = () => {
-    const displayName = getDisplayName(event.playerId, event.playerName);
-
-    return (
-      <View style={styles.eventContainer}>
-        <View style={[styles.eventHeader, { backgroundColor: isDarkMode ? '#1a1a2e' : '#f0f0f0' }]}>
-          <Text style={[styles.playerName, { color: isDarkMode ? '#ff6b6b' : '#d32f2f' }]}>
-            {displayName}
-          </Text>
-          <Text style={[styles.eventAction, { color: isDarkMode ? '#fff' : '#000' }]}>
-            {' called CHECK'}
-          </Text>
-        </View>
-
-        {/* Show all players' hands if available */}
-        {event.playerHands && Object.keys(event.playerHands).length > 0 && (
-          <View style={styles.allHandsContainer}>
-            <Text style={[styles.allHandsLabel, { color: isDarkMode ? '#aaa' : '#666' }]}>
-              All hands revealed:
-            </Text>
-            {Object.entries(event.playerHands).map(([playerId, hand]) => {
-              const playerName = event.playerIdToName?.[playerId] || 'Unknown';
-              const displayPlayerName = getDisplayName(playerId, playerName);
-
-              // Convert hand strings to card objects
-              const handCards = hand.map((cardStr: any) => {
-                // Handle both string format and object format
-                if (typeof cardStr === 'string') {
-                  const suit = cardStr.slice(-1);
-                  const rank = cardStr.slice(0, -1);
-                  return { rank, suit };
-                } else if (cardStr && typeof cardStr === 'object' && cardStr.rank && cardStr.suit) {
-                  // Already an object
-                  return cardStr;
-                }
-                // Fallback
-                return { rank: '', suit: '' };
-              });
-
-              return (
-                <View key={playerId} style={styles.playerHandReveal}>
-                  <Text style={[styles.playerHandName, { color: isDarkMode ? '#fff' : '#000' }]}>
-                    {displayPlayerName}:
-                  </Text>
-                  <View style={styles.playerHandCards}>
-                    {handCards.map((card, index) => (
-                      <View key={index} style={styles.miniCardWrapper}>
-                        <Card
-                          index={0}
-                          value={card.rank === 'T' ? '10' : card.rank}
-                          color={card.suit}
-                          reversed={false}
-                          isActive={false}
-                        />
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        )}
-      </View>
-    );
-  };
-
-  const renderNewDealEvent = () => {
-    if (!event.playerHandCounts) return null;
-
-    const screenWidth = Dimensions.get('window').width;
-    const itemWidth = 70; // Approximate width per player item
-    const playersPerRow = Math.max(3, Math.floor((screenWidth - 32) / itemWidth)); // At least 3, adjust based on screen
-
-    // Get current turn player name
-    const currentTurnPlayerName = event.currentTurnPlayerId && event.playerIdToName?.[event.currentTurnPlayerId];
-    const displayCurrentTurnName = currentTurnPlayerName ? getDisplayName(event.currentTurnPlayerId, currentTurnPlayerName) : null;
-
-    return (
-      <View style={styles.eventContainer}>
-        <View style={[styles.dealHeader, { backgroundColor: isDarkMode ? '#2d4a2b' : '#e8f5e9' }]}>
-          <Text style={[styles.dealTitle, { color: isDarkMode ? '#4caf50' : '#2e7d32' }]}>
-            New Deal
-          </Text>
-          {displayCurrentTurnName && (
-            <Text style={[styles.currentTurnText, { color: isDarkMode ? '#81c784' : '#388e3c' }]}>
-              {displayCurrentTurnName}'s turn
-            </Text>
-          )}
-        </View>
-
-        {/* Player hand counts in grid */}
-        <View style={styles.playerGridContainer}>
-          {Object.entries(event.playerHandCounts).map(([playerId, count]) => {
-            const playerName = event.playerIdToName?.[playerId] || 'Unknown';
-            const displayName = getDisplayName(playerId, playerName);
-
-            return (
-              <View key={playerId} style={[styles.playerGridItem, { width: `${100 / playersPerRow}%` }]}>
-                <Text style={[styles.playerGridName, { color: isDarkMode ? '#fff' : '#000' }]}>
-                  {displayName}
-                </Text>
-                <View style={[styles.cardCountCircle, { backgroundColor: isDarkMode ? '#303030' : '#e4e4e4' }]}>
-                  <Text style={[styles.cardCountNumber, { color: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}>
-                    {count}
-                  </Text>
-                </View>
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Show user's hand if available */}
-        {event.yourHand && event.yourHand.length > 0 && (
-          <View style={styles.yourHandContainer}>
-            <Text style={[styles.yourHandLabel, { color: isDarkMode ? '#4caf50' : '#2e7d32' }]}>
-              Your hand:
-            </Text>
-            <View style={styles.yourHandCardsVisual}>
-              {event.yourHand.map((card, index) => (
-                <View key={index} style={styles.miniCardWrapper}>
-                  <Card
-                    index={0}
-                    value={card.rank === 'T' ? '10' : card.rank}
-                    color={card.suit}
-                    reversed={false}
-                    isActive={false}
-                  />
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-      </View>
-    );
-  };
-
-  const renderGameStartEvent = () => {
-    return (
-      <View style={styles.eventContainer}>
-        <View style={[styles.gameStartHeader, { backgroundColor: isDarkMode ? '#1a2f4a' : '#e3f2fd' }]}>
-          <Text style={[styles.gameStartTitle, { color: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}>
-            Game Started
-          </Text>
-        </View>
-      </View>
-    );
-  };
-
-  const renderDealResultEvent = () => {
-    const displayName = getDisplayName(event.playerId, event.playerName);
-
-    return (
-      <View style={styles.eventContainer}>
-        <View style={[styles.dealResultHeader, { backgroundColor: isDarkMode ? '#4a1a1a' : '#ffebee' }]}>
-          <Text style={[styles.dealResultText, { color: isDarkMode ? '#ff6b6b' : '#d32f2f' }]}>
-            {displayName}
-          </Text>
-          <Text style={[styles.dealResultText, { color: isDarkMode ? '#fff' : '#000' }]}>
-            {' lost the deal'}
-          </Text>
-        </View>
-      </View>
-    );
-  };
-
-  const renderDealWonEvent = () => {
-    const displayName = getDisplayName(event.playerId, event.playerName);
-
-    return (
-      <View style={styles.eventContainer}>
-        <View style={[styles.dealWonHeader, { backgroundColor: isDarkMode ? '#FFD700' : '#FFD700' }]}>
-          <Text style={[styles.gameWinnerText, { color: '#000' }]}>
-            🏆 {displayName} WON! 🏆
-          </Text>
-        </View>
-      </View>
-    );
-  };
-
-  const renderPlayerEliminatedEvent = () => {
-    const displayName = getDisplayName(event.playerId, event.playerName);
-
-    return (
-      <View style={styles.eventContainer}>
-        <View style={[styles.eliminatedHeader, { backgroundColor: isDarkMode ? '#4a1a1a' : '#ffebee' }]}>
-          <Text style={[styles.playerName, { color: isDarkMode ? '#ff6b6b' : '#d32f2f' }]}>
-            {displayName}
-          </Text>
-          <Text style={[styles.eventAction, { color: isDarkMode ? '#fff' : '#000' }]}>
-            {' was eliminated'}
-          </Text>
-        </View>
-      </View>
-    );
-  };
-
-  const renderGameEndEvent = () => {
-    return (
-      <View style={styles.eventContainer}>
-        <View style={[styles.gameEndHeader, { backgroundColor: isDarkMode ? '#4a2f1a' : '#fff3e0' }]}>
-          <Text style={[styles.gameEndTitle, { color: isDarkMode ? '#ffa726' : '#f57c00' }]}>
-            Game Ended
-          </Text>
-          {event.result && (
-            <Text style={[styles.resultText, { color: isDarkMode ? '#fff' : '#000' }]}>
-              {event.result}
-            </Text>
-          )}
-        </View>
-      </View>
-    );
-  };
+  const displayName = getDisplayName(event.playerId, event.playerName);
+  const verb = (singular: string, plural: string) => (displayName === 'You' ? plural : singular);
 
   switch (event.type) {
-    case 'bet':
-      return renderBetEvent();
-    case 'check':
-      return renderCheckEvent();
-    case 'deal_result':
-      return renderDealResultEvent();
-    case 'deal_won':
-      return renderDealWonEvent();
-    case 'new_deal':
-      return renderNewDealEvent();
     case 'game_start':
-      return renderGameStartEvent();
+      return (
+        <View style={styles.row}>
+          <Text style={[styles.text, styles.muted]}>Game started</Text>
+        </View>
+      );
+
+    case 'new_deal': {
+      if (!event.playerHandCounts) return null;
+      const opener = event.currentTurnPlayerId && event.playerIdToName?.[event.currentTurnPlayerId];
+      const openerName = opener ? getDisplayName(event.currentTurnPlayerId, opener) : null;
+      const counts = Object.entries(event.playerHandCounts)
+        .map(([playerId, count]) => `${getDisplayName(playerId, event.playerIdToName?.[playerId])} ${count}`)
+        .join(' · ');
+
+      return (
+        <View style={[styles.row, styles.deal]}>
+          <View style={styles.rowMain}>
+            <Text style={styles.dealTitle}>New deal</Text>
+            {openerName && (
+              <Text style={[styles.text, styles.muted]}>
+                {openerName === 'You' ? 'You open' : `${openerName} opens`}
+              </Text>
+            )}
+            <Text style={[styles.caption, tabularNums]}>{counts}</Text>
+          </View>
+          {event.yourHand && event.yourHand.length > 0 && cards(event.yourHand)}
+        </View>
+      );
+    }
+
+    case 'bet': {
+      if (!event.betCards) return null;
+      const figure = findFigure(event.betName);
+      return (
+        <View style={styles.row}>
+          <View style={styles.rowMain}>
+            {line(displayName, verb('bets', 'bet'))}
+            <Text style={styles.caption}>{betTitle(event.betName)}</Text>
+          </View>
+          {cards(figure?.cards ?? event.betCards)}
+        </View>
+      );
+    }
+
+    case 'check':
+      return (
+        <View style={[styles.row, styles.column]}>
+          {line(displayName, verb('checks', 'check'))}
+          {event.playerHands &&
+            Object.entries(event.playerHands).map(([playerId, hand]) => (
+              <View key={playerId} style={styles.handRow}>
+                <Text style={[styles.caption, styles.handName]} numberOfLines={1}>
+                  {getDisplayName(playerId, event.playerIdToName?.[playerId])}
+                </Text>
+                {cards((hand as any[]).map(parseCard))}
+              </View>
+            ))}
+        </View>
+      );
+
+    case 'deal_result':
+      return <View style={styles.row}>{line(displayName, verb('takes a card', 'take a card'), 'red')}</View>;
+
     case 'player_eliminated':
-      return renderPlayerEliminatedEvent();
+      return <View style={styles.row}>{line(displayName, verb('is out', 'are out'), 'muted')}</View>;
+
+    case 'turn_timeout':
+      return <View style={styles.row}>{line(displayName, verb('ran out of time', 'ran out of time'), 'muted')}</View>;
+
+    case 'deal_voided':
+      return (
+        <View style={styles.row}>
+          <Text style={[styles.text, styles.muted]}>Deal cancelled, cards dealt again</Text>
+        </View>
+      );
+
+    case 'player_joined':
+      return <View style={styles.row}>{line(displayName, verb('joined', 'joined'), 'muted')}</View>;
+
+    case 'player_left':
+      return (
+        <View style={styles.row}>
+          {line(displayName, event.result === 'kicked' ? verb('was removed', 'were removed') : verb('left', 'left'), 'muted')}
+        </View>
+      );
+
+    case 'player_timed_out':
+      return <View style={styles.row}>{line(displayName, verb('was away too long and left', 'were away too long'), 'muted')}</View>;
+
+    case 'player_disconnected':
+      return <View style={styles.row}>{line(displayName, verb('lost connection', 'lost connection'), 'muted')}</View>;
+
+    case 'player_reconnected':
+      return <View style={styles.row}>{line(displayName, verb('is back', 'are back'), 'muted')}</View>;
+
+    case 'host_changed':
+      return <View style={styles.row}>{line(displayName, verb('is now the host', 'are now the host'), 'muted')}</View>;
+
+    case 'deal_won':
+      return (
+        <View style={styles.row}>
+          <Text style={styles.won}>{displayName === 'You' ? 'You win' : `${displayName} wins`}</Text>
+        </View>
+      );
+
     case 'game_end':
-      return renderGameEndEvent();
+      return (
+        <View style={styles.row}>
+          <View style={styles.rowMain}>
+            <Text style={[styles.text, styles.muted]}>Game ended</Text>
+            {event.result ? <Text style={styles.caption}>{event.result}</Text> : null}
+          </View>
+        </View>
+      );
+
     default:
       return null;
   }
 }
 
 const styles = StyleSheet.create({
-  eventContainer: {
-    marginBottom: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  betEventContainer: {
-    marginBottom: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    height: 100,
-    position: 'relative',
-  },
-  betCardsBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 100,
-    flexDirection: 'row-reverse',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-    paddingTop: 8,
-  },
-  betCardWrapper: {
-    marginHorizontal: -12,
-  },
-  betBanner: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 12,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  betBannerText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  eventHeader: {
-    padding: 16,
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+    minHeight: 48,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.color.hairlineStrong,
+  },
+  column: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
     gap: 8,
   },
-  playerName: {
-    fontSize: 16,
-    fontWeight: '700',
+  deal: {
+    paddingTop: 22,
   },
-  eventAction: {
-    fontSize: 16,
-    fontWeight: '400',
-  },
-  dealHeader: {
-    padding: 12,
-    alignItems: 'center',
+  rowMain: {
+    flex: 1,
+    gap: 2,
   },
   dealTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  currentTurnText: {
-    fontSize: 13,
+    fontSize: theme.font.label,
     fontWeight: '600',
-    marginTop: 4,
+    color: theme.color.text,
   },
-  playerGridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 12,
-    paddingTop: 8,
+  text: {
+    fontSize: theme.font.body,
+    color: theme.color.text,
   },
-  playerGridItem: {
-    alignItems: 'center',
-    paddingVertical: 8,
+  name: {
+    fontWeight: '600',
+    color: theme.color.text,
   },
-  playerGridName: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginBottom: 4,
-    textAlign: 'center',
+  caption: {
+    fontSize: theme.font.small,
+    color: theme.color.textMuted,
   },
-  cardCountCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+  muted: {
+    color: theme.color.textMuted,
+    fontWeight: '400',
   },
-  cardCountNumber: {
+  red: {
+    color: theme.color.red,
+  },
+  won: {
     fontSize: 18,
-    fontWeight: '700',
-  },
-  yourHandContainer: {
-    padding: 12,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(128, 128, 128, 0.2)',
-  },
-  yourHandLabel: {
-    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 8,
+    color: theme.color.text,
   },
-  yourHandCardsVisual: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'center',
-    alignItems: 'center',
-    height: 60,
-  },
-  miniCardWrapper: {
-    marginHorizontal: -8,
-  },
-  gameStartHeader: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  gameStartTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-  },
-  dealResultHeader: {
-    padding: 12,
+  cards: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    gap: 3,
   },
-  dealResultText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  dealWonHeader: {
-    padding: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#FFA500',
-  },
-  dealWonText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  gameWinnerText: {
-    fontSize: 20,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  eliminatedHeader: {
-    padding: 12,
+  handRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
+    gap: 12,
   },
-  gameEndHeader: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  gameEndTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    marginBottom: 8,
-  },
-  resultText: {
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  allHandsContainer: {
-    padding: 12,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(128, 128, 128, 0.2)',
-  },
-  allHandsLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  playerHandReveal: {
-    marginBottom: 12,
-  },
-  playerHandName: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  playerHandCards: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    height: 50,
-    marginLeft: 12,
+  handName: {
+    width: 84,
   },
 });
