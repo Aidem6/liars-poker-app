@@ -8,7 +8,9 @@ import {
   FlatList,
   ListRenderItem,
   TouchableOpacity,
+  Pressable,
   Modal,
+  useWindowDimensions,
   KeyboardAvoidingView,
   Linking,
 } from 'react-native';
@@ -20,6 +22,8 @@ import { TextField } from '@/components/ui/TextField';
 import { useClientState, useGameClient } from '@/socket';
 import { errorText, RoomSummary } from '@/net/protocol';
 import { Icon } from 'react-native-elements';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { JoinRoomSheet } from '@/components/lobby/JoinRoomSheet';
 import { router, useFocusEffect } from 'expo-router';
 import { pb } from '../lib/pocketbase';
 import { UsernameStorage } from '@/utils/usernameStorage';
@@ -31,6 +35,10 @@ import { ShareCardsModal } from '../components/share/ShareCardsModal';
 import QRCode from 'react-qr-code';
 
 type DynamicRoom = RoomSummary;
+
+const WIDE_BREAKPOINT = 768;
+/** The lobby is a list, so it may run a little wider than the game column on big screens. */
+const WIDE_COLUMN = 600;
 
 function Home() {
   const client = useGameClient();
@@ -47,6 +55,10 @@ function Home() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
+  const [showJoin, setShowJoin] = useState(false);
+  const { width } = useWindowDimensions();
+  /** Laptops and tablets: actions sit under the title instead of a thumb-reach footer. */
+  const wide = width >= WIDE_BREAKPOINT;
 
   // Detect if user is on a mobile device using user agent
   const isMobileDevice = () => {
@@ -149,10 +161,11 @@ function Home() {
     router.push(`/game?roomId=${roomId}`);
   };
 
-  const handlePress = () => {
+  const openJoin = () => {
     if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+    setShowJoin(true);
   };
 
   const handleOpenStore = (url: string, storeName: string) => {
@@ -176,36 +189,46 @@ function Home() {
     const canSpectate = item.status === 'in_progress';
     const canJoin = canJoinAsPlayer || canSpectate;
     const status = canJoinAsPlayer ? 'Open' : canSpectate ? 'Playing' : 'Full';
+    const first = index === 0;
+    const last = index === rooms.length - 1;
 
     return (
-      <TouchableOpacity
-        style={[styles.roomRow, index > 0 && styles.roomRowDivider, !canJoin && styles.roomRowDisabled]}
+      <Pressable
+        style={(state) => [
+          styles.roomRow,
+          first && styles.roomRowFirst,
+          last && styles.roomRowLast,
+          !first && styles.roomRowDivider,
+          canJoin && ((state as { hovered?: boolean }).hovered || state.pressed) && styles.roomRowHover,
+          !canJoin && styles.roomRowDisabled,
+        ]}
         onPress={() => canJoin && handleJoinRoom(item.id)}
         disabled={!canJoin}
-        activeOpacity={0.6}
         accessibilityRole="button"
         accessibilityLabel={`${item.name}, ${status}, ${item.playerCount} of ${item.maxPlayers} players`}
       >
         <View style={styles.roomMain}>
           <Text style={styles.roomName} numberOfLines={1}>{item.name}</Text>
           <Text style={styles.roomMeta} numberOfLines={1}>
-            {`Hosted by ${item.creator} · ${item.playerCount}/${item.maxPlayers} players`}
+            {`${item.creator} · ${item.playerCount}/${item.maxPlayers} players`}
           </Text>
         </View>
         <View style={styles.roomSide}>
-          <View style={[styles.statusDot, { backgroundColor: canJoinAsPlayer ? theme.color.green : theme.color.textFaint }]} />
+          <View style={[styles.statusDot, { backgroundColor: canJoinAsPlayer ? theme.color.green : canSpectate ? theme.color.amber : theme.color.textFaint }]} />
           <Text style={styles.roomStatus}>{canSpectate ? 'Watch' : status}</Text>
           {canJoin && <Icon name="chevron-right" size={20} color={theme.color.textFaint} />}
         </View>
-      </TouchableOpacity>
+      </Pressable>
     );
   };
+
+  const joinIcon = <MaterialIcons name="qr-code-scanner" size={17} color={theme.color.text} />;
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-      <SafeAreaView edges={['top']} style={styles.column}>
-        <View style={styles.header}>
+      <SafeAreaView edges={['top']} style={[styles.column, wide && styles.columnWide]}>
+        <View style={[styles.header, wide && styles.headerWide]}>
           <View style={styles.headerTop}>
             <Text style={styles.headerText}>Liar's Poker</Text>
             <HeaderMenu
@@ -224,6 +247,29 @@ function Home() {
               </TouchableOpacity>
             )}
           </View>
+
+          {wide && (
+            <View style={styles.actionsWide}>
+              <Button
+                label="Create room"
+                size="md"
+                onPress={handleCreateRoom}
+                loading={isCreatingRoom}
+                icon={<MaterialIcons name="add" size={18} color={theme.color.onPrimary} />}
+                style={styles.actionWide}
+              />
+              <Button
+                label="Join with code"
+                size="md"
+                variant="secondary"
+                onPress={openJoin}
+                icon={joinIcon}
+                style={styles.actionWide}
+              />
+              <View style={{ flex: 1 }} />
+              <Button label="Watch bots play" size="md" variant="ghost" onPress={handleWatchBots} loading={isStartingBots} />
+            </View>
+          )}
         </View>
 
         {net.serverRoomId && (
@@ -244,7 +290,7 @@ function Home() {
         )}
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Rooms</Text>
+          <Text style={styles.sectionTitle}>Open tables</Text>
           <Text style={styles.sectionCount}>{rooms.length > 0 ? rooms.length : ''}</Text>
         </View>
 
@@ -257,9 +303,9 @@ function Home() {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyTitle}>Start the first table</Text>
+              <Text style={styles.emptyTitle}>No tables open</Text>
               <Text style={styles.emptyText}>
-                No rooms are open right now. Create one and invite friends, or add bots to practise.
+                Create one and invite friends with its code, or add bots to practise.
               </Text>
             </View>
           }
@@ -282,16 +328,40 @@ function Home() {
           }
         />
 
-        <View style={styles.footer}>
-          <Button label="Create room" onPress={handleCreateRoom} loading={isCreatingRoom} />
-          <Button
-            label="Watch bots play"
-            variant="ghost"
-            onPress={handleWatchBots}
-            loading={isStartingBots}
-          />
-        </View>
+        {!wide && (
+          <View style={styles.footer}>
+            <Button label="Create room" onPress={handleCreateRoom} loading={isCreatingRoom} />
+            <View style={styles.footerRow}>
+              <Button
+                label="Join with code"
+                size="md"
+                variant="secondary"
+                onPress={openJoin}
+                icon={joinIcon}
+                style={{ flex: 1 }}
+              />
+              <Button
+                label="Watch bots"
+                size="md"
+                variant="secondary"
+                onPress={handleWatchBots}
+                loading={isStartingBots}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        )}
       </SafeAreaView>
+
+      <JoinRoomSheet
+        visible={showJoin}
+        onClose={() => setShowJoin(false)}
+        onJoin={(code) => {
+          setShowJoin(false);
+          handleJoinRoom(code);
+        }}
+        rooms={rooms}
+      />
 
       {/* Username Modal */}
       <Modal
@@ -430,10 +500,27 @@ const styles = StyleSheet.create({
     maxWidth: theme.maxContentWidth,
     alignSelf: 'center',
   },
+  columnWide: {
+    maxWidth: WIDE_COLUMN,
+  },
   header: {
     paddingHorizontal: theme.space.xl,
     paddingTop: theme.space.lg,
     paddingBottom: theme.space.xl,
+  },
+  headerWide: {
+    paddingTop: 48,
+    paddingBottom: 32,
+  },
+  actionsWide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.space.sm,
+    marginTop: theme.space.xl,
+  },
+  actionWide: {
+    paddingLeft: 12,
+    paddingRight: 16,
   },
   headerTop: {
     flexDirection: 'row',
@@ -470,12 +557,12 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     gap: 8,
     paddingHorizontal: theme.space.xl,
-    paddingBottom: theme.space.sm,
+    paddingBottom: 10,
   },
   sectionTitle: {
     fontSize: theme.font.body,
     fontWeight: '600',
-    color: theme.color.text,
+    color: theme.color.textMuted,
   },
   sectionCount: {
     fontSize: theme.font.body,
@@ -490,16 +577,37 @@ const styles = StyleSheet.create({
     paddingBottom: theme.space.xl,
     flexGrow: 1,
   },
+  // Rows form one card: the first and last round its corners, hairlines split the rest.
   roomRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    minHeight: 64,
-    paddingVertical: 10,
+    minHeight: 68,
+    paddingVertical: 12,
+    paddingLeft: theme.space.lg,
+    paddingRight: 10,
+    backgroundColor: theme.color.surface,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: theme.color.hairline,
+    ...(Platform.OS === 'web' ? ({ transitionProperty: 'background-color', transitionDuration: '150ms' } as object) : null),
+  },
+  roomRowFirst: {
+    borderTopWidth: 1,
+    borderTopLeftRadius: theme.radius.lg,
+    borderTopRightRadius: theme.radius.lg,
+  },
+  roomRowLast: {
+    borderBottomWidth: 1,
+    borderBottomLeftRadius: theme.radius.lg,
+    borderBottomRightRadius: theme.radius.lg,
   },
   roomRowDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.color.hairlineStrong,
+  },
+  roomRowHover: {
+    backgroundColor: theme.color.surfaceRaised,
   },
   roomRowDisabled: {
     opacity: 0.45,
@@ -533,12 +641,16 @@ const styles = StyleSheet.create({
     color: theme.color.textMuted,
   },
   emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingVertical: 48,
+    alignItems: 'center',
+    paddingVertical: 36,
+    paddingHorizontal: theme.space.xl,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: theme.color.hairlineStrong,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: theme.font.label,
     fontWeight: '600',
     color: theme.color.text,
   },
@@ -548,15 +660,14 @@ const styles = StyleSheet.create({
     color: theme.color.textMuted,
     marginTop: 6,
     maxWidth: 300,
+    textAlign: 'center',
   },
   storeLinks: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
     marginTop: theme.space.xl,
-    paddingTop: theme.space.lg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.color.hairlineStrong,
+    paddingHorizontal: 2,
   },
   storeLinksTitle: {
     flex: 1,
@@ -572,6 +683,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.space.xl,
     paddingTop: theme.space.md,
     paddingBottom: theme.space.lg,
+    gap: theme.space.sm,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    gap: theme.space.sm,
   },
   modalOverlay: {
     flex: 1,

@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { render, act, fireEvent } from '@testing-library/react-native';
+import { render, act, fireEvent, waitFor } from '@testing-library/react-native';
 import type { RoomState } from '../net/protocol';
 
 jest.mock('expo-router', () => ({
@@ -185,21 +185,68 @@ describe('Game screen', () => {
       checker_id: 'me', bettor_id: 'b_1', bet: 'pair_A', held: false, loser_id: 'b_1', eliminated: false,
       hands: { me: ['9♠'], b_1: ['T♥'] },
     };
+    // A reveal that began a while ago (we just opened the table) is shown in its final state at once.
     const { getByText, queryByText } = await renderGame(
-      room({ game: game({ phase: 'reveal', turn_id: null, reveal, bets: [{ player_id: 'b_1', bet: 'pair_A' }], last_bet: 'pair_A', bettor_id: 'b_1' }) }),
+      room({ game: game({ phase: 'reveal', phase_started: Date.now() - 10000, turn_id: null, reveal, bets: [{ player_id: 'b_1', bet: 'pair_A' }], last_bet: 'pair_A', bettor_id: 'b_1' }) }),
     );
     expect(getByText('Bluff')).toBeTruthy();
     expect(getByText('Safe this deal')).toBeTruthy();
+    expect(getByText('Bot 1 takes a card')).toBeTruthy();
     fireEvent.press(getByText('Next deal'));
     expect(mockFake.client.act).toHaveBeenCalledWith('ready');
 
-    show(room({ v: 2, game: game({ phase: 'reveal', turn_id: null, reveal, ready_ids: ['me'] }) }));
+    show(room({ v: 2, game: game({ phase: 'reveal', phase_started: Date.now() - 10000, turn_id: null, reveal, ready_ids: ['me'] }) }));
     expect(queryByText('Next deal')).toBeNull();
     expect(getByText(/Waiting for others/)).toBeTruthy();
 
     show(room({ v: 3, game: game({ deal_no: 2, turn_seq: 4 }) }));
     expect(getByText('Check')).toBeTruthy();
     expect(queryByText(/Waiting for others/)).toBeNull();
+  });
+
+  test('reveal: a fresh check builds up to the verdict instead of giving it away', async () => {
+    const reveal = {
+      checker_id: 'b_1', bettor_id: 'me', bet: 'pair_A', held: false, loser_id: 'me', eliminated: false,
+      hands: { me: ['9♠'], b_1: ['T♥'] },
+    };
+    const { getByText, queryByText } = await renderGame(
+      room({ game: game({ phase: 'reveal', turn_id: null, reveal, bets: [{ player_id: 'me', bet: 'pair_A' }], last_bet: 'pair_A', bettor_id: 'me' }) }),
+    );
+    // The bet hangs as a question; neither the verdict nor who loses shows yet.
+    expect(getByText('Bot 1 checks your bet')).toBeTruthy();
+    expect(getByText('Pair of aces?')).toBeTruthy();
+    expect(getByText('Showdown')).toBeTruthy();
+    expect(queryByText('Bluff')).toBeNull();
+    expect(queryByText('You take a card')).toBeNull();
+    fireEvent.press(getByText('Next deal'));
+    expect(mockFake.client.act).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(getByText('You take a card')).toBeTruthy(), { timeout: 5000 });
+    expect(getByText('Bluff')).toBeTruthy();
+    fireEvent.press(getByText('Next deal'));
+    expect(mockFake.client.act).toHaveBeenCalledWith('ready');
+  }, 10000);
+
+  test('reveal: a player knocked out by the check keeps their hand on show', async () => {
+    const reveal = {
+      checker_id: 'me', bettor_id: 'b_1', bet: 'pair_A', held: false, loser_id: 'b_1', eliminated: true,
+      hands: { me: ['9♠'], b_1: ['T♥', 'T♦', 'Q♣', 'K♠'] },
+    };
+    const { getByText } = await renderGame(
+      room({
+        players: [seat('me', 'TestUser'), seat('b_1', 'Bot 1', { cards: 5, out: true, out_reason: 'cards' }), seat('b_2', 'Bot 2')],
+        game: game({ phase: 'reveal', phase_started: Date.now() - 10000, turn_id: null, reveal, bets: [{ player_id: 'b_1', bet: 'pair_A' }], last_bet: 'pair_A', bettor_id: 'b_1' }),
+      }),
+    );
+    expect(getByText('Knocked out')).toBeTruthy();
+    expect(getByText('Q')).toBeTruthy();
+    expect(getByText('Bot 1 is out of the game')).toBeTruthy();
+  });
+
+  test('waiting room: shows the room code to invite friends', async () => {
+    const { getByText } = await renderGame(room({ status: 'lobby', game: null }));
+    expect(getByText('ROO M1')).toBeTruthy();
+    expect(getByText('Copy link')).toBeTruthy();
   });
 
   test('a disconnected opponent is shown as away and the seat stays', async () => {

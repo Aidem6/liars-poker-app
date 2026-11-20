@@ -22,6 +22,9 @@ export const theme = {
     primary: '#EDEDED',
     red: '#E5484D',
     redSoft: 'rgba(229,72,77,0.14)',
+    /** Washes behind a reveal verdict: red for a bluff, a pale light for a bet that held. */
+    redGlow: 'rgba(229,72,77,0.32)',
+    lightGlow: 'rgba(237,237,237,0.12)',
     green: '#3DD68C',
     amber: '#F5B83D',
     cardFace: '#F4F2EC',

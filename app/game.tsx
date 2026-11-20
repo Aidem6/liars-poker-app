@@ -19,6 +19,8 @@ import TurnTimeoutTimer from '../components/game/TurnTimeoutTimer';
 import TableView from '../components/game/TableView';
 import BetPicker from '../components/game/BetPicker';
 import HandPanel from '../components/game/HandPanel';
+import InviteCard from '../components/game/InviteCard';
+import { RevealStep, useRevealSequence } from '../components/game/useRevealSequence';
 import { Button } from '../components/ui/Button';
 import { TextField } from '../components/ui/TextField';
 import { theme, tabularNums, elevation } from '@/constants/theme';
@@ -57,7 +59,7 @@ const REMOVED_TEXT: Record<string, string> = {
   kicked: 'The host removed you from this room.',
   room_closed: 'This room was closed.',
   not_in_room: "You're no longer in this room. You may have been away too long.",
-  room_not_found: 'This room does not exist anymore.',
+  room_not_found: 'There is no table with this code. Check it and try again, or the table may have closed.',
   room_full: 'This room is full.',
 };
 
@@ -129,6 +131,20 @@ function Game(): JSX.Element {
 
   const model = useMemo(() => (state ? tableModel(state) : null), [state]);
   const events = useMemo(() => (state ? timelineEvents(state, myHands.current) : []), [state]);
+
+  // Play a fresh reveal out beat by beat; one that started a while ago (we just joined) shows as is.
+  const revealKey = model?.reveal && game ? `${state!.room.id}:${game.deal_no}` : null;
+  const revealIsFresh = !!game && Date.now() - client.toLocalTime(game.phase_started) < 1500;
+  const { step: revealStep, animated: revealAnimated } = useRevealSequence(
+    revealKey,
+    model?.reveal?.check.needed ?? 0,
+    revealIsFresh,
+  );
+  const verdictShown = revealStep >= RevealStep.VERDICT;
+
+  useEffect(() => {
+    if (revealAnimated && revealStep === RevealStep.VERDICT) haptic(Haptics.ImpactFeedbackStyle.Heavy);
+  }, [revealStep, revealAnimated]);
 
   // Drop a chosen bet the moment it no longer beats the table.
   useEffect(() => {
@@ -300,10 +316,16 @@ function Game(): JSX.Element {
           <View style={styles.roomHeader}>
             <Text style={styles.roomTitle} numberOfLines={1}>{state.room.name}</Text>
             <Text style={styles.roomSubtitle}>
-              {`Code ${state.room.id} · ${seated.length === 1 ? '1 player' : `${seated.length} players`}`}
+              {seated.length === 1 ? '1 player' : `${seated.length} players`}
               {canStart ? ' · ready to start' : ' · waiting for more'}
             </Text>
           </View>
+
+          {!state.room.autoplay && (
+            <View style={styles.invite}>
+              <InviteCard code={state.room.id} roomName={state.room.name} />
+            </View>
+          )}
 
           <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.roomList}>
             {seated.map((player, index) => {
@@ -371,7 +393,7 @@ function Game(): JSX.Element {
   let statusTitle = '';
   let statusSubtitle: string | undefined;
   let statusActive = false;
-  if (winnerName) {
+  if (winnerName && revealStep >= RevealStep.DONE) {
     statusTitle = iWon ? 'You won' : watching ? 'Game over' : "You're out";
     statusSubtitle = iWon
       ? 'Everyone else is out'
@@ -379,6 +401,11 @@ function Game(): JSX.Element {
         ? `${winnerName} won · next game starts in a few seconds`
         : `${winnerName} won`;
     statusActive = iWon;
+  } else if (reveal && !verdictShown && !watching) {
+    // Nothing that gives the result away until the verdict lands, not even "You're out".
+    statusTitle = 'Showdown';
+    statusSubtitle = 'Counting the cards…';
+    statusActive = true;
   } else if (watching && state.room.autoplay) {
     statusTitle = 'Watching bots';
     statusSubtitle = turnPlayer ? `${turnPlayer.name}'s turn` : reveal ? 'Cards revealed' : undefined;
@@ -403,7 +430,7 @@ function Game(): JSX.Element {
   }
 
   const myHighlights = new Set<string>();
-  if (reveal && me) {
+  if (reveal && me && verdictShown) {
     (reveal.hands[me.id] || []).forEach((_, index) => {
       if (reveal.check.matched.has(`${me.id}:${index}`)) myHighlights.add(`me:${index}`);
     });
@@ -506,6 +533,8 @@ function Game(): JSX.Element {
                 reveal={reveal}
                 winnerName={winnerName}
                 iWon={iWon}
+                revealStep={revealStep}
+                revealAnimated={revealAnimated}
               />
             )}
           </View>
@@ -559,7 +588,7 @@ function Game(): JSX.Element {
               <Button
                 label={model.iAmReady ? `Waiting for others (${readyCount})` : 'Next deal'}
                 onPress={ready}
-                disabled={model.iAmReady || net.sending}
+                disabled={model.iAmReady || net.sending || !verdictShown}
                 style={{ flex: 1 }}
               />
             ) : (
@@ -675,6 +704,10 @@ const styles = StyleSheet.create({
     fontSize: theme.font.body,
     color: theme.color.textMuted,
     marginTop: 4,
+  },
+  invite: {
+    paddingHorizontal: theme.space.lg,
+    paddingBottom: theme.space.lg,
   },
   roomList: {
     paddingHorizontal: theme.space.xl,

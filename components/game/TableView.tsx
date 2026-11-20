@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import PlayingCard, { CardSize } from '@/components/ui/PlayingCard';
-import { theme } from '@/constants/theme';
+import { theme, tabularNums } from '@/constants/theme';
 import { BetCard, BetCheck, betShort, betTitle, findFigure, MAX_CARDS } from '@/utils/bets';
+import { Appear, Flash, FlipCard, Shake } from './motion';
+import { REVEAL_FINAL, RevealStep, SLOT_MS } from './useRevealSequence';
 
 export interface TablePlayer {
   id: string;
@@ -38,6 +40,10 @@ interface TableViewProps {
   reveal?: TableReveal;
   winnerName?: string;
   iWon?: boolean;
+  /** How far the reveal has played (see useRevealSequence); the end by default. */
+  revealStep?: number;
+  /** The reveal is being played out, rather than shown in its final state. */
+  revealAnimated?: boolean;
 }
 
 const nameOf = (player: TablePlayer | undefined, fallback = 'Someone') =>
@@ -48,35 +54,66 @@ function OpponentCell({
   compact,
   reveal,
   isBettor,
+  order,
+  step,
+  animated,
 }: {
   player: TablePlayer;
   compact: boolean;
   reveal?: TableReveal;
   isBettor: boolean;
+  /** Position at the table, so hands turn over one after another. */
+  order: number;
+  step: number;
+  animated: boolean;
 }) {
   const slotSize: CardSize = compact ? 'xs' : 'sm';
   const revealedHand = reveal?.hands[player.id];
-  const isLoser = !!reveal && reveal.loserId === player.id;
+  // The result is known from the first frame, but each part waits for its beat.
+  const isLoser = !!reveal && reveal.loserId === player.id && step >= RevealStep.PENALTY;
   const isChecker = !!reveal && reveal.checkerId === player.id;
+  const highlightMatches = step >= RevealStep.VERDICT;
+  /** Out of the game because of this very deal: their hand stays on show for the reveal. */
+  const knockedOut = isLoser && !player.is_active;
 
   let slots: React.ReactNode;
-  if (!player.is_active) {
+  if (!player.is_active && !revealedHand) {
     slots = Array.from({ length: MAX_CARDS }).map((_, index) => (
       <PlayingCard key={index} variant="empty" size={slotSize} />
     ));
   } else if (revealedHand) {
+    const faceOf = (card: BetCard, index: number) => (
+      <PlayingCard
+        rank={card.rank}
+        suit={card.suit}
+        size="sm"
+        highlighted={highlightMatches && reveal!.check.matched.has(`${player.id}:${index}`)}
+      />
+    );
     slots = (
       <>
-        {revealedHand.map((card, index) => (
-          <PlayingCard
-            key={index}
-            rank={card.rank}
-            suit={card.suit}
-            size="sm"
-            highlighted={reveal!.check.matched.has(`${player.id}:${index}`)}
-          />
-        ))}
-        {isLoser && <PlayingCard variant="penalty" rank="+1" size="sm" />}
+        {revealedHand.map((card, index) =>
+          step < RevealStep.HANDS ? (
+            <PlayingCard key={index} variant="back" size="sm" />
+          ) : animated ? (
+            <FlipCard
+              key={index}
+              delay={order * 90 + index * 50}
+              back={<PlayingCard variant="back" size="sm" />}
+              face={faceOf(card, index)}
+            />
+          ) : (
+            <React.Fragment key={index}>{faceOf(card, index)}</React.Fragment>
+          ),
+        )}
+        {isLoser &&
+          (animated ? (
+            <Appear from={{ translateY: -18, scale: 1.4, rotate: -12 }} duration={320}>
+              <PlayingCard variant="penalty" rank="+1" size="sm" />
+            </Appear>
+          ) : (
+            <PlayingCard variant="penalty" rank="+1" size="sm" />
+          ))}
       </>
     );
   } else {
@@ -88,7 +125,10 @@ function OpponentCell({
 
   let detail = player.last_bet ? betShort(player.last_bet) : ' ';
   let detailColor: string = isBettor ? theme.color.text : theme.color.textMuted;
-  if (!player.is_active) {
+  if (knockedOut) {
+    detail = 'Knocked out';
+    detailColor = theme.color.red;
+  } else if (!player.is_active && !revealedHand) {
     detail = 'Out';
     detailColor = theme.color.textMuted;
   } else if (isLoser) {
@@ -105,13 +145,14 @@ function OpponentCell({
   const emphasised = reveal ? isLoser : player.isYourTurn;
 
   return (
-    <View style={[styles.cell, !player.is_active && styles.cellOut]}>
+    <Shake trigger={animated && isLoser} style={[styles.cell, !player.is_active && !revealedHand && styles.cellOut]}>
       <View style={[styles.slots, { gap: compact && !revealedHand ? 2 : 3, minHeight: compact ? 28 : 32 }]}>{slots}</View>
       <Text
         style={[
           styles.cellName,
           compact && styles.cellNameCompact,
           emphasised && styles.cellNameActive,
+          isLoser && { color: theme.color.red },
         ]}
         numberOfLines={1}
       >
@@ -120,24 +161,68 @@ function OpponentCell({
       <Text style={[styles.cellDetail, { color: detailColor }]} numberOfLines={1}>
         {detail}
       </Text>
-    </View>
+    </Shake>
   );
 }
 
-function FigureCards({ betName, found }: { betName: string; found?: boolean[] }) {
+/**
+ * The cards a bet claims. During a reveal, `found` says which turned up and
+ * `shown` how many of them have been looked for so far; the rest stay as outlines.
+ */
+function FigureCards({
+  betName,
+  found,
+  shown,
+  animated = false,
+}: {
+  betName: string;
+  found?: boolean[];
+  shown?: number;
+  animated?: boolean;
+}) {
   const figure = findFigure(betName);
   if (!figure) return null;
   return (
     <View style={styles.figure}>
-      {figure.cards.map((card, index) =>
-        found && !found[index] ? (
-          <PlayingCard key={index} variant="ghost" rank={card.rank || card.suit} size="lg" />
+      {figure.cards.map((card, index) => {
+        const ghost = <PlayingCard variant="ghost" rank={card.rank || card.suit} size="lg" />;
+        if (!found) return <PlayingCard key={index} rank={card.rank} suit={card.suit} size="lg" />;
+        if (shown !== undefined && index >= shown) return <React.Fragment key={index}>{ghost}</React.Fragment>;
+        const result = found[index] ? (
+          <PlayingCard rank={card.rank} suit={card.suit} size="lg" />
         ) : (
-          <PlayingCard key={index} rank={card.rank} suit={card.suit} size="lg" />
-        ),
-      )}
+          <PlayingCard variant="ghost" rank={card.rank || card.suit} size="lg" style={styles.missing} />
+        );
+        if (!animated) return <React.Fragment key={index}>{result}</React.Fragment>;
+        return found[index] ? (
+          <Appear key={index} from={{ scale: 1.18, translateY: -10 }} duration={280}>
+            {result}
+          </Appear>
+        ) : (
+          <Shake key={index} trigger>
+            {result}
+          </Shake>
+        );
+      })}
     </View>
   );
+}
+
+/** Counts up to `total`, one every `every` ms, while `running`. */
+function useCountUp(total: number, running: boolean, every: number) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!running) return;
+    setCount(0);
+    let n = 0;
+    const timer = setInterval(() => {
+      n += 1;
+      setCount(n);
+      if (n >= total) clearInterval(timer);
+    }, every);
+    return () => clearInterval(timer);
+  }, [running, total]);
+  return count;
 }
 
 export default function TableView({
@@ -149,7 +234,13 @@ export default function TableView({
   reveal,
   winnerName,
   iWon,
+  revealStep = REVEAL_FINAL,
+  revealAnimated = false,
 }: TableViewProps) {
+  const step = reveal ? revealStep : REVEAL_FINAL;
+  const animated = !!reveal && revealAnimated;
+  const needed = reveal?.check.needed ?? 0;
+  const counted = useCountUp(needed, animated && step === RevealStep.COUNT, SLOT_MS);
   const everyone = me ? [...opponents, me] : opponents;
   const bettor = everyone.find((player) => player.id === bettorId);
   const turnPlayer = everyone.find((player) => player.isYourTurn);
@@ -157,7 +248,7 @@ export default function TableView({
   const columns = compact ? 4 : Math.max(opponents.length, 1);
 
   let stage: React.ReactNode;
-  if (winnerName) {
+  if (winnerName && step >= RevealStep.DONE) {
     stage = (
       <>
         <Text style={styles.caption}>Game over</Text>
@@ -169,18 +260,48 @@ export default function TableView({
     const checker = everyone.find((player) => player.id === reveal.checkerId);
     const loser = everyone.find((player) => player.id === reveal.loserId);
     const loserLabel = loser ? nameOf(loser) : reveal.loserName;
+    const loserOut = !!loser && !loser.is_active;
+    const you = loserLabel === 'You';
+    const outcome = loserOut
+      ? `${loserLabel} ${you ? 'are' : 'is'} out of the game`
+      : `${loserLabel} ${you ? 'take' : 'takes'} a card`;
+    const checkerLabel = nameOf(checker);
+    const bettorLabel = nameOf(bettor);
+    const shown = step < RevealStep.COUNT ? 0 : step === RevealStep.COUNT && animated ? counted : needed;
+    const foundSoFar = reveal.check.slots.slice(0, shown).filter(Boolean).length;
+    const verdict = step >= RevealStep.VERDICT;
+    const verdictText = reveal.betWasTrue ? "It's there" : 'Bluff';
+    const verdictStyle = [styles.verdict, !reveal.betWasTrue && { color: theme.color.red }];
     stage = (
       <>
+        {verdict && animated && (
+          <Flash color={reveal.betWasTrue ? theme.color.lightGlow : theme.color.redGlow} />
+        )}
         <Text style={styles.caption}>
-          {`${nameOf(bettor)} bet ${betTitle(betName).toLowerCase()}. ${nameOf(checker)} checked.`}
+          {`${checkerLabel} ${checkerLabel === 'You' ? 'check' : 'checks'} ${bettorLabel === 'You' ? 'your' : `${bettorLabel}'s`} bet`}
         </Text>
-        <FigureCards betName={betName} found={reveal.check.slots} />
-        <Text style={[styles.title, !reveal.betWasTrue && { color: theme.color.red }]}>
-          {reveal.betWasTrue ? "It's there" : 'Bluff'}
+        <FigureCards betName={betName} found={reveal.check.slots} shown={shown} animated={animated} />
+        <Text style={[styles.count, tabularNums, shown === 0 && { opacity: 0 }]}>
+          {`${foundSoFar} of ${needed} on the table`}
         </Text>
-        <Text style={styles.sub}>
-          {`${reveal.check.found} of ${reveal.check.needed} on the table`}
-          {loserLabel ? ` · ${loserLabel} ${loserLabel === 'You' ? 'take' : 'takes'} a card` : ''}
+        {verdict ? (
+          animated ? (
+            <Appear from={{ scale: 1.9, rotate: reveal.betWasTrue ? 0 : -8 }} duration={300}>
+              <Text style={verdictStyle} accessibilityLiveRegion="assertive">
+                {verdictText}
+              </Text>
+            </Appear>
+          ) : (
+            <Text style={verdictStyle}>{verdictText}</Text>
+          )
+        ) : (
+          <Text style={[styles.verdict, styles.question]} numberOfLines={1} adjustsFontSizeToFit>
+            {`${betTitle(betName)}?`}
+          </Text>
+        )}
+        {/* Kept as a blank line until its beat, so the layout never jumps and nothing is announced early. */}
+        <Text style={styles.sub} accessibilityLiveRegion="polite">
+          {loserLabel && step >= RevealStep.PENALTY ? outcome : ' '}
         </Text>
       </>
     );
@@ -216,13 +337,16 @@ export default function TableView({
       bounces={false}
     >
       <View style={styles.grid}>
-        {opponents.map((player) => (
+        {opponents.map((player, index) => (
           <View key={player.id} style={{ width: `${100 / columns}%` }}>
             <OpponentCell
               player={player}
               compact={compact}
               reveal={reveal}
               isBettor={!!betName && player.id === bettorId}
+              order={index}
+              step={step}
+              animated={animated}
             />
           </View>
         ))}
@@ -303,5 +427,27 @@ const styles = StyleSheet.create({
     fontSize: theme.font.caption,
     color: theme.color.textMuted,
     textAlign: 'center',
+  },
+  count: {
+    fontSize: theme.font.small,
+    color: theme.color.textMuted,
+    textAlign: 'center',
+  },
+  verdict: {
+    fontSize: 40,
+    lineHeight: 46,
+    fontWeight: '700',
+    letterSpacing: -0.8,
+    color: theme.color.text,
+    textAlign: 'center',
+  },
+  // The bet as an open question until the verdict replaces it, at the same size so nothing jumps.
+  question: {
+    color: theme.color.textFaint,
+    fontWeight: '600',
+    fontSize: 26,
+  },
+  missing: {
+    borderColor: theme.color.red,
   },
 });
