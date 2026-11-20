@@ -1,4 +1,20 @@
-export type GameEventType = 'game_start' | 'new_deal' | 'bet' | 'check' | 'deal_result' | 'deal_won' | 'player_eliminated' | 'game_end' | 'player_disconnected' | 'player_reconnected';
+export type GameEventType =
+  | 'game_start'
+  | 'new_deal'
+  | 'bet'
+  | 'check'
+  | 'deal_result'
+  | 'deal_won'
+  | 'player_eliminated'
+  | 'game_end'
+  | 'player_disconnected'
+  | 'player_reconnected'
+  | 'player_joined'
+  | 'player_left'
+  | 'player_timed_out'
+  | 'turn_timeout'
+  | 'deal_voided'
+  | 'host_changed';
 
 export interface GameEvent {
   id: string;

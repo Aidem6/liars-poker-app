@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StatusBar,
   StyleSheet,
@@ -8,22 +8,21 @@ import {
   FlatList,
   ListRenderItem,
   TouchableOpacity,
-  ActivityIndicator,
   Modal,
-  TextInput,
   KeyboardAvoidingView,
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Colors } from '@/constants/Colors';
-import { SocketContext } from '@/socket';
+import { theme, elevation } from '@/constants/theme';
+import { Button } from '@/components/ui/Button';
+import { TextField } from '@/components/ui/TextField';
+import { useClientState, useGameClient } from '@/socket';
+import { errorText, RoomSummary } from '@/net/protocol';
 import { Icon } from 'react-native-elements';
 import { router, useFocusEffect } from 'expo-router';
 import { pb } from '../lib/pocketbase';
 import { UsernameStorage } from '@/utils/usernameStorage';
-import { useTheme } from '../lib/ThemeContext';
 import { FeedbackModal } from '../components/feedback/FeedbackModal';
 import { InstructionsModal } from '../components/instructions/InstructionsModal';
 import { HeaderMenu } from '../components/menu/HeaderMenu';
@@ -31,26 +30,13 @@ import { ShareCardsModal } from '../components/share/ShareCardsModal';
 // @ts-ignore
 import QRCode from 'react-qr-code';
 
-interface DynamicRoom {
-  id: string;
-  name: string;
-  creator: string;
-  playerCount: number;
-  maxPlayers: number;
-  status: string;
-}
+type DynamicRoom = RoomSummary;
 
 function Home() {
-  const { isLightMode } = useTheme();
-  const isDarkMode = !isLightMode;
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.dark.background : Colors.light.background,
-  };
-
-  const { socket } = useContext(SocketContext) as any;
-  const [rooms, setRooms] = useState<DynamicRoom[]>([]);
+  const client = useGameClient();
+  const net = useClientState();
+  const rooms = net.rooms;
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [username, setUsername] = useState<string>('');
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [tempUsername, setTempUsername] = useState<string>('');
@@ -93,121 +79,46 @@ function Home() {
     loadUserData();
   }, []);
 
-  // Reset loading state when component mounts
-  useEffect(() => {
-    console.log('Index component mounted, resetting loading state');
-    setIsCreatingRoom(false);
-    setShowCreateModal(false);
-  }, []);
-
-  // Refresh rooms list and re-register listeners when screen comes into focus (iOS fix)
+  // Keep the room list live while this screen is visible.
   useFocusEffect(
     React.useCallback(() => {
-      if (!socket) {
-        console.warn('Screen focused but socket is null!');
-        return;
-      }
-
-      console.log('Screen focused - setting up listeners and requesting rooms');
-      console.log('Socket connected:', socket.connected);
-      console.log('Socket ID:', socket.id);
-
-      // Define handlers
-      const handleRoomsList = (data: { rooms: DynamicRoom[] }) => {
-        console.log('Received rooms list:', data);
-        console.log('Number of rooms:', data.rooms?.length);
-        data.rooms?.forEach((room, index) => {
-          console.log(`Room ${index}:`, {
-            id: room.id,
-            name: room.name,
-            status: room.status,
-            playerCount: room.playerCount,
-            maxPlayers: room.maxPlayers,
-            creator: room.creator
-          });
-        });
-        setRooms(data.rooms);
-      };
-
-      const handleRoomsUpdate = (data: { rooms: DynamicRoom[] }) => {
-        console.log('Rooms updated! New room count:', data.rooms?.length);
-        console.log('Updated rooms:', data.rooms);
-        setRooms(data.rooms || []);
-      };
-
-      const handleRoomCreated = (data: { roomId: string; roomName: string }) => {
-        console.log('Room created, joining:', data);
-        setIsCreatingRoom(false);
-        setShowCreateModal(false);
-        // Navigate to the game screen with the room
-        router.push(`/game?roomId=${data.roomId}`);
-      };
-
-      const handleError = (data: { message: string }) => {
-        console.error('Socket error:', data.message);
-        setIsCreatingRoom(false);
-        setShowCreateModal(false);
-        alert(data.message);
-      };
-
-      // Remove any existing listeners first
-      socket.off('rooms_list', handleRoomsList);
-      socket.off('rooms_update', handleRoomsUpdate);
-      socket.off('room_created', handleRoomCreated);
-      socket.off('error', handleError);
-
-      // Add listeners
-      socket.on('rooms_list', handleRoomsList);
-      socket.on('rooms_update', handleRoomsUpdate);
-      socket.on('room_created', handleRoomCreated);
-      socket.on('error', handleError);
-
-      // Request fresh rooms list
-      socket.emit('get_rooms');
-
-      // Cleanup when screen loses focus
-      return () => {
-        console.log('Screen losing focus - removing listeners');
-        socket.off('rooms_list', handleRoomsList);
-        socket.off('rooms_update', handleRoomsUpdate);
-        socket.off('room_created', handleRoomCreated);
-        socket.off('error', handleError);
-      };
-    }, [socket])
+      client.watchRooms();
+      return () => client.unwatchRooms();
+    }, [client]),
   );
 
-  const handleCreateRoom = () => {
+  const handleCreateRoom = async () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    setShowCreateModal(true);
+    if (!username) {
+      setShowUsernameModal(true);
+      return;
+    }
+    setIsCreatingRoom(true);
+    client.setName(username);
+    const reply = await client.createRoom();
+    setIsCreatingRoom(false);
+    if (reply.ok) {
+      router.push(`/game?roomId=${reply.room_id}`);
+    } else {
+      alert(errorText(reply.error));
+    }
   };
 
-  const confirmCreateRoom = () => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-    if (socket && username) {
-      console.log('Creating room for user:', username);
-      console.log('Socket connected:', socket.connected);
-      setIsCreatingRoom(true);
-      socket.emit('create_room', { username });
+  const [isStartingBots, setIsStartingBots] = useState(false);
 
-      // Timeout fallback - if no response after 5 seconds, reset state
-      setTimeout(() => {
-        setIsCreatingRoom((current) => {
-          if (current) {
-            console.warn('Room creation timeout - resetting state');
-            alert('Room creation timed out. Please try again.');
-            setShowCreateModal(false);
-            return false;
-          }
-          return current;
-        });
-      }, 5000);
+  const handleWatchBots = async () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setIsStartingBots(true);
+    const reply = await client.watchBots(4);
+    setIsStartingBots(false);
+    if (reply.ok) {
+      router.push(`/game?roomId=${reply.room_id}`);
     } else {
-      console.error('Cannot create room - socket or username missing', { socket: !!socket, username });
-      alert('Connection error. Please try again.');
+      alert(errorText(reply.error));
     }
   };
 
@@ -215,6 +126,7 @@ function Home() {
     if (tempUsername.trim()) {
       await UsernameStorage.setUsername(tempUsername.trim());
       setUsername(tempUsername.trim());
+      client.setName(tempUsername.trim());
       setShowUsernameModal(false);
       setIsEditingUsername(false);
       setTempUsername('');
@@ -259,200 +171,127 @@ function Home() {
     }
   };
 
-  const renderDynamicRoom: ListRenderItem<DynamicRoom> = ({ item }) => {
-    const statusColor = item.status === 'waiting' ? (isDarkMode ? '#49DDDD' : '#0a7ea4') :
-                        item.status === 'in_progress' ? '#FFA500' : '#999';
+  const renderDynamicRoom: ListRenderItem<DynamicRoom> = ({ item, index }) => {
     const canJoinAsPlayer = item.status === 'waiting' && item.playerCount < item.maxPlayers;
     const canSpectate = item.status === 'in_progress';
     const canJoin = canJoinAsPlayer || canSpectate;
+    const status = canJoinAsPlayer ? 'Open' : canSpectate ? 'Playing' : 'Full';
 
     return (
       <TouchableOpacity
-        style={[styles.dynamicRoomCard, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}
+        style={[styles.roomRow, index > 0 && styles.roomRowDivider, !canJoin && styles.roomRowDisabled]}
         onPress={() => canJoin && handleJoinRoom(item.id)}
         disabled={!canJoin}
-        activeOpacity={0.7}
+        activeOpacity={0.6}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.name}, ${status}, ${item.playerCount} of ${item.maxPlayers} players`}
       >
-        <View style={styles.roomHeader}>
-          <Text style={[styles.roomName, { color: isDarkMode ? '#fff' : '#000' }]}>
-            {item.name}
+        <View style={styles.roomMain}>
+          <Text style={styles.roomName} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.roomMeta} numberOfLines={1}>
+            {`Hosted by ${item.creator} · ${item.playerCount}/${item.maxPlayers} players`}
           </Text>
-          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-            <Text style={[styles.statusText, { color: isDarkMode ? '#010710' : '#fff' }]}>
-              {item.status === 'waiting' ? 'Open' : item.status === 'in_progress' ? 'Playing' : 'Full'}
-            </Text>
-          </View>
         </View>
-
-        <View style={styles.roomDetails}>
-          <View style={styles.detailRow}>
-            <Icon name="person" size={16} color={isDarkMode ? '#aaa' : '#666'} />
-            <Text style={[styles.detailText, { color: isDarkMode ? '#aaa' : '#666' }]}>
-              Creator: {item.creator}
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Icon name="group" size={16} color={isDarkMode ? '#aaa' : '#666'} />
-            <Text style={[styles.detailText, { color: isDarkMode ? '#aaa' : '#666' }]}>
-              Players: {item.playerCount}/{item.maxPlayers}
-            </Text>
-          </View>
+        <View style={styles.roomSide}>
+          <View style={[styles.statusDot, { backgroundColor: canJoinAsPlayer ? theme.color.green : theme.color.textFaint }]} />
+          <Text style={styles.roomStatus}>{canSpectate ? 'Watch' : status}</Text>
+          {canJoin && <Icon name="chevron-right" size={20} color={theme.color.textFaint} />}
         </View>
-
-        {canJoin && (
-          <View style={[styles.joinButton, { backgroundColor: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}>
-            <Text style={[styles.joinButtonText, { color: isDarkMode ? '#010710' : '#fff' }]}>
-              {canSpectate ? 'Spectate' : 'Join Room'}
-            </Text>
-          </View>
-        )}
       </TouchableOpacity>
     );
   };
 
   return (
-    <View style={[backgroundStyle, styles.container]}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor="transparent"
-        translucent
-      />
-      <LinearGradient
-        colors={isDarkMode
-          ? ['rgba(73, 221, 221, 0.15)', 'rgba(0, 0, 0, 0)']
-          : ['rgba(10, 126, 164, 0.1)', 'rgba(255, 255, 255, 0)']
-        }
-        style={styles.headerGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      >
-        <SafeAreaView edges={['top']}>
-          <View style={styles.header}>
-            <View style={styles.headerTop}>
-              <Text style={[styles.headerText, isDarkMode ? styles.lightThemeText : styles.darkThemeText]}>
-                Liar's Poker
-              </Text>
-              <View style={styles.headerButtons}>
-                <HeaderMenu
-                  onOpenInstructions={() => setShowInstructionsModal(true)}
-                  onOpenFeedback={() => setShowFeedbackModal(true)}
-                  onOpenShare={() => setShowShareModal(true)}
-                />
-              </View>
-            </View>
-            <View style={styles.usernameRow}>
-              <Text style={[styles.subtitle, isDarkMode ? styles.subtitleLight : styles.subtitleDark]}>
-                Playing as: <Text style={styles.usernameText}>{username || 'Guest'}</Text>
-              </Text>
-              {!pb.authStore.isValid && (
-                <TouchableOpacity onPress={handleEditUsername} style={styles.editButton}>
-                  <Icon name="edit" size={16} color={isDarkMode ? '#49DDDD' : '#0a7ea4'} />
-                </TouchableOpacity>
-              )}
-            </View>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <SafeAreaView edges={['top']} style={styles.column}>
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <Text style={styles.headerText}>Liar's Poker</Text>
+            <HeaderMenu
+              onOpenInstructions={() => setShowInstructionsModal(true)}
+              onOpenFeedback={() => setShowFeedbackModal(true)}
+              onOpenShare={() => setShowShareModal(true)}
+            />
           </View>
-        </SafeAreaView>
-      </LinearGradient>
-
-      <TouchableOpacity
-        style={[styles.createRoomButton, { backgroundColor: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}
-        onPress={handleCreateRoom}
-        disabled={isCreatingRoom}
-      >
-        {isCreatingRoom ? (
-          <ActivityIndicator color={isDarkMode ? '#010710' : '#fff'} />
-        ) : (
-          <>
-            <Icon name="add" size={24} color={isDarkMode ? '#010710' : '#fff'} />
-            <Text style={[styles.createRoomText, { color: isDarkMode ? '#010710' : '#fff' }]}>
-              Create New Room
+          <View style={styles.usernameRow}>
+            <Text style={styles.subtitle}>
+              Playing as <Text style={styles.usernameText}>{username || 'Guest'}</Text>
             </Text>
-          </>
+            {!pb.authStore.isValid && (
+              <TouchableOpacity onPress={handleEditUsername} hitSlop={10}>
+                <Text style={styles.changeLink}>Change</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {net.serverRoomId && (
+          <TouchableOpacity
+            style={styles.rejoin}
+            onPress={() => handleJoinRoom(net.serverRoomId!)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.rejoinText}>You still have a seat at a table</Text>
+            <Text style={styles.rejoinAction}>Return</Text>
+          </TouchableOpacity>
         )}
-      </TouchableOpacity>
 
-      {Platform.OS === 'web' && (
-        <View style={styles.storeLinksContainer}>
-          <Text style={[styles.storeLinksTitle, { color: isDarkMode ? '#aaa' : '#666' }]}>
-            Download the app
+        {net.status !== 'connected' && (
+          <Text style={styles.offline}>
+            {net.status === 'connecting' ? 'Connecting to the server…' : 'Offline. Reconnecting…'}
           </Text>
-          <View style={styles.storeButtons}>
-            <TouchableOpacity
-              style={[styles.storeButton, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}
-              onPress={() => handleOpenStore('https://apps.apple.com/pl/app/liars-poker-game/id6741585397', 'App Store')}
-            >
-              <Icon name="apple" type="font-awesome" size={20} color={isDarkMode ? '#fff' : '#000'} />
-              <Text style={[styles.storeButtonText, { color: isDarkMode ? '#fff' : '#000' }]}>
-                App Store
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.storeButton, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}
-              onPress={() => handleOpenStore('https://play.google.com/store/apps/details?id=com.tomczyk006.liarspokerapp&pcampaignid=web_share', 'Google Play')}
-            >
-              <Icon name="android" size={20} color={isDarkMode ? '#fff' : '#000'} />
-              <Text style={[styles.storeButtonText, { color: isDarkMode ? '#fff' : '#000' }]}>
-                Google Play
-              </Text>
-            </TouchableOpacity>
-          </View>
+        )}
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Rooms</Text>
+          <Text style={styles.sectionCount}>{rooms.length > 0 ? rooms.length : ''}</Text>
         </View>
-      )}
 
-      <FlatList
-        data={rooms}
-        renderItem={renderDynamicRoom}
-        keyExtractor={(item: DynamicRoom) => item.id}
-        contentContainerStyle={styles.roomList}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: isDarkMode ? '#aaa' : '#666' }]}>
-              No rooms available. Create one to get started!
-            </Text>
-          </View>
-        }
-      />
-
-      <Modal
-        visible={showCreateModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowCreateModal(false)}
-        statusBarTranslucent
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1a1a1a' : '#fff' }]}>
-            <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
-              Create New Room
-            </Text>
-            <Text style={[styles.modalDescription, { color: isDarkMode ? '#aaa' : '#666' }]}>
-              Your room will be automatically named (e.g., "Room-0").
-            </Text>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setShowCreateModal(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton, { backgroundColor: isDarkMode ? '#49DDDD' : '#0a7ea4' }]}
-                onPress={confirmCreateRoom}
-                disabled={isCreatingRoom}
-              >
-                {isCreatingRoom ? (
-                  <ActivityIndicator color={isDarkMode ? '#010710' : '#fff'} />
-                ) : (
-                  <Text style={[styles.confirmButtonText, { color: isDarkMode ? '#010710' : '#fff' }]}>
-                    Create
-                  </Text>
-                )}
-              </TouchableOpacity>
+        <FlatList
+          data={rooms}
+          renderItem={renderDynamicRoom}
+          keyExtractor={(item: DynamicRoom) => item.id}
+          style={styles.list}
+          contentContainerStyle={styles.roomList}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyTitle}>Start the first table</Text>
+              <Text style={styles.emptyText}>
+                No rooms are open right now. Create one and invite friends, or add bots to practise.
+              </Text>
             </View>
-          </View>
+          }
+          ListFooterComponent={
+            Platform.OS === 'web' ? (
+              <View style={styles.storeLinks}>
+                <Text style={styles.storeLinksTitle}>Get the app</Text>
+                <TouchableOpacity
+                  onPress={() => handleOpenStore('https://apps.apple.com/pl/app/liars-poker-game/id6741585397', 'App Store')}
+                >
+                  <Text style={styles.storeLink}>App Store</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleOpenStore('https://play.google.com/store/apps/details?id=com.tomczyk006.liarspokerapp&pcampaignid=web_share', 'Google Play')}
+                >
+                  <Text style={styles.storeLink}>Google Play</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null
+          }
+        />
+
+        <View style={styles.footer}>
+          <Button label="Create room" onPress={handleCreateRoom} loading={isCreatingRoom} />
+          <Button
+            label="Watch bots play"
+            variant="ghost"
+            onPress={handleWatchBots}
+            loading={isStartingBots}
+          />
         </View>
-      </Modal>
+      </SafeAreaView>
 
       {/* Username Modal */}
       <Modal
@@ -467,55 +306,41 @@ function Home() {
           style={styles.modalOverlay}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
-          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>
-            <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
-              {isEditingUsername ? 'Edit Username' : 'Welcome!'}
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {isEditingUsername ? 'Change your name' : 'Choose a name'}
             </Text>
-            <Text style={[styles.modalDescription, { color: isDarkMode ? '#aaa' : '#666' }]}>
-              {isEditingUsername
-                ? 'Enter your new username'
-                : 'Please enter a username to continue'}
+            <Text style={styles.modalDescription}>
+              This is how other players will see you at the table.
             </Text>
-            <TextInput
-              style={[styles.usernameInput, {
-                backgroundColor: isDarkMode ? '#2B2B2B' : '#F0F0F0',
-                color: isDarkMode ? '#fff' : '#000',
-                borderColor: isDarkMode ? '#444' : '#ddd'
-              }]}
-              placeholder="Enter username"
-              placeholderTextColor={isDarkMode ? '#888' : '#999'}
+            <TextField
+              placeholder="Ada"
               value={tempUsername}
               onChangeText={setTempUsername}
               autoFocus
               maxLength={20}
+              onSubmitEditing={handleSaveUsername}
+              style={{ marginBottom: 16 }}
             />
             <View style={styles.modalButtons}>
               {isEditingUsername && (
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.cancelButton]}
+                <Button
+                  label="Cancel"
+                  variant="secondary"
                   onPress={() => {
                     setShowUsernameModal(false);
                     setIsEditingUsername(false);
                     setTempUsername('');
                   }}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
+                  style={{ flex: 1 }}
+                />
               )}
-              <TouchableOpacity
-                style={[
-                  styles.modalButton,
-                  styles.confirmButton,
-                  { backgroundColor: isDarkMode ? '#49DDDD' : '#0a7ea4' },
-                  isEditingUsername ? {} : { flex: 1 }
-                ]}
+              <Button
+                label={isEditingUsername ? 'Save' : 'Continue'}
                 onPress={handleSaveUsername}
                 disabled={!tempUsername.trim()}
-              >
-                <Text style={[styles.confirmButtonText, { color: isDarkMode ? '#010710' : '#fff' }]}>
-                  {isEditingUsername ? 'Save' : 'Continue'}
-                </Text>
-              </TouchableOpacity>
+                style={{ flex: 1 }}
+              />
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -530,31 +355,16 @@ function Home() {
         statusBarTranslucent
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: isDarkMode ? '#1a1a2e' : '#fff' }]}>
-            <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
-              Scan to Download
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Scan to download</Text>
+            <Text style={styles.modalDescription}>
+              Point your phone's camera at the code to open {selectedStoreName}.
             </Text>
-            <Text style={[styles.modalDescription, { color: isDarkMode ? '#aaa' : '#666' }]}>
-              Scan this QR code with your camera to download from {selectedStoreName}
-            </Text>
-            <View style={styles.qrModalCodeWrapper}>
-              <View style={[styles.qrCodeWrapper, { backgroundColor: '#fff' }]}>
-                <QRCode
-                  value={selectedStoreUrl}
-                  size={200}
-                  level="M"
-                />
-              </View>
+            <View style={styles.qrCodeWrapper}>
+              <QRCode value={selectedStoreUrl} size={200} level="M" />
             </View>
             <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton, { backgroundColor: isDarkMode ? '#49DDDD' : '#0a7ea4', flex: 1 }]}
-                onPress={() => setShowQRModal(false)}
-              >
-                <Text style={[styles.confirmButtonText, { color: isDarkMode ? '#010710' : '#fff' }]}>
-                  Close
-                </Text>
-              </TouchableOpacity>
+              <Button label="Close" variant="secondary" onPress={() => setShowQRModal(false)} style={{ flex: 1 }} />
             </View>
           </View>
         </View>
@@ -583,262 +393,224 @@ function Home() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  rejoin: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: theme.space.xl,
+    marginBottom: theme.space.md,
+    paddingHorizontal: theme.space.lg,
+    paddingVertical: 12,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.color.surfaceActive,
+  },
+  rejoinText: {
+    color: theme.color.text,
+    fontSize: theme.font.body,
     flex: 1,
   },
-  headerWrapper: {
-    overflow: 'hidden',
+  rejoinAction: {
+    color: theme.color.green,
+    fontSize: theme.font.body,
+    fontWeight: '600',
   },
-  headerGradient: {
-    paddingBottom: 20,
+  offline: {
+    color: theme.color.amber,
+    fontSize: theme.font.small,
+    marginHorizontal: theme.space.xl,
+    marginBottom: theme.space.sm,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: theme.color.bg,
+  },
+  column: {
+    flex: 1,
+    width: '100%',
+    maxWidth: theme.maxContentWidth,
+    alignSelf: 'center',
   },
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingHorizontal: theme.space.xl,
+    paddingTop: theme.space.lg,
+    paddingBottom: theme.space.xl,
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  themeButton: {
-    padding: 8,
-  },
   headerText: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-  },
-  subtitle: {
-    fontSize: 16,
-    opacity: 0.8,
-    fontWeight: '400',
-  },
-  subtitleLight: {
-    color: '#E0E0E0',
-  },
-  subtitleDark: {
-    color: '#4A5568',
-  },
-  createRoomButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 20,
-    marginTop: 10,
-    marginBottom: 15,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    gap: 10,
-  },
-  createRoomText: {
-    fontSize: 18,
+    fontSize: theme.font.display,
     fontWeight: '600',
-  },
-  roomList: {
-    paddingHorizontal: 20,
-    paddingTop: 5,
-    paddingBottom: 40,
-    gap: 12,
-  },
-  dynamicRoomCard: {
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  roomHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  roomName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    flex: 1,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  roomDetails: {
-    gap: 8,
-    marginBottom: 12,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  detailText: {
-    fontSize: 14,
-  },
-  joinButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  joinButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  emptyContainer: {
-    paddingVertical: 60,
-    paddingHorizontal: 40,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    width: '85%',
-    maxWidth: 400,
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  modalDescription: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#666',
-  },
-  cancelButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  confirmButton: {
-    // backgroundColor set dynamically
-  },
-  confirmButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  lightThemeText: {
-    color: '#fff',
-  },
-  darkThemeText: {
-    color: '#010710',
-  },
-  cardContainer: {
-    marginBottom: 16,
+    letterSpacing: -0.6,
+    color: theme.color.text,
   },
   usernameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     marginTop: 4,
   },
+  subtitle: {
+    fontSize: theme.font.label,
+    color: theme.color.textMuted,
+  },
   usernameText: {
-    fontWeight: '600',
-  },
-  editButton: {
-    padding: 4,
-  },
-  usernameInput: {
-    height: 50,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    marginBottom: 24,
-  },
-  storeLinksContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    marginBottom: 8,
-  },
-  storeLinksTitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 12,
+    color: theme.color.text,
     fontWeight: '500',
   },
-  storeButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'center',
+  changeLink: {
+    fontSize: theme.font.label,
+    color: theme.color.textMuted,
+    textDecorationLine: 'underline',
   },
-  storeButton: {
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    paddingHorizontal: theme.space.xl,
+    paddingBottom: theme.space.sm,
+  },
+  sectionTitle: {
+    fontSize: theme.font.body,
+    fontWeight: '600',
+    color: theme.color.text,
+  },
+  sectionCount: {
+    fontSize: theme.font.body,
+    color: theme.color.textMuted,
+    fontVariant: ['tabular-nums'],
+  },
+  list: {
+    flex: 1,
+  },
+  roomList: {
+    paddingHorizontal: theme.space.xl,
+    paddingBottom: theme.space.xl,
+    flexGrow: 1,
+  },
+  roomRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+    minHeight: 64,
     paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
-  storeButtonText: {
-    fontSize: 14,
+  roomRowDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.color.hairlineStrong,
+  },
+  roomRowDisabled: {
+    opacity: 0.45,
+  },
+  roomMain: {
+    flex: 1,
+  },
+  roomName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: theme.color.text,
+  },
+  roomMeta: {
+    fontSize: 13,
+    color: theme.color.textMuted,
+    marginTop: 2,
+    fontVariant: ['tabular-nums'],
+  },
+  roomSide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  roomStatus: {
+    fontSize: 13,
+    color: theme.color.textMuted,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: 48,
+  },
+  emptyTitle: {
+    fontSize: 18,
     fontWeight: '600',
+    color: theme.color.text,
+  },
+  emptyText: {
+    fontSize: theme.font.body,
+    lineHeight: 21,
+    color: theme.color.textMuted,
+    marginTop: 6,
+    maxWidth: 300,
+  },
+  storeLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginTop: theme.space.xl,
+    paddingTop: theme.space.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.color.hairlineStrong,
+  },
+  storeLinksTitle: {
+    flex: 1,
+    fontSize: 13,
+    color: theme.color.textMuted,
+  },
+  storeLink: {
+    fontSize: 13,
+    color: theme.color.text,
+    textDecorationLine: 'underline',
+  },
+  footer: {
+    paddingHorizontal: theme.space.xl,
+    paddingTop: theme.space.md,
+    paddingBottom: theme.space.lg,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: theme.color.overlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '88%',
+    maxWidth: 380,
+    borderRadius: theme.radius.xl,
+    padding: 20,
+    backgroundColor: theme.color.surfaceRaised,
+    borderWidth: 1,
+    borderColor: theme.color.hairline,
+    ...(elevation('raised') as object),
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.color.text,
+  },
+  modalDescription: {
+    fontSize: theme.font.body,
+    lineHeight: 20,
+    color: theme.color.textMuted,
+    marginTop: 6,
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 8,
   },
   qrCodeWrapper: {
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  qrModalCodeWrapper: {
-    alignItems: 'center',
-    marginVertical: 20,
+    alignSelf: 'center',
+    padding: 14,
+    borderRadius: theme.radius.md,
+    backgroundColor: '#fff',
+    marginBottom: 20,
   },
 });
 
