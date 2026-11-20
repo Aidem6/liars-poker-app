@@ -24,6 +24,7 @@ import { errorText, RoomSummary } from '@/net/protocol';
 import { Icon } from 'react-native-elements';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { JoinRoomSheet } from '@/components/lobby/JoinRoomSheet';
+import { Appear, useNewKeys } from '@/components/ui/motion';
 import { router, useFocusEffect } from 'expo-router';
 import { pb } from '../lib/pocketbase';
 import { UsernameStorage } from '@/utils/usernameStorage';
@@ -59,6 +60,7 @@ function Home() {
   const { width } = useWindowDimensions();
   /** Laptops and tablets: actions sit under the title instead of a thumb-reach footer. */
   const wide = width >= WIDE_BREAKPOINT;
+  const newRooms = useNewKeys(rooms.map((room) => room.id));
 
   // Detect if user is on a mobile device using user agent
   const isMobileDevice = () => {
@@ -193,32 +195,35 @@ function Home() {
     const last = index === rooms.length - 1;
 
     return (
-      <Pressable
-        style={(state) => [
-          styles.roomRow,
-          first && styles.roomRowFirst,
-          last && styles.roomRowLast,
-          !first && styles.roomRowDivider,
-          canJoin && ((state as { hovered?: boolean }).hovered || state.pressed) && styles.roomRowHover,
-          !canJoin && styles.roomRowDisabled,
-        ]}
-        onPress={() => canJoin && handleJoinRoom(item.id)}
-        disabled={!canJoin}
-        accessibilityRole="button"
-        accessibilityLabel={`${item.name}, ${status}, ${item.playerCount} of ${item.maxPlayers} players`}
-      >
-        <View style={styles.roomMain}>
-          <Text style={styles.roomName} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.roomMeta} numberOfLines={1}>
-            {`${item.creator} · ${item.playerCount}/${item.maxPlayers} players`}
-          </Text>
-        </View>
-        <View style={styles.roomSide}>
-          <View style={[styles.statusDot, { backgroundColor: canJoinAsPlayer ? theme.color.green : canSpectate ? theme.color.amber : theme.color.textFaint }]} />
-          <Text style={styles.roomStatus}>{canSpectate ? 'Watch' : status}</Text>
-          {canJoin && <Icon name="chevron-right" size={20} color={theme.color.textFaint} />}
-        </View>
-      </Pressable>
+      // A table that opens while you watch slides in; the ones already listed stay still.
+      <Appear animate={newRooms.has(item.id)} from={{ translateY: 12, blur: 4 }} duration={300} delay={Math.min(index, 4) * 40}>
+        <Pressable
+          style={(state) => [
+            styles.roomRow,
+            first && styles.roomRowFirst,
+            last && styles.roomRowLast,
+            !first && styles.roomRowDivider,
+            canJoin && ((state as { hovered?: boolean }).hovered || state.pressed) && styles.roomRowHover,
+            !canJoin && styles.roomRowDisabled,
+          ]}
+          onPress={() => canJoin && handleJoinRoom(item.id)}
+          disabled={!canJoin}
+          accessibilityRole="button"
+          accessibilityLabel={`${item.name}, ${status}, ${item.playerCount} of ${item.maxPlayers} players`}
+        >
+          <View style={styles.roomMain}>
+            <Text style={styles.roomName} numberOfLines={1}>{item.name}</Text>
+            <Text style={styles.roomMeta} numberOfLines={1}>
+              {`${item.creator} · ${item.playerCount}/${item.maxPlayers} players`}
+            </Text>
+          </View>
+          <View style={styles.roomSide}>
+            <View style={[styles.statusDot, { backgroundColor: canJoinAsPlayer ? theme.color.green : canSpectate ? theme.color.amber : theme.color.textFaint }]} />
+            <Text style={styles.roomStatus}>{canSpectate ? 'Watch' : status}</Text>
+            {canJoin && <Icon name="chevron-right" size={20} color={theme.color.textFaint} />}
+          </View>
+        </Pressable>
+      </Appear>
     );
   };
 
@@ -273,20 +278,24 @@ function Home() {
         </View>
 
         {net.serverRoomId && (
-          <TouchableOpacity
-            style={styles.rejoin}
-            onPress={() => handleJoinRoom(net.serverRoomId!)}
-            accessibilityRole="button"
-          >
-            <Text style={styles.rejoinText}>You still have a seat at a table</Text>
-            <Text style={styles.rejoinAction}>Return</Text>
-          </TouchableOpacity>
+          <Appear from={{ translateY: -6, blur: 4 }} duration={300}>
+            <TouchableOpacity
+              style={styles.rejoin}
+              onPress={() => handleJoinRoom(net.serverRoomId!)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.rejoinText}>You still have a seat at a table</Text>
+              <Text style={styles.rejoinAction}>Return</Text>
+            </TouchableOpacity>
+          </Appear>
         )}
 
         {net.status !== 'connected' && (
-          <Text style={styles.offline}>
-            {net.status === 'connecting' ? 'Connecting to the server…' : 'Offline. Reconnecting…'}
-          </Text>
+          <Appear duration={200}>
+            <Text style={styles.offline} accessibilityLiveRegion="polite">
+              {net.status === 'connecting' ? 'Connecting to the server…' : 'Offline. Reconnecting…'}
+            </Text>
+          </Appear>
         )}
 
         <View style={styles.sectionHeader}>
@@ -302,12 +311,12 @@ function Home() {
           contentContainerStyle={styles.roomList}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
+            <Appear duration={300} style={styles.emptyContainer}>
               <Text style={styles.emptyTitle}>No tables open</Text>
               <Text style={styles.emptyText}>
                 Create one and invite friends with its code, or add bots to practise.
               </Text>
-            </View>
+            </Appear>
           }
           ListFooterComponent={
             Platform.OS === 'web' ? (

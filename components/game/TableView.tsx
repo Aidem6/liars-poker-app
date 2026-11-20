@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import PlayingCard, { CardSize } from '@/components/ui/PlayingCard';
-import { theme, tabularNums } from '@/constants/theme';
+import { theme, tabularNums, colorTransition, balance } from '@/constants/theme';
 import { BetCard, BetCheck, betShort, betTitle, findFigure, MAX_CARDS } from '@/utils/bets';
-import { Appear, Flash, FlipCard, Shake } from './motion';
+import { Appear, Flash, FlipCard, Shake } from '@/components/ui/motion';
 import { REVEAL_FINAL, RevealStep, SLOT_MS } from './useRevealSequence';
 
 export interface TablePlayer {
@@ -151,6 +151,7 @@ function OpponentCell({
         style={[
           styles.cellName,
           compact && styles.cellNameCompact,
+          colorTransition,
           emphasised && styles.cellNameActive,
           isLoser && { color: theme.color.red },
         ]}
@@ -249,11 +250,22 @@ export default function TableView({
 
   let stage: React.ReactNode;
   if (winnerName && step >= RevealStep.DONE) {
+    // A once-a-game moment: the parts arrive 100ms apart.
+    const enter = { translateY: 12, blur: 4 };
     stage = (
       <>
-        <Text style={styles.caption}>Game over</Text>
-        <Text style={styles.title}>{iWon ? 'You win' : `${winnerName} wins`}</Text>
-        <Text style={styles.sub}>Last player standing</Text>
+        {iWon && <Flash color={theme.color.lightGlow} />}
+        <Appear from={enter} duration={300}>
+          <Text style={styles.caption}>Game over</Text>
+        </Appear>
+        <Appear from={enter} duration={300} delay={100}>
+          <Text style={[styles.verdict, balance]} accessibilityLiveRegion="polite">
+            {iWon ? 'You win' : `${winnerName} wins`}
+          </Text>
+        </Appear>
+        <Appear from={enter} duration={300} delay={200}>
+          <Text style={styles.sub}>Last player standing</Text>
+        </Appear>
       </>
     );
   } else if (reveal && betName) {
@@ -307,15 +319,16 @@ export default function TableView({
     );
   } else if (betName) {
     const earlier = trail.slice(0, -1).slice(-3);
+    // Each new bet settles in briefly (200ms, a 6px lift) so a change on the table is noticed, not missed.
     stage = (
-      <>
+      <Appear key={betName} from={{ translateY: 6 }} duration={200} style={styles.stageGroup}>
         <Text style={styles.caption}>{bettor ? (bettor.isMe ? 'You bet' : `${bettor.name} bets`) : 'Current bet'}</Text>
         <FigureCards betName={betName} />
         <Text style={styles.title}>{betTitle(betName)}</Text>
         <Text style={styles.sub}>
           {earlier.length > 0 ? `after ${earlier.map((name) => betShort(name)).join(', ')}` : ' '}
         </Text>
-      </>
+      </Appear>
     );
   } else {
     stage = (
@@ -432,6 +445,10 @@ const styles = StyleSheet.create({
     fontSize: theme.font.small,
     color: theme.color.textMuted,
     textAlign: 'center',
+  },
+  stageGroup: {
+    alignItems: 'center',
+    gap: 12,
   },
   verdict: {
     fontSize: 40,

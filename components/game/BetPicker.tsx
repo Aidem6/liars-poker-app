@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import PlayingCard from '@/components/ui/PlayingCard';
 import { PressableScale } from '@/components/ui/Button';
-import { theme } from '@/constants/theme';
+import { theme, colorTransition } from '@/constants/theme';
 import { BET_CATEGORIES, betTitle, categoryForIndex, figures } from '@/utils/bets';
 
 interface BetPickerProps {
@@ -71,7 +71,12 @@ export default function BetPicker({ chooseFigure, firstAvailableFigure, activeFi
                 }}
                 accessibilityRole="tab"
                 accessibilityState={{ selected, disabled: exhausted }}
-                style={[styles.segmentItem, selected && styles.segmentItemSelected]}
+                style={(state) => [
+                  styles.segmentItem,
+                  colorTransition,
+                  !selected && !exhausted && (state as { hovered?: boolean }).hovered && styles.segmentItemHover,
+                  selected && styles.segmentItemSelected,
+                ]}
               >
                 <Text
                   style={[
@@ -104,6 +109,7 @@ export default function BetPicker({ chooseFigure, firstAvailableFigure, activeFi
               accessibilityLabel={betTitle(figure.name)}
               accessibilityState={{ selected }}
               style={[styles.option, selected && styles.optionSelected]}
+              hoverStyle={selected ? undefined : styles.optionHover}
             >
               {figure.cards.map((card, index) => (
                 <PlayingCard key={index} rank={card.rank} suit={card.suit} size="md" />
@@ -136,6 +142,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     borderRadius: theme.radius.sm,
   },
+  segmentItemHover: {
+    backgroundColor: theme.color.surfaceRaised,
+  },
   segmentItemSelected: {
     backgroundColor: theme.color.surfaceActive,
   },
@@ -165,6 +174,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1.5,
     borderColor: 'transparent',
+  },
+  optionHover: {
+    backgroundColor: theme.color.surface,
   },
   optionSelected: {
     borderColor: theme.color.text,

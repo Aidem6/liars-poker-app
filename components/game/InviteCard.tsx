@@ -7,6 +7,7 @@ import QRCode from 'react-qr-code';
 import { Button, PressableScale } from '@/components/ui/Button';
 import { theme, elevation, tabularNums } from '@/constants/theme';
 import { inviteUrl, spacedRoomCode } from '@/utils/roomCode';
+import { SwapIcon } from '@/components/ui/motion';
 
 const canShare =
   Platform.OS !== 'web' || (typeof navigator !== 'undefined' && typeof (navigator as any).share === 'function');
@@ -60,7 +61,14 @@ export default function InviteCard({ code, roomName }: { code: string; roomName:
             size="md"
             variant="secondary"
             onPress={copy}
-            icon={<MaterialIcons name={copied ? 'check' : 'content-copy'} size={16} color={theme.color.text} />}
+            icon={
+              <SwapIcon
+                show={copied ? 'second' : 'first'}
+                size={16}
+                first={<MaterialIcons name="content-copy" size={16} color={theme.color.text} />}
+                second={<MaterialIcons name="check" size={16} color={theme.color.green} />}
+              />
+            }
             style={styles.action}
           />
           {canShare && (
@@ -104,13 +112,16 @@ export default function InviteCard({ code, roomName }: { code: string; roomName:
 
 const QR_SMALL = 84;
 const QR_PAD = 8;
+const CARD_PAD = 12;
 
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.space.lg,
-    padding: theme.space.lg,
+    // Concentric with the QR tile: 8 (tile) + 12 (padding) = 20 (card).
+    padding: CARD_PAD,
+    paddingLeft: theme.space.lg,
     borderRadius: theme.radius.xl,
     backgroundColor: theme.color.surface,
     borderWidth: 1,
@@ -147,7 +158,7 @@ const styles = StyleSheet.create({
   // White quiet zone around the code so phone cameras lock on quickly.
   qr: {
     padding: QR_PAD,
-    borderRadius: theme.radius.md,
+    borderRadius: theme.radius.xl - CARD_PAD,
     backgroundColor: '#FFFFFF',
   },
   overlay: {

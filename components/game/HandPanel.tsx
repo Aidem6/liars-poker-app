@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import PlayingCard from '@/components/ui/PlayingCard';
 import { theme } from '@/constants/theme';
+import { Appear } from '@/components/ui/motion';
 import { BetCard } from '@/utils/bets';
 
 interface HandPanelProps {
@@ -12,13 +13,15 @@ interface HandPanelProps {
   active?: boolean;
   /** Keys ("me:<index>") of cards to highlight during a reveal. */
   highlighted?: Set<string>;
+  /** Changes with every deal, so the new hand is dealt in. */
+  dealKey?: string | number;
   children?: React.ReactNode;
 }
 
 const OVERLAP = 22;
 
 /** The local player's cards, fanned, beside a short status and the turn timer. */
-export default function HandPanel({ hand, title, subtitle, active = false, highlighted, children }: HandPanelProps) {
+export default function HandPanel({ hand, title, subtitle, active = false, highlighted, dealKey, children }: HandPanelProps) {
   const middle = (hand.length - 1) / 2;
 
   return (
@@ -27,7 +30,7 @@ export default function HandPanel({ hand, title, subtitle, active = false, highl
         <View style={styles.fan}>
           {hand.map((card, index) => (
             <View
-              key={`${card.rank}${card.suit}${index}`}
+              key={`${dealKey ?? ''}:${index}`}
               style={{
                 marginLeft: index === 0 ? 0 : -OVERLAP,
                 transform: [
@@ -36,12 +39,15 @@ export default function HandPanel({ hand, title, subtitle, active = false, highl
                 ],
               }}
             >
-              <PlayingCard
-                rank={card.rank}
-                suit={card.suit}
-                size="xl"
-                highlighted={highlighted?.has(`me:${index}`)}
-              />
+              {/* Dealt from below, one after another, once per deal. */}
+              <Appear from={{ translateY: 24, scale: 0.96 }} duration={320} delay={index * 70}>
+                <PlayingCard
+                  rank={card.rank}
+                  suit={card.suit}
+                  size="xl"
+                  highlighted={highlighted?.has(`me:${index}`)}
+                />
+              </Appear>
             </View>
           ))}
         </View>

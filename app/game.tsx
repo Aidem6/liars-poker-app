@@ -21,6 +21,7 @@ import BetPicker from '../components/game/BetPicker';
 import HandPanel from '../components/game/HandPanel';
 import InviteCard from '../components/game/InviteCard';
 import { RevealStep, useRevealSequence } from '../components/game/useRevealSequence';
+import { Appear, useNewKeys } from '@/components/ui/motion';
 import { Button } from '../components/ui/Button';
 import { TextField } from '../components/ui/TextField';
 import { theme, tabularNums, elevation } from '@/constants/theme';
@@ -141,6 +142,8 @@ function Game(): JSX.Element {
     revealIsFresh,
   );
   const verdictShown = revealStep >= RevealStep.VERDICT;
+  const inLobby = state?.room.status === 'lobby';
+  const newSeats = useNewKeys(inLobby ? state!.players.map((p) => p.id) : [], inLobby);
 
   useEffect(() => {
     if (revealAnimated && revealStep === RevealStep.VERDICT) haptic(Haptics.ImpactFeedbackStyle.Heavy);
@@ -295,11 +298,13 @@ function Game(): JSX.Element {
 
   const offlineBanner =
     net.status !== 'connected' ? (
-      <View style={styles.banner} accessibilityLiveRegion="polite">
-        <Text style={styles.bannerText}>
-          {net.status === 'connecting' ? 'Connecting…' : 'Connection lost. Reconnecting… Your seat is kept.'}
-        </Text>
-      </View>
+      <Appear from={{ translateY: -8 }} duration={200}>
+        <View style={styles.banner} accessibilityLiveRegion="polite">
+          <Text style={styles.bannerText}>
+            {net.status === 'connecting' ? 'Connecting…' : 'Connection lost. Reconnecting… Your seat is kept.'}
+          </Text>
+        </View>
+      </Appear>
     ) : null;
 
   // ----- waiting room -------------------------------------------------
@@ -331,21 +336,23 @@ function Game(): JSX.Element {
             {seated.map((player, index) => {
               const isMe = player.id === state.me.id;
               return (
-                <View key={player.id} style={[styles.roomRow, index > 0 && styles.roomRowDivider]}>
-                  <Text style={[styles.roomSeat, tabularNums]}>{index + 1}</Text>
-                  <Text style={[styles.roomPlayer, !player.connected && { color: theme.color.textMuted }]} numberOfLines={1}>
-                    {player.name}
-                  </Text>
-                  {isMe && <Text style={styles.roomTag}>You</Text>}
-                  {player.id === state.room.host_id && <Text style={styles.roomTag}>Host</Text>}
-                  {player.is_bot && <Text style={styles.roomTag}>Bot</Text>}
-                  {!player.connected && <Text style={[styles.roomTag, { color: theme.color.amber }]}>Away</Text>}
-                  {model.isHost && !isMe && (
-                    <TouchableOpacity onPress={() => kick(player.id)} hitSlop={10} accessibilityLabel={`Remove ${player.name}`}>
-                      <Icon name="close" size={18} color={theme.color.textMuted} />
-                    </TouchableOpacity>
-                  )}
-                </View>
+                <Appear key={player.id} animate={newSeats.has(player.id)} from={{ translateY: 12, blur: 4 }} duration={300}>
+                  <View style={[styles.roomRow, index > 0 && styles.roomRowDivider]}>
+                    <Text style={[styles.roomSeat, tabularNums]}>{index + 1}</Text>
+                    <Text style={[styles.roomPlayer, !player.connected && { color: theme.color.textMuted }]} numberOfLines={1}>
+                      {player.name}
+                    </Text>
+                    {isMe && <Text style={styles.roomTag}>You</Text>}
+                    {player.id === state.room.host_id && <Text style={styles.roomTag}>Host</Text>}
+                    {player.is_bot && <Text style={styles.roomTag}>Bot</Text>}
+                    {!player.connected && <Text style={[styles.roomTag, { color: theme.color.amber }]}>Away</Text>}
+                    {model.isHost && !isMe && (
+                      <TouchableOpacity onPress={() => kick(player.id)} hitSlop={10} accessibilityLabel={`Remove ${player.name}`}>
+                        <Icon name="close" size={18} color={theme.color.textMuted} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </Appear>
               );
             })}
             {state.spectators.length > 0 && (
@@ -546,6 +553,7 @@ function Game(): JSX.Element {
             subtitle={statusSubtitle}
             active={statusActive}
             highlighted={myHighlights}
+            dealKey={game?.deal_no}
           >
             {showTimer && (
               <TurnTimeoutTimer deadline={deadline!} totalSeconds={game!.turn_seconds} isMyTurn={isMyTurn} />
@@ -614,9 +622,11 @@ function Game(): JSX.Element {
         {/* Toast notifications */}
         <View style={styles.toastContainer} pointerEvents="none">
           {toasts.map((toast) => (
-            <View key={toast.id} style={styles.toast}>
-              <Text style={styles.toastText}>{toast.message}</Text>
-            </View>
+            <Appear key={toast.id} from={{ translateY: 8, blur: 4 }} duration={200} style={styles.toastSlot}>
+              <View style={styles.toast} accessibilityLiveRegion="polite">
+                <Text style={styles.toastText}>{toast.message}</Text>
+              </View>
+            </Appear>
           ))}
         </View>
 
@@ -807,8 +817,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: theme.radius.md,
-    maxWidth: '80%',
     ...(elevation('raised') as object),
+  },
+  toastSlot: {
+    maxWidth: '80%',
   },
   toastText: {
     color: theme.color.text,

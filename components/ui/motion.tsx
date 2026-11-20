@@ -1,9 +1,10 @@
 /**
- * Small one-shot animations for the reveal. Each plays once when it mounts
- * (or when `trigger` turns true) and falls back to a plain fade when the
- * system asks for reduced motion.
+ * Small one-shot animations. Each plays once when it mounts (or when
+ * `trigger` turns true) and falls back to a plain fade when the system asks
+ * for reduced motion. Used sparingly: for things that happen now and then
+ * (a new table, a reveal), never for every tap or keystroke.
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
@@ -11,22 +12,27 @@ const native = Platform.OS !== 'web';
 /** Strong ease-out: moves at once, settles softly. */
 export const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const EASE_IN_OUT = Easing.bezier(0.77, 0, 0.175, 1);
+/** For icons swapping in place. */
+const EASE_SWAP = Easing.bezier(0.2, 0, 0, 1);
 
 interface AppearProps {
   children: React.ReactNode;
   delay?: number;
   duration?: number;
   /** Where the element comes from; it always ends at rest. */
-  from?: { scale?: number; translateY?: number; rotate?: number };
+  from?: { scale?: number; translateY?: number; rotate?: number; blur?: number };
   style?: StyleProp<ViewStyle>;
+  /** False renders at rest without animating, e.g. for items already there on first render. */
+  animate?: boolean;
 }
 
 /** Fades (and optionally scales, lifts or tilts) an element into place on mount. */
-export function Appear({ children, delay = 0, duration = 260, from = {}, style }: AppearProps) {
+export function Appear({ children, delay = 0, duration = 260, from = {}, style, animate = true }: AppearProps) {
   const reduced = useReducedMotion();
-  const t = useRef(new Animated.Value(0)).current;
+  const t = useRef(new Animated.Value(animate ? 0 : 1)).current;
 
   useEffect(() => {
+    if (!animate) return;
     const animation = Animated.timing(t, {
       toValue: 1,
       delay,
@@ -38,7 +44,7 @@ export function Appear({ children, delay = 0, duration = 260, from = {}, style }
     return () => animation.stop();
   }, []);
 
-  const { scale = 1, translateY = 0, rotate = 0 } = from;
+  const { scale = 1, translateY = 0, rotate = 0, blur = 0 } = from;
   const transform = reduced
     ? []
     : [
@@ -55,7 +61,11 @@ export function Appear({ children, delay = 0, duration = 260, from = {}, style }
           // Opacity leads the movement so the element is never seen sliding in transparent.
           opacity: t.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 1, 1] }),
           transform,
-        },
+          // Blur only on the web, where it is cheap; it softens the first frames of an entrance.
+          ...(blur && !reduced && Platform.OS === 'web'
+            ? { filter: t.interpolate({ inputRange: [0, 1], outputRange: [`blur(${blur}px)`, 'blur(0px)'] }) }
+            : null),
+        } as object,
       ]}
     >
       {children}
@@ -209,3 +219,89 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+
+/**
+ * Keys that were not there on the first render, so only items that arrive
+ * later (a new table, a player joining) animate in.
+ */
+export function useNewKeys(keys: string[], ready = true): Set<string> {
+  const seen = useRef<Set<string> | null>(null);
+  // The first list after loading is the starting point, not news.
+  if (seen.current === null && ready) seen.current = new Set(keys);
+  const fresh = seen.current ? new Set(keys.filter((key) => !seen.current!.has(key))) : new Set<string>();
+  useEffect(() => {
+    if (seen.current) keys.forEach((key) => seen.current!.add(key));
+  });
+  return fresh;
+}
+
+/**
+ * Two icons in one spot; switching cross-fades them (scale 0.25 to 1, opacity,
+ * and a 4px blur on the web) over 300ms, so neither just blinks in or out.
+ */
+export function SwapIcon({ show, first, second, size }: { show: 'first' | 'second'; first: React.ReactNode; second: React.ReactNode; size: number }) {
+  const reduced = useReducedMotion();
+  const t = useRef(new Animated.Value(show === 'second' ? 1 : 0)).current;
+
+  useEffect(() => {
+    const animation = Animated.timing(t, {
+      toValue: show === 'second' ? 1 : 0,
+      duration: reduced ? 150 : 300,
+      easing: EASE_SWAP,
+      useNativeDriver: native,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [show]);
+
+  const layer = (visibleAt: 0 | 1) => {
+    const range = visibleAt === 1 ? [0.25, 1] : [1, 0.25];
+    const style: Record<string, unknown> = {
+      opacity: t.interpolate({ inputRange: [0, 1], outputRange: visibleAt === 1 ? [0, 1] : [1, 0] }),
+    };
+    if (!reduced) {
+      style.transform = [{ scale: t.interpolate({ inputRange: [0, 1], outputRange: range }) }];
+      if (Platform.OS === 'web') {
+        style.filter = t.interpolate({
+          inputRange: [0, 1],
+          outputRange: visibleAt === 1 ? ['blur(4px)', 'blur(0px)'] : ['blur(0px)', 'blur(4px)'],
+        });
+      }
+    }
+    return style;
+  };
+
+  return (
+    <View style={{ width: size, height: size }}>
+      <Animated.View style={[StyleSheet.absoluteFill, styles.center, layer(0) as object]}>{first}</Animated.View>
+      <Animated.View style={[StyleSheet.absoluteFill, styles.center, layer(1) as object]}>{second}</Animated.View>
+    </View>
+  );
+}
+
+/** A blinking text caret, steady under reduced motion. */
+export function Caret({ color, height }: { color: string; height: number }) {
+  const reduced = useReducedMotion();
+  const on = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (reduced) return;
+    const flip = (toValue: number) => Animated.timing(on, { toValue, duration: 0, useNativeDriver: native });
+    const loop = Animated.loop(
+      Animated.sequence([Animated.delay(530), flip(0), Animated.delay(530), flip(1)]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reduced]);
+
+  return <Animated.View style={{ width: 2, height, borderRadius: 1, backgroundColor: color, opacity: on }} />;
+}
+
+/** Hover state for mouse pointers on the web; always false on touch. */
+export function useHover() {
+  const [hovered, setHovered] = useState(false);
+  return {
+    hovered,
+    hoverProps: { onHoverIn: () => setHovered(true), onHoverOut: () => setHovered(false) },
+  };
+}
