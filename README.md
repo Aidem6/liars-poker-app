@@ -4,6 +4,7 @@ Expo (React Native + web) client for Liar's Poker, a bluffing card game for 2–
 The game server lives in a separate repo: [Firlej/liars-poker](https://github.com/Firlej/liars-poker).
 
 - Website: deployed from `master` by `.github/workflows/deploy.yml`
+- Landing page: [`public/home/index.html`](public/home/index.html), at `/home/`. A plain HTML file, separate from the app
 - Status and launch checklist: [`public/launch-review.html`](public/launch-review.html), published with the website at `/launch-review.html`
 
 ## Run locally
