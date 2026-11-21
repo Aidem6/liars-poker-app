@@ -1,0 +1,1069 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Liar's Poker: the bluffing card game</title>
+<meta name="description" content="Liar's Poker is a free bluffing card game for 2 to 8 players. Bet on poker hands hidden across everyone's cards, and call out the liars. Play on iPhone, Android or in your browser.">
+<meta name="theme-color" content="#0B0B0C">
+<link rel="canonical" href="https://liarspoker.adamtomczyk.com/home/">
+<meta property="og:url" content="https://liarspoker.adamtomczyk.com/home/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Liar's Poker: the bluffing card game">
+<meta property="og:description" content="Bet on cards you can't see. A free bluffing game for 2 to 8 players.">
+<link rel="icon" href="/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/*
+  Landing page for Liar's Poker. Colours, card sizes and type follow
+  constants/theme.ts and components/ui/PlayingCard.tsx, so the phone
+  mock-ups read as the real app. The app is dark-only, and so is this page.
+*/
+:root {
+  --bg: #0B0B0C;
+  --surface: #161618;
+  --raised: #1C1C1F;
+  --active: #2A2A2E;
+  --control: #242427;
+  --control-hover: #2E2E33;
+  --hair: rgba(255,255,255,0.08);
+  --hair2: rgba(255,255,255,0.14);
+  --text: #EDEDED;
+  --soft: #B9B9BE;
+  --muted: #85858A;
+  --faint: #5C5C61;
+  --red: #E5484D;
+  --red-soft: rgba(229,72,77,0.14);
+  --red-glow: rgba(229,72,77,0.32);
+  --light-glow: rgba(237,237,237,0.12);
+  --green: #3DD68C;
+  --amber: #F5B83D;
+  --face: #F4F2EC;
+  --ink: #111113;
+  --card-red: #D13A3F;
+  --back: #1A1A1D;
+  --stripe: #2C2C30;
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, system-ui, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; }
+h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 650; }
+p { margin: 0; text-wrap: pretty; }
+:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; border-radius: 6px; }
+
+.wrap {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+}
+@media (min-width: 720px) { .wrap { padding-left: 32px; padding-right: 32px; } }
+
+/* ---------- Buttons (Button.tsx: 50 high, radius 14; md 42, radius 12) ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 50px; padding: 0 22px; border-radius: 14px; border: 0;
+  font-size: 15px; font-weight: 600; white-space: nowrap; cursor: pointer;
+  transition: background-color 150ms ease, transform 160ms var(--ease);
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--text); color: var(--bg); }
+.btn-primary:hover { background: #fff; }
+.btn-secondary { background: var(--control); color: var(--text); }
+.btn-secondary:hover { background: var(--control-hover); }
+.btn-sm { height: 38px; padding: 0 14px; border-radius: 11px; font-size: 14px; }
+.btn svg { flex: none; }
+
+/* ---------- Playing cards (PlayingCard.tsx) ---------- */
+.pc {
+  position: relative; flex: none;
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  font-weight: 600; line-height: 1; user-select: none;
+}
+.pc b { font-weight: 600; }
+.pc i { font-style: normal; }
+.pc.face { background: var(--face); color: var(--ink); }
+.pc.face.red { color: var(--card-red); }
+.pc.back {
+  background: repeating-linear-gradient(45deg, var(--stripe) 0 2px, transparent 2px 5px), var(--back);
+  box-shadow: inset 0 0 0 1px var(--hair2);
+}
+.pc.empty, .pc.ghost { border: 1px dashed var(--hair2); color: var(--muted); }
+.pc.ghost.miss { border-color: var(--red); }
+.pc.pen { border: 1px solid var(--red); color: var(--red); }
+.pc.xs { width: 14px; height: 20px; border-radius: 4px; font-size: 9px; }
+.pc.xs i { font-size: 8px; }
+.pc.sm { width: 20px; height: 28px; border-radius: 5px; font-size: 11px; }
+.pc.sm i { font-size: 10px; }
+.pc.md { width: 26px; height: 36px; border-radius: 6px; font-size: 13px; }
+.pc.md i { font-size: 11px; }
+.pc.lg { width: 46px; height: 64px; border-radius: 9px; font-size: 24px; }
+.pc.lg i { font-size: 17px; }
+.pc.xl { width: 70px; height: 98px; border-radius: 12px; font-size: 26px; align-items: flex-start; justify-content: space-between; padding: 9px 10px; }
+.pc.xl i { font-size: 22px; }
+.pc.lg.face, .pc.xl.face { box-shadow: 0 1px 2px rgba(0,0,0,0.5), 0 6px 16px rgba(0,0,0,0.35); }
+.pc.suit-only i { font-size: inherit; }
+.pc b + i { margin-top: 2px; }
+.pc.xl b + i { margin-top: 0; }
+.pc.pen b, .pc.ghost b { font-size: 0.92em; }
+.pc.hl { outline: 1.5px solid var(--text); outline-offset: 2px; transform: translateY(-4px); z-index: 1; }
+.pc, .cell, .fan > * { transition: opacity 300ms ease, transform 300ms var(--ease); }
+.dim { opacity: 0.32; }
+.cards { display: inline-flex; gap: 3px; align-items: center; }
+
+/* ---------- Motion (motion.tsx: ease-out 0.23,1,0.32,1) ---------- */
+@keyframes flip-in { from { transform: perspective(300px) rotateY(90deg); } to { transform: perspective(300px) rotateY(0); } }
+@keyframes pop { from { transform: scale(1.18) translateY(-10px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes verdict { from { transform: scale(1.9) rotate(var(--tilt, 0deg)); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes drop { from { transform: translateY(-18px) scale(1.4) rotate(-12deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
+@keyframes flash { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0.55; } }
+@keyframes rise { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes deal { from { transform: translateY(24px) scale(0.96); opacity: 0; } to { transform: none; opacity: 1; } }
+.a-flip { animation: flip-in 260ms var(--ease) both; }
+.a-pop { animation: pop 280ms var(--ease) both; }
+.a-verdict { animation: verdict 300ms var(--ease) both; }
+.a-drop { animation: drop 320ms var(--ease) both; }
+.a-shake { animation: shake 380ms ease both; }
+.a-rise { animation: rise 200ms var(--ease) both; }
+.a-deal { animation: deal 320ms var(--ease) both; }
+
+/* ---------- Game screen parts (TableView.tsx, HandPanel.tsx, BetPicker.tsx) ---------- */
+.opps { display: flex; padding: 12px 16px 0; }
+.opps .cell { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 0 2px; }
+.slots { display: flex; gap: 3px; align-items: flex-end; justify-content: center; min-height: 32px; }
+.slots.shown { gap: 4px; min-height: 40px; }
+.cell .nm { font-size: 13px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; transition: color 200ms ease; }
+.cell .nm.on { color: var(--text); font-weight: 600; }
+.cell .nm.lost { color: var(--red); font-weight: 600; }
+.cell .dt { font-size: 11px; color: var(--muted); white-space: nowrap; line-height: 1.3; min-height: 1.3em; }
+.cell .dt.on { color: var(--text); }
+.cell .dt.lost { color: var(--red); }
+.cell.focus { transform: scale(1.1); }
+
+.stage { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; text-align: center; }
+.stage .cap { font-size: 12px; color: var(--muted); }
+.stage .fig { display: flex; gap: 6px; }
+.stage .ttl { font-size: 22px; font-weight: 600; letter-spacing: -0.2px; }
+.stage .sub { font-size: 11px; color: var(--muted); min-height: 1.3em; line-height: 1.3; }
+.stage .cnt { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; transition: opacity 200ms ease; }
+.stage .vd { font-size: 40px; line-height: 46px; font-weight: 700; letter-spacing: -0.8px; }
+.stage .vd.bluff { color: var(--red); --tilt: -8deg; }
+.stage .vd.q { font-size: 26px; font-weight: 600; color: var(--faint); letter-spacing: -0.3px; }
+.glow { position: absolute; inset: -40% -20%; pointer-events: none; opacity: 0; }
+.glow.red { background: radial-gradient(closest-side, var(--red-glow), transparent); animation: flash 900ms ease forwards; }
+.glow.light { background: radial-gradient(closest-side, var(--light-glow), transparent); animation: flash 900ms ease forwards; }
+
+.hand { display: flex; align-items: flex-end; gap: 16px; padding: 10px 16px 0; min-height: 64px; }
+.fan { display: flex; padding-left: 4px; padding-bottom: 2px; }
+.fan > * + * { margin-left: -22px; }
+.hand .st { flex: 1; min-width: 0; padding-bottom: 6px; }
+.hand .st b { display: block; font-size: 15px; font-weight: 600; }
+.hand .st b.idle { color: var(--muted); font-weight: 500; }
+.hand .st span { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+.picker { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; overflow: hidden; }
+.seg { display: flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--surface); margin: 0 16px; width: max-content; }
+.seg span { padding: 7px 11px; border-radius: 9px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.seg span.on { background: var(--active); color: var(--text); font-weight: 600; }
+.seg span.x { color: var(--faint); text-decoration: line-through; }
+.opts { display: flex; gap: 4px; padding: 0 11px; min-height: 48px; align-items: center; }
+.opt { display: flex; gap: 2px; padding: 4px; border-radius: 10px; border: 1.5px solid transparent; }
+.opt.on { border-color: var(--text); }
+.acts { display: flex; gap: 8px; padding: 14px 16px 0; }
+.acts .btn { height: 50px; padding: 0 12px; flex: 1; }
+.acts .btn.wide { flex: 1.7; }
+.acts .btn.dimmed { opacity: 0.45; }
+.acts .btn.press { transform: scale(0.96); background: var(--control-hover); }
+
+/* ---------- Phone frame ---------- */
+.phone {
+  --pw: 300;
+  position: relative; flex: none;
+  width: calc(var(--pw) * 1px);
+  padding: 8px; border-radius: 50px;
+  background: #050506;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1), 0 0 0 1px rgba(0,0,0,0.8), 0 30px 80px rgba(0,0,0,0.55), 0 8px 24px rgba(0,0,0,0.4);
+}
+.phone .glass { border-radius: 42px; overflow: hidden; background: var(--bg); position: relative; }
+.screen {
+  width: 390px; height: 844px;
+  zoom: calc((var(--pw) - 16) / 390);
+  display: flex; flex-direction: column; position: relative;
+  background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.25; overflow: hidden;
+}
+.sbar { height: 50px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 6px 32px 0 40px; font-size: 16px; font-weight: 600; }
+.sbar .island { position: absolute; left: 50%; top: 11px; width: 120px; height: 34px; margin-left: -60px; border-radius: 20px; background: #000; }
+.sbar .ic { display: flex; align-items: center; gap: 6px; }
+.sbar .bars { display: flex; gap: 2px; align-items: flex-end; height: 11px; }
+.sbar .bars i { width: 3px; background: var(--text); border-radius: 1px; }
+.sbar .bat { width: 25px; height: 12px; border-radius: 4px; border: 1px solid rgba(237,237,237,0.45); padding: 1.5px; }
+.sbar .bat::after { content: ""; display: block; height: 100%; width: 80%; border-radius: 2px; background: var(--text); }
+.homebar { position: absolute; bottom: 8px; left: 50%; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: rgba(237,237,237,0.85); }
+.ghead { height: 56px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
+.ghead .t { text-align: center; }
+.ghead .t b { display: block; font-size: 17px; font-weight: 600; }
+.ghead .t span { display: block; font-size: 13px; color: var(--muted); margin-top: 1px; }
+.ghead .r { display: flex; align-items: center; gap: 14px; width: 64px; justify-content: flex-end; }
+.ghead .l { width: 64px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; }
+.helpic { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--muted); color: var(--muted); font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.burger { display: flex; flex-direction: column; gap: 5px; }
+.burger i { width: 22px; height: 2px; border-radius: 1px; background: var(--muted); display: block; }
+.gfoot { padding-bottom: 38px; }
+
+/* Lobby screen */
+.lobby .lh { padding: 18px 24px 24px; }
+.lobby .lh .row { display: flex; justify-content: space-between; align-items: center; }
+.lobby .lh h4 { margin: 0; font-size: 32px; font-weight: 600; letter-spacing: -0.6px; }
+.lobby .more { display: flex; gap: 4px; }
+.lobby .more i { width: 5px; height: 5px; border-radius: 50%; background: var(--muted); }
+.lobby .who { font-size: 15px; color: var(--muted); margin-top: 6px; }
+.lobby .who b { color: var(--text); font-weight: 500; }
+.lobby .who u { margin-left: 10px; }
+.lobby .sec { padding: 0 24px 10px; font-size: 14px; font-weight: 600; color: var(--muted); display: flex; gap: 8px; }
+.lobby .sec span { font-weight: 400; }
+.rooms { margin: 0 24px; border-radius: 14px; background: var(--surface); overflow: hidden; }
+.room { display: flex; align-items: center; gap: 12px; padding: 14px 14px 14px 16px; }
+.room + .room { box-shadow: inset 0 1px 0 var(--hair); }
+.room .m { flex: 1; min-width: 0; }
+.room .m b { display: block; font-size: 15px; font-weight: 600; }
+.room .m span { display: block; font-size: 13px; color: var(--muted); margin-top: 3px; }
+.room .s { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); }
+.room .s .dot.amber { background: var(--amber); }
+.room .chev { width: 8px; height: 8px; border-right: 2px solid var(--faint); border-top: 2px solid var(--faint); transform: rotate(45deg); margin: 0 4px 0 2px; }
+.lfoot { margin-top: auto; padding: 16px 24px 42px; display: flex; flex-direction: column; gap: 8px; }
+.lfoot .row { display: flex; gap: 8px; }
+.lfoot .btn { width: 100%; }
+.lfoot .row .btn { height: 42px; border-radius: 12px; font-size: 14px; flex: 1; padding: 0 10px; }
+
+/* ---------- Page: header ---------- */
+.top {
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(11,11,12,0.72);
+  -webkit-backdrop-filter: saturate(140%) blur(16px); backdrop-filter: saturate(140%) blur(16px);
+  box-shadow: inset 0 -1px 0 transparent; transition: box-shadow 200ms ease;
+}
+.top.scrolled { box-shadow: inset 0 -1px 0 var(--hair); }
+.top .wrap { height: 64px; display: flex; align-items: center; gap: 24px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; letter-spacing: -0.2px; }
+.mark { position: relative; width: 24px; height: 26px; }
+.mark span { position: absolute; width: 16px; height: 22px; border-radius: 4px; }
+.mark span:first-child { left: 0; top: 3px; background: repeating-linear-gradient(45deg, var(--stripe) 0 1.5px, transparent 1.5px 3.5px), var(--back); box-shadow: inset 0 0 0 1px var(--hair2); transform: rotate(-10deg); }
+.mark span:last-child { right: 0; top: 0; background: var(--face); transform: rotate(8deg); display: flex; align-items: center; justify-content: center; color: var(--card-red); font-size: 11px; }
+.nav { display: none; gap: 28px; margin-left: auto; font-size: 14px; color: var(--muted); }
+.nav a { transition: color 150ms ease; }
+.nav a:hover { color: var(--text); }
+.top .btn { margin-left: auto; }
+@media (min-width: 820px) { .nav { display: flex; } .top .btn { margin-left: 8px; } }
+
+/* ---------- Hero ---------- */
+.hero { position: relative; padding: 48px 0 72px; overflow: hidden; }
+.hero::before {
+  content: ""; position: absolute; inset: -200px 0 auto; height: 900px; pointer-events: none;
+  background: radial-gradient(600px 420px at 72% 40%, rgba(237,237,237,0.06), transparent 70%);
+}
+.hero .wrap { position: relative; display: grid; gap: 48px; align-items: center; }
+.kicker { display: inline-flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); margin-bottom: 22px; }
+.kicker span { display: inline-flex; align-items: center; gap: 8px; }
+.kicker span + span::before { content: ""; width: 3px; height: 3px; border-radius: 50%; background: var(--faint); margin-right: 6px; }
+.hero h1 { font-size: clamp(42px, 9vw, 80px); line-height: 1.0; letter-spacing: -0.045em; font-weight: 700; }
+.hero h1 em { font-style: normal; color: var(--red); }
+.lede { font-size: clamp(17px, 2.2vw, 20px); color: var(--soft); line-height: 1.5; margin-top: 22px; max-width: 34em; }
+.ctas { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 32px; }
+.stores { display: flex; gap: 18px; margin-top: 18px; font-size: 14px; color: var(--muted); flex-wrap: wrap; }
+.stores a { display: inline-flex; align-items: center; gap: 7px; transition: color 150ms ease; }
+.stores a:hover { color: var(--text); }
+.hero-phone { display: flex; justify-content: center; }
+.hero-phone .phone { --pw: 300; }
+@media (min-width: 380px) { .hero-phone .phone { --pw: 320; } }
+@media (min-width: 900px) {
+  .hero { padding: 72px 0 112px; }
+  .hero .wrap { grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr); gap: 32px; }
+  .hero-phone .phone { --pw: 340; }
+}
+
+/* ---------- Sections ---------- */
+section.block { padding: 88px 0; }
+section.block + section.block { box-shadow: inset 0 1px 0 var(--hair); }
+.label { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 14px; display: block; }
+.h2 { font-size: clamp(32px, 5vw, 52px); line-height: 1.05; letter-spacing: -0.035em; font-weight: 700; max-width: 16em; }
+.intro { font-size: 18px; color: var(--soft); margin-top: 18px; max-width: 36em; }
+
+/* How a round works */
+.steps { display: grid; gap: 12px; margin-top: 48px; counter-reset: step; }
+@media (min-width: 640px) { .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1040px) { .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.step { background: var(--surface); border-radius: 20px; padding: 8px; display: flex; flex-direction: column; }
+.step .vis { height: 168px; border-radius: 14px; background: var(--bg); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; position: relative; overflow: hidden; }
+.step .txt { padding: 18px 12px 14px; }
+.step .n { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; font-weight: 600; }
+.step h3 { font-size: 18px; letter-spacing: -0.2px; margin-top: 4px; }
+.step p { color: var(--muted); font-size: 15px; margin-top: 8px; }
+.step p b { color: var(--text); font-weight: 500; }
+.vis .lbl { font-size: 11px; color: var(--muted); }
+.vis .row { display: flex; gap: 22px; align-items: flex-end; }
+.vis .grp { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.trail { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); flex-wrap: wrap; justify-content: center; padding: 0 12px; }
+.trail .chip { padding: 4px 9px; border-radius: 8px; background: var(--surface); white-space: nowrap; }
+.trail .chip.now { background: var(--active); color: var(--text); font-weight: 600; }
+.mini-acts { display: flex; gap: 6px; }
+.mini-acts span { height: 30px; padding: 0 14px; border-radius: 9px; display: inline-flex; align-items: center; font-size: 12px; font-weight: 600; background: var(--control); }
+.mini-acts span.pri { background: var(--text); color: var(--bg); }
+.deck { margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; padding: 20px 20px; border-radius: 20px; background: var(--surface); }
+.deck p { color: var(--muted); font-size: 15px; flex: 1 1 280px; }
+.deck p b { color: var(--text); font-weight: 500; }
+
+/* Quiz */
+.quiz { display: grid; gap: 32px; margin-top: 48px; align-items: start; }
+@media (min-width: 900px) { .quiz { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 56px; } }
+.qside .prog { display: flex; gap: 6px; margin-bottom: 18px; }
+.qside .prog i { width: 22px; height: 4px; border-radius: 2px; background: var(--active); transition: background-color 200ms ease; }
+.qside .prog i.on { background: var(--text); }
+.qside h3 { font-size: 24px; letter-spacing: -0.4px; }
+.qside .qintro { color: var(--soft); margin-top: 10px; font-size: 17px; }
+.qresult { margin-top: 22px; padding: 18px 20px; border-radius: 16px; background: var(--surface); display: none; }
+.qresult.show { display: block; animation: rise 240ms var(--ease) both; }
+.qresult b { display: block; font-size: 17px; }
+.qresult b.good { color: var(--green); }
+.qresult b.bad { color: var(--red); }
+.qresult p { color: var(--muted); margin-top: 6px; font-size: 15px; }
+.table {
+  border-radius: 24px; background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--hair), 0 30px 60px rgba(0,0,0,0.35);
+  padding: 20px 0 16px; display: flex; flex-direction: column; min-height: 470px; overflow: hidden;
+}
+.table .stage { min-height: 250px; }
+.table .acts { padding-top: 16px; }
+.table .acts .btn { cursor: pointer; }
+
+/* Hand ladder */
+.ladder { display: grid; gap: 0 48px; margin-top: 48px; list-style: none; padding: 0; counter-reset: hand; }
+@media (min-width: 900px) { .ladder { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: column; grid-template-rows: repeat(6, auto); } }
+.ladder li { display: flex; align-items: center; gap: 16px; padding: 16px 0; box-shadow: inset 0 -1px 0 var(--hair); min-width: 0; }
+.ladder .k { width: 22px; flex: none; font-size: 13px; color: var(--faint); font-variant-numeric: tabular-nums; font-weight: 600; }
+.ladder .d { flex: 1; min-width: 0; }
+.ladder .d b { display: block; font-size: 16px; font-weight: 600; }
+.ladder .d span { display: block; font-size: 14px; color: var(--muted); margin-top: 2px; }
+.ladder .cards { flex: none; gap: 2px; }
+.ladder .hi .d > b::after { content: "Highest"; margin-left: 8px; font-size: 11px; font-weight: 600; color: var(--bg); background: var(--text); padding: 2px 6px; border-radius: 5px; vertical-align: 2px; }
+.ladder .lo .d > b::after { content: "Lowest"; margin-left: 8px; font-size: 11px; font-weight: 600; color: var(--muted); background: var(--active); padding: 2px 6px; border-radius: 5px; vertical-align: 2px; }
+.note { margin-top: 28px; color: var(--muted); font-size: 15px; max-width: 46em; }
+.note b { color: var(--text); font-weight: 500; }
+@media (max-width: 420px) { .ladder .pc.md { width: 22px; height: 31px; font-size: 12px; } .ladder .d span { display: none; } }
+
+/* Showcase */
+.shots {
+  display: flex; gap: 28px; margin-top: 56px;
+  overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+  margin-left: -16px; margin-right: -16px; padding: 16px 16px 40px;
+}
+.shots::-webkit-scrollbar { display: none; }
+.shot { scroll-snap-align: center; display: flex; flex-direction: column; align-items: center; gap: 22px; flex: none; }
+.shot .phone { --pw: 270; }
+.shot p { max-width: 270px; text-align: center; color: var(--muted); font-size: 15px; }
+.shot p b { display: block; color: var(--text); font-weight: 600; font-size: 16px; margin-bottom: 2px; }
+@media (min-width: 960px) {
+  .shots { overflow: visible; justify-content: center; margin: 56px 0 0; padding: 0; gap: 40px; }
+  .shot .phone { --pw: 290; }
+  .shot:nth-child(2) { transform: translateY(-28px); }
+}
+.feats { display: grid; gap: 1px; margin-top: 40px; border-radius: 20px; overflow: hidden; background: var(--hair); }
+@media (min-width: 640px) { .feats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 960px) { .feats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.feat { background: var(--surface); padding: 24px; }
+.feat svg { color: var(--text); }
+.feat h3 { font-size: 16px; margin-top: 14px; }
+.feat p { color: var(--muted); font-size: 15px; margin-top: 4px; }
+
+/* Closing */
+.closing { text-align: center; padding: 112px 0 104px; position: relative; overflow: hidden; }
+.closing::before { content: ""; position: absolute; left: 50%; top: 40px; width: 720px; height: 420px; margin-left: -360px; background: radial-gradient(closest-side, rgba(229,72,77,0.10), transparent); pointer-events: none; }
+.closing .wrap { position: relative; display: flex; flex-direction: column; align-items: center; }
+.closing .fan3 { display: flex; margin-bottom: 36px; }
+.closing .fan3 .pc { margin: 0 -4px; }
+.closing .fan3 .pc:nth-child(1) { transform: rotate(-12deg) translateY(8px); }
+.closing .fan3 .pc:nth-child(3) { transform: rotate(12deg) translateY(8px); }
+.closing .fan3 .pc:nth-child(2) { z-index: 1; }
+.closing .h2 { margin: 0 auto; }
+.closing .intro { margin-left: auto; margin-right: auto; }
+.closing .ctas { justify-content: center; }
+.closing .stores { justify-content: center; }
+
+footer { box-shadow: inset 0 1px 0 var(--hair); padding: 32px 0 calc(40px + env(safe-area-inset-bottom)); font-size: 14px; color: var(--muted); }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: center; }
+footer nav { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-left: auto; }
+footer a:hover { color: var(--text); }
+
+/* Scroll-in */
+.reveal-on-scroll { opacity: 0; transform: translateY(14px); transition: opacity 600ms var(--ease), transform 600ms var(--ease); }
+.reveal-on-scroll.in { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; }
+  .reveal-on-scroll { opacity: 1; transform: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="top" id="top">
+  <div class="wrap">
+    <a class="brand" href="#" aria-label="Liar's Poker, home">
+      <span class="mark" aria-hidden="true"><span></span><span>♥&#xFE0E;</span></span>
+      Liar's Poker
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#how">How to play</a>
+      <a href="#try">Try a hand</a>
+      <a href="#hands">Hands</a>
+      <a href="#app">The app</a>
+    </nav>
+    <a class="btn btn-primary btn-sm" href="/">Play now</a>
+  </div>
+</header>
+
+<main>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <div class="kicker"><span>Free</span><span>2 to 8 players</span><span>iPhone, Android and web</span></div>
+      <h1>Bet on cards you <em>can't&nbsp;see.</em></h1>
+      <p class="lede">Liar's Poker is a bluffing card game. Everyone holds a card or two, and you bet on poker hands hidden across the whole table. Believe the bet and raise it, or call it a lie and turn every card over.</p>
+      <div class="ctas">
+        <a class="btn btn-primary" href="/">Play in your browser</a>
+        <a class="btn btn-secondary" href="#how">How it works</a>
+      </div>
+      <div class="stores">
+        <a href="https://apps.apple.com/pl/app/liars-poker-game/id6741585397" rel="noopener">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
+          App Store
+        </a>
+        <a href="https://play.google.com/store/apps/details?id=com.tomczyk006.liarspokerapp" rel="noopener">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
+          Google Play
+        </a>
+      </div>
+    </div>
+    <div class="hero-phone">
+      <div class="phone" role="img" aria-label="The game on a phone: Maya bets a pair of queens, you check, the cards are revealed and it was a bluff.">
+        <div class="glass">
+          <div class="screen" id="hero-screen" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<section class="block" id="how">
+  <div class="wrap">
+    <span class="label">How to play</span>
+    <h2 class="h2 reveal-on-scroll">Never played? You'll have it after one round.</h2>
+    <p class="intro reveal-on-scroll">It's poker turned inside out. Nobody has a full hand. Instead, you bet on what everyone's cards make together.</p>
+
+    <div class="steps">
+      <article class="step reveal-on-scroll">
+        <div class="vis" aria-hidden="true">
+          <div class="row">
+            <div class="grp"><span class="pc lg" data-c="Q♥"></span><span class="lbl">You</span></div>
+            <div class="grp"><span class="cards" data-cards="back back back" data-size="lg" style="gap:6px"></span><span class="lbl">Everyone else</span></div>
+          </div>
+        </div>
+        <div class="txt">
+          <span class="n">1</span>
+          <h3>Everyone gets one card</h3>
+          <p>You see only your own. The deck is small: <b>24 cards, nines up to aces.</b></p>
+        </div>
+      </article>
+
+      <article class="step reveal-on-scroll">
+        <div class="vis" aria-hidden="true">
+          <span class="lbl">Maya bets</span>
+          <span class="cards" data-cards="Q Q" data-size="lg" style="gap:6px"></span>
+          <span style="font-size:15px;font-weight:600">Pair of queens</span>
+        </div>
+        <div class="txt">
+          <span class="n">2</span>
+          <h3>Bet on the whole table</h3>
+          <p>A bet names a poker hand that's somewhere in <b>all the cards together</b>. A pair of queens means at least two queens between everyone.</p>
+        </div>
+      </article>
+
+      <article class="step reveal-on-scroll">
+        <div class="vis" aria-hidden="true">
+          <div class="trail"><span class="chip">K high</span>›<span class="chip">Pair of 9s</span>›<span class="chip now">Pair of Qs</span></div>
+          <div class="mini-acts"><span>Check</span><span class="pri">Bet higher</span></div>
+        </div>
+        <div class="txt">
+          <span class="n">3</span>
+          <h3>Raise it, or call it a lie</h3>
+          <p>On your turn, bet something higher. Or, if you don't believe the last bet, <b>check</b>: every card is turned over.</p>
+        </div>
+      </article>
+
+      <article class="step reveal-on-scroll">
+        <div class="vis" aria-hidden="true">
+          <span class="cards" data-cards="A♠ 9♦ +1 empty" data-size="lg" style="gap:6px"></span>
+          <span class="lbl">Two cards, taking a third. Four and you're out.</span>
+        </div>
+        <div class="txt">
+          <span class="n">4</span>
+          <h3>Whoever's wrong takes a card</h3>
+          <p>The bet was there? The checker takes a card. It wasn't? The bettor does. <b>At four cards you're out.</b> The last player left wins.</p>
+        </div>
+      </article>
+    </div>
+
+    <div class="deck reveal-on-scroll">
+      <span class="cards" data-cards="9♠ 10♥ J♣ Q♦ K♠ A♥" data-size="md" aria-hidden="true"></span>
+      <p><b>The catch:</b> more cards make bigger hands possible, so each card you lose helps you bet, and pushes you closer to the door.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Quiz -->
+<section class="block" id="try">
+  <div class="wrap">
+    <span class="label">Try a hand</span>
+    <h2 class="h2 reveal-on-scroll">Would you check?</h2>
+    <p class="intro reveal-on-scroll">Three hands to get a feel for it. Read the table, then believe the bet or call the bluff.</p>
+
+    <div class="quiz">
+      <div class="qside">
+        <div class="prog" id="q-prog" aria-hidden="true"><i></i><i></i><i></i></div>
+        <h3 id="q-title">Hand 1 of 3</h3>
+        <p class="qintro" id="q-intro"></p>
+        <div class="qresult" id="q-result" aria-live="polite"><b id="q-res-title"></b><p id="q-res-text"></p></div>
+      </div>
+      <div class="table" id="q-table"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Hands -->
+<section class="block" id="hands">
+  <div class="wrap">
+    <span class="label">Hands</span>
+    <h2 class="h2 reveal-on-scroll">Eleven hands, lowest to highest.</h2>
+    <p class="intro reveal-on-scroll">Every bet has to beat the one before it. The order is close to regular poker, with a few changes for the short deck.</p>
+
+    <ol class="ladder">
+      <li class="lo"><span class="k">1</span><span class="d"><b>High card</b><span>At least one of a rank</span></span><span class="cards" data-cards="K" data-size="md"></span></li>
+      <li><span class="k">2</span><span class="d"><b>Pair</b><span>Two of a rank</span></span><span class="cards" data-cards="Q Q" data-size="md"></span></li>
+      <li><span class="k">3</span><span class="d"><b>Two pair</b><span>Two different pairs</span></span><span class="cards" data-cards="J J 9 9" data-size="md"></span></li>
+      <li><span class="k">4</span><span class="d"><b>Small straight</b><span>Nine to king, any suits</span></span><span class="cards" data-cards="9 10 J Q K" data-size="md"></span></li>
+      <li><span class="k">5</span><span class="d"><b>Big straight</b><span>Ten to ace, any suits</span></span><span class="cards" data-cards="10 J Q K A" data-size="md"></span></li>
+      <li><span class="k">6</span><span class="d"><b>Three of a kind</b><span>Three of a rank</span></span><span class="cards" data-cards="K K K" data-size="md"></span></li>
+      <li><span class="k">7</span><span class="d"><b>Full house</b><span>Three of one, two of another</span></span><span class="cards" data-cards="A A A 9 9" data-size="md"></span></li>
+      <li><span class="k">8</span><span class="d"><b>Four of a kind</b><span>All four of a rank</span></span><span class="cards" data-cards="10 10 10 10" data-size="md"></span></li>
+      <li><span class="k">9</span><span class="d"><b>Flush</b><span>Five of one suit</span></span><span class="cards" data-cards="♠ ♠ ♠ ♠ ♠" data-size="md"></span></li>
+      <li><span class="k">10</span><span class="d"><b>Small poker</b><span>Small straight in one suit</span></span><span class="cards" data-cards="9♥ 10♥ J♥ Q♥ K♥" data-size="md"></span></li>
+      <li class="hi"><span class="k">11</span><span class="d"><b>Big poker</b><span>Big straight in one suit</span></span><span class="cards" data-cards="10♠ J♠ Q♠ K♠ A♠" data-size="md"></span></li>
+    </ol>
+    <p class="note">Within a hand, higher ranks win: a pair of tens beats a pair of nines, and a pair of aces beats them all. <b>Two things differ from regular poker:</b> straights rank below three of a kind, and a flush beats four of a kind.</p>
+  </div>
+</section>
+
+<!-- The app -->
+<section class="block" id="app">
+  <div class="wrap">
+    <span class="label">The app</span>
+    <h2 class="h2 reveal-on-scroll">Calm to look at. Tense to play.</h2>
+    <p class="intro reveal-on-scroll">No felt, no chips, no flashing lights. A quiet table that keeps your eyes on the cards, and saves the drama for the reveal.</p>
+  </div>
+  <div class="wrap">
+    <div class="shots">
+      <div class="shot">
+        <div class="phone" role="img" aria-label="The lobby: open tables to join, and buttons to create a room, join with a code or watch bots play.">
+          <div class="glass"><div class="screen lobby" id="shot-lobby" aria-hidden="true"></div></div>
+        </div>
+        <p><b>Find a table</b>Join an open table, or start your own and send friends the code.</p>
+      </div>
+      <div class="shot">
+        <div class="phone" role="img" aria-label="Your turn: Bot 2 bets a pair of jacks, and you choose a pair of queens from the bet picker.">
+          <div class="glass"><div class="screen" id="shot-bet" aria-hidden="true"></div></div>
+        </div>
+        <p><b>Bet in two taps</b>Pick a hand, pick a rank. Only bets that beat the table are offered.</p>
+      </div>
+      <div class="shot">
+        <div class="phone" role="img" aria-label="A reveal: Bot 1 checked your bet of two pair, aces and kings. All four cards were there, so Bot 1 takes a card.">
+          <div class="glass"><div class="screen" id="shot-reveal" aria-hidden="true"></div></div>
+        </div>
+        <p><b>See exactly why</b>The cards that make the bet light up, so every verdict is clear.</p>
+      </div>
+    </div>
+
+    <div class="feats">
+      <div class="feat">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>
+        <h3>Friends join by code or QR</h3>
+        <p>Every table has a short code. Read it out or let people scan it.</p>
+      </div>
+      <div class="feat">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 4v4M9 14h.01M15 14h.01"/></svg>
+        <h3>Bots to practise against</h3>
+        <p>They play the odds. Fill empty seats, or watch a table of them to learn.</p>
+      </div>
+      <div class="feat">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01"/></svg>
+        <h3>Your seat waits for you</h3>
+        <p>Lose signal on the train and you're still in the game when it comes back.</p>
+      </div>
+      <div class="feat">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <h3>Quick rounds</h3>
+        <p>A deal takes a minute. A game fits in a coffee break.</p>
+      </div>
+      <div class="feat">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+        <h3>No sign-up</h3>
+        <p>Pick a name and play. That's the whole setup.</p>
+      </div>
+      <div class="feat">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="14" height="11" rx="2"/><rect x="15" y="9" width="7" height="12" rx="2"/><path d="M6 19h6"/></svg>
+        <h3>Phone, tablet or browser</h3>
+        <p>Everyone plays at the same table, whatever they're on.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Closing -->
+<section class="closing">
+  <div class="wrap">
+    <div class="fan3" aria-hidden="true"><span class="pc xl" data-c="Q♣"></span><span class="pc xl" data-c="A♥"></span><span class="pc xl" data-c="K♠"></span></div>
+    <h2 class="h2">Call their bluff.</h2>
+    <p class="intro">Free on iPhone, Android and the web. Start a table, send the code, and find out who your friends really are.</p>
+    <div class="ctas">
+      <a class="btn btn-primary" href="/">Play in your browser</a>
+    </div>
+    <div class="stores">
+      <a href="https://apps.apple.com/pl/app/liars-poker-game/id6741585397" rel="noopener">Get it on the App Store</a>
+      <a href="https://play.google.com/store/apps/details?id=com.tomczyk006.liarspokerapp" rel="noopener">Get it on Google Play</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <a class="brand" href="#" aria-label="Back to top">
+      <span class="mark" aria-hidden="true"><span></span><span>♥&#xFE0E;</span></span>
+      Liar's Poker
+    </a>
+    <nav aria-label="Footer">
+      <a href="/">Play</a>
+      <a href="https://apps.apple.com/pl/app/liars-poker-game/id6741585397" rel="noopener">App Store</a>
+      <a href="https://play.google.com/store/apps/details?id=com.tomczyk006.liarspokerapp" rel="noopener">Google Play</a>
+      <a href="/privacy-policy">Privacy</a>
+    </nav>
+    <span style="width:100%;color:var(--faint);font-size:13px">© 2026 Liar's Poker</span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+  const SUITS = '♠♣♦♥';
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- Cards ---------- */
+
+  /** "Q♥" → {r:'Q', s:'♥'}; "Q" → rank only; "♠" → suit only; "back", "empty", "+1", "?Q" (ghost), "!Q" (missing). */
+  function parse(code) {
+    if (code === 'back' || code === 'empty') return { v: code };
+    if (code.startsWith('+')) return { v: 'pen', r: code };
+    if (code.startsWith('?')) return { v: 'ghost', r: code.slice(1) };
+    if (code.startsWith('!')) return { v: 'ghost', r: code.slice(1), miss: true };
+    const last = code.slice(-1);
+    if (SUITS.includes(last)) return { v: 'face', r: code.slice(0, -1), s: last };
+    return { v: 'face', r: code };
+  }
+
+  function card(code, size, extra = '') {
+    const c = typeof code === 'string' ? parse(code) : code;
+    const cls = ['pc', size, c.v, extra];
+    if (c.v === 'back' || c.v === 'empty') return `<span class="${cls.join(' ')}"></span>`;
+    if (c.v === 'pen') return `<span class="${cls.join(' ')}"><b>${c.r}</b></span>`;
+    if (c.v === 'ghost') return `<span class="${cls.join(' ')}${c.miss ? ' miss' : ''}"><b>${c.r}</b></span>`;
+    if (c.s === '♥' || c.s === '♦') cls.push('red');
+    if (!c.r) cls.push('suit-only');
+    return `<span class="${cls.join(' ')}">${c.r ? `<b>${c.r}</b>` : ''}${c.s ? `<i>${c.s}&#xFE0E;</i>` : ''}</span>`;
+  }
+
+  function hydrate(root = document) {
+    root.querySelectorAll('[data-c]').forEach((el) => {
+      const size = [...el.classList].find((k) => ['xs', 'sm', 'md', 'lg', 'xl'].includes(k)) || 'md';
+      const tmp = document.createElement('div');
+      tmp.innerHTML = card(el.dataset.c, size);
+      const made = tmp.firstElementChild;
+      el.className = `${made.className} ${[...el.classList].filter((k) => !made.classList.contains(k) && k !== 'pc').join(' ')}`.trim();
+      el.innerHTML = made.innerHTML;
+      el.removeAttribute('data-c');
+    });
+    root.querySelectorAll('[data-cards]').forEach((el) => {
+      el.innerHTML = el.dataset.cards.split(' ').map((code) => card(code, el.dataset.size || 'md')).join('');
+      el.removeAttribute('data-cards');
+    });
+  }
+  hydrate();
+
+  /* ---------- Shared screen pieces ---------- */
+
+  const statusBar = `<div class="sbar"><span>9:41</span><span class="island"></span><span class="ic"><span class="bars"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:11px"></i></span><span class="bat"></span></span></div>`;
+  const homeBar = `<div class="homebar"></div>`;
+  const header = (title, sub) => `<div class="ghead"><span class="l"><span class="burger"><i></i><i></i><i></i></span></span><span class="t"><b>${title}</b><span>${sub}</span></span><span class="r"><span class="dot"></span><span class="helpic">?</span></span></div>`;
+
+  /** An opponent at the table. o: {name, n, bet, hand, bettor, on, lost, pen, shown, dimCards, hlCards, flip, detail} */
+  function cell(o, size = 'sm') {
+    let slots;
+    if (o.shown) {
+      const faces = o.hand.map((c, i) => {
+        const hl = o.hl && o.hl.includes(i);
+        const dim = o.dim && !hl;
+        const anim = o.flip ? ' a-flip' : '';
+        const style = o.flip ? ` style="animation-delay:${(o.order || 0) * 90 + i * 50}ms"` : '';
+        return card(c, 'md', `${hl ? 'hl' : ''}${dim ? ' dim' : ''}${anim}`).replace('<span ', `<span${style} `);
+      }).join('');
+      const pen = o.pen ? card('+1', 'md', o.penAnim ? 'a-drop' : '') : '';
+      slots = `<div class="slots shown">${faces}${pen}</div>`;
+    } else {
+      const held = Math.min(o.n, 4);
+      slots = `<div class="slots">${Array.from({ length: 4 }, (_, i) => card(i < held ? 'back' : 'empty', size)).join('')}</div>`;
+    }
+    const nmCls = o.lost ? 'lost' : o.on ? 'on' : '';
+    const dtCls = o.lost ? 'lost' : o.bettor || o.detailOn ? 'on' : '';
+    const detail = o.detail ?? o.bet ?? '&nbsp;';
+    return `<div class="cell${o.focus ? ' focus' : ''}${o.shake ? ' a-shake' : ''}">${slots}<span class="nm ${nmCls}">${o.name}</span><span class="dt ${dtCls}">${detail}</span></div>`;
+  }
+
+  function handPanel(cards, title, sub, opts = {}) {
+    const mid = (cards.length - 1) / 2;
+    const fan = cards.map((c, i) => {
+      const hl = opts.hl && opts.hl.includes(i);
+      const dim = opts.dim && !hl;
+      return `<span style="transform:rotate(${(i - mid) * 7}deg) translateY(${Math.abs(i - mid) * 3}px)">${card(c, 'xl', `${hl ? 'hl' : ''}${dim ? ' dim' : ''}${opts.deal ? ' a-deal' : ''}`)}</span>`;
+    }).join('');
+    return `<div class="hand"><div class="fan">${fan}</div><div class="st"><b class="${opts.idle ? 'idle' : ''}">${title}</b>${sub ? `<span>${sub}</span>` : ''}</div></div>`;
+  }
+
+  const CATS = ['High card', 'Pair', 'Two pair', 'Straight', 'Three of a kind', 'Full house', 'Four of a kind', 'Flush', 'Poker'];
+  function picker(exhausted, selected, options, chosen = -1) {
+    const seg = CATS.map((c, i) => `<span class="${i < exhausted ? 'x' : ''}${i === selected ? ' on' : ''}">${c}</span>`).join('');
+    const opts = options.map((cards, i) => `<div class="opt${i === chosen ? ' on' : ''}">${cards.map((c) => card(c, 'md')).join('')}</div>`).join('');
+    return `<div class="picker"><div class="seg">${seg}</div><div class="opts">${opts}</div></div>`;
+  }
+
+  /* ---------- Hero: a deal played out on loop ---------- */
+
+  const heroEl = document.getElementById('hero-screen');
+  const HERO = {
+    opps: [
+      { name: 'Bot 1', n: 2, bet: 'K high', hand: ['K♠', '9♦'] },
+      { name: 'Bot 2', n: 1, bet: 'Pair of 9s', hand: ['9♣'] },
+      { name: 'Maya', n: 1, bet: 'Pair of Qs', hand: ['A♠'], bettor: true },
+    ],
+  };
+  // Beats: 0 bet on the table, 1 you press Check, 2 hands flip, 3 first queen found, 4 second missing, 5 verdict, 6 penalty.
+  const BEATS = [0, 2200, 2650, 3250, 3470, 3850, 4370];
+  const HOLD = 8200;
+
+  function renderHero(step) {
+    const revealed = step >= 2;
+    const opps = HERO.opps.map((o, i) => {
+      const isMaya = o.name === 'Maya';
+      const lost = isMaya && step >= 6;
+      return cell({
+        ...o,
+        order: i,
+        shown: revealed,
+        flip: step === 2,
+        dim: step >= 5,
+        hl: [],
+        pen: lost,
+        penAnim: step === 6,
+        lost,
+        shake: step === 6 && isMaya,
+        detail: lost ? 'Takes a card' : undefined,
+      });
+    }).join('');
+
+    let stage;
+    if (!revealed) {
+      stage = `<div class="stage"><span class="cap">Maya bets</span><div class="fig">${card('Q', 'lg')}${card('Q', 'lg')}</div><span class="ttl">Pair of queens</span><span class="sub">after K high, Pair of 9s</span></div>`;
+    } else {
+      const slot1 = step >= 3 ? card('Q', 'lg', step === 3 ? 'a-pop' : '') : card('?Q', 'lg');
+      const slot2 = step >= 4 ? card('!Q', 'lg', step === 4 ? 'a-shake' : '') : card('?Q', 'lg');
+      const count = step >= 3 ? '1 of 2 on the table' : '0 of 2 on the table';
+      const verdict = step >= 5
+        ? `<span class="vd bluff${step === 5 ? ' a-verdict' : ''}">Bluff</span>`
+        : `<span class="vd q">Pair of queens?</span>`;
+      const glow = step === 5 ? '<div class="glow red"></div>' : step > 5 ? '<div class="glow red" style="animation:none;opacity:.55"></div>' : '';
+      stage = `<div class="stage">${glow}<span class="cap">You check Maya's bet</span><div class="fig">${slot1}${slot2}</div><span class="cnt" style="opacity:${step >= 3 ? 1 : 0}">${count}</span>${verdict}<span class="sub">${step >= 6 ? 'Maya takes a card' : '&nbsp;'}</span></div>`;
+    }
+
+    const hand = step >= 6
+      ? handPanel(['Q♥'], 'Safe this deal', '1 card, out at 4', { hl: [0] })
+      : handPanel(['Q♥'], revealed ? 'Cards revealed' : 'Your turn', '1 card, out at 4', { hl: step >= 5 ? [0] : null, idle: revealed });
+
+    const bottom = revealed
+      ? `<div class="acts"><span class="btn btn-primary${step < 6 ? ' dimmed' : ''}">Next deal</span></div>`
+      : `${picker(1, 1, [['K', 'K'], ['A', 'A']])}<div class="acts"><span class="btn btn-secondary${step === 1 ? ' press' : ''}">Check</span><span class="btn btn-primary wide dimmed">Choose a bet</span></div>`;
+
+    heroEl.innerHTML = `${statusBar}${header('Deal 2', revealed ? 'Cards revealed' : 'Your turn')}<div class="opps">${opps}</div>${stage}<div class="gfoot">${hand}${bottom}</div>${homeBar}`;
+  }
+
+  let heroTimers = [];
+  let heroRunning = false;
+  function playHero() {
+    heroTimers.forEach(clearTimeout);
+    heroTimers = BEATS.map((at, step) => setTimeout(() => renderHero(step), at));
+    heroTimers.push(setTimeout(() => { if (heroRunning) playHero(); }, HOLD));
+  }
+  function startHero() { if (heroRunning || reduced) return; heroRunning = true; playHero(); }
+  function stopHero() { heroRunning = false; heroTimers.forEach(clearTimeout); heroTimers = []; }
+
+  if (reduced) {
+    renderHero(6);
+  } else {
+    renderHero(0);
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !document.hidden) startHero(); else stopHero();
+    }, { threshold: 0.3 });
+    io.observe(heroEl);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) stopHero();
+      else if (heroEl.getBoundingClientRect().top < window.innerHeight) startHero();
+    });
+  }
+
+  /* ---------- Showcase screens ---------- */
+
+  document.getElementById('shot-lobby').innerHTML = `${statusBar}
+    <div class="lh"><div class="row"><h4>Liar's Poker</h4><span class="more"><i></i><i></i><i></i></span></div>
+    <div class="who">Playing as <b>Ada</b><u>Change</u></div></div>
+    <div class="sec">Open tables <span>5</span></div>
+    <div class="rooms">
+      <div class="room"><div class="m"><b>Friday night</b><span>Ada · 3/8 players</span></div><div class="s"><span class="dot"></span>Open<span class="chev"></span></div></div>
+      <div class="room"><div class="m"><b>Office lunch</b><span>Kasia · 5/8 players</span></div><div class="s"><span class="dot amber"></span>Watch<span class="chev"></span></div></div>
+      <div class="room"><div class="m"><b>Bots only</b><span>Ben · 4/8 players</span></div><div class="s"><span class="dot"></span>Open<span class="chev"></span></div></div>
+      <div class="room"><div class="m"><b>Sunday family game</b><span>Ola · 6/8 players</span></div><div class="s"><span class="dot amber"></span>Watch<span class="chev"></span></div></div>
+      <div class="room"><div class="m"><b>Night owls</b><span>Tom · 2/8 players</span></div><div class="s"><span class="dot"></span>Open<span class="chev"></span></div></div>
+    </div>
+    <div class="lfoot"><span class="btn btn-primary">Create room</span><div class="row"><span class="btn btn-secondary">Join with code</span><span class="btn btn-secondary">Watch bots</span></div></div>
+    ${homeBar}`;
+
+  document.getElementById('shot-bet').innerHTML = `${statusBar}${header('Deal 4', 'Your turn')}
+    <div class="opps">${[
+      cell({ name: 'Bot 1', n: 1, bet: '10 high' }),
+      cell({ name: 'Bot 2', n: 2, bet: 'Pair of Js', bettor: true }),
+      cell({ name: 'Maya', n: 3, bet: '&nbsp;' }),
+    ].join('')}</div>
+    <div class="stage"><span class="cap">Bot 2 bets</span><div class="fig">${card('J', 'lg')}${card('J', 'lg')}</div><span class="ttl">Pair of jacks</span><span class="sub">after 10 high</span></div>
+    <div class="gfoot">${handPanel(['A♠', 'Q♦'], 'Your turn', '2 cards, out at 4')}
+    ${picker(1, 1, [['Q', 'Q'], ['K', 'K'], ['A', 'A']], 0)}
+    <div class="acts"><span class="btn btn-secondary">Check</span><span class="btn btn-primary wide">Bet pair of queens</span></div></div>${homeBar}`;
+
+  document.getElementById('shot-reveal').innerHTML = `${statusBar}${header('Deal 6', 'Cards revealed')}
+    <div class="opps">${[
+      cell({ name: 'Bot 1', shown: true, hand: ['A♣', '9♠'], hl: [0], dim: true, pen: true, lost: true, detail: 'Takes a card', focus: true }),
+      cell({ name: 'Bot 2', shown: true, hand: ['K♦'], hl: [0], dim: true, focus: true, on: true, detail: '&nbsp;' }),
+      cell({ name: 'Maya', shown: true, hand: ['Q♥', '10♣', 'J♠'], hl: [], dim: true, detail: '&nbsp;' }),
+    ].join('')}</div>
+    <div class="stage"><div class="glow light" style="animation:none;opacity:.6"></div><span class="cap">Bot 1 checks your bet</span><div class="fig">${['A', 'A', 'K', 'K'].map((r) => card(r, 'lg')).join('')}</div><span class="cnt">4 of 4 on the table</span><span class="vd">It's there</span><span class="sub">Bot 1 takes a card</span></div>
+    <div class="gfoot">${handPanel(['A♥', 'K♠'], 'Safe this deal', '2 cards, out at 4', { hl: [0, 1] })}
+    <div class="acts"><span class="btn btn-primary">Next deal</span></div></div>${homeBar}`;
+
+  /* ---------- Quiz ---------- */
+
+  const PUZZLES = [
+    {
+      intro: 'Three players, one card each, so three cards on the table. You hold a king. Bot 2 says there are two.',
+      opps: [
+        { name: 'Bot 1', hand: ['A♦'], bet: '10 high' },
+        { name: 'Bot 2', hand: ['K♥'], bet: 'Pair of Ks', bettor: true },
+      ],
+      me: ['K♠'], bettor: 'Bot 2', bet: 'Pair of kings', trail: 'after 10 high',
+      figure: ['K', 'K'],
+      why: "Bot 2's king plus yours makes the pair. Bets count every card on the table, including the ones in your hand.",
+    },
+    {
+      intro: 'Four players, four cards. You hold a nine, no aces. Maya claims three aces.',
+      opps: [
+        { name: 'Bot 1', hand: ['A♠'], bet: 'A high' },
+        { name: 'Bot 2', hand: ['10♦'], bet: 'Pair of 10s' },
+        { name: 'Maya', hand: ['J♥'], bet: 'Three As', bettor: true },
+      ],
+      me: ['9♣'], bettor: 'Maya', bet: 'Three aces', trail: 'after A high, Pair of 10s',
+      figure: ['A', 'A', 'A'],
+      why: 'There was a single ace out there. Three aces in four cards is a long shot. Big jumps like this are often bluffs.',
+    },
+    {
+      intro: 'Two players, two cards each. Bot 1 claims a small straight. Count the cards before you believe anything.',
+      opps: [
+        { name: 'Bot 1', hand: ['Q♣', '9♥'], bet: 'Small straight', bettor: true },
+      ],
+      me: ['A♥', '10♠'], bettor: 'Bot 1', bet: 'Small straight', trail: 'after Pair of Js',
+      figure: ['9', '10', 'J', 'Q', 'K'],
+      why: "A straight needs five cards, and only four are on the table. It can't be there, so always check a bet like this.",
+    },
+  ];
+
+  /** Greedy match like utils/bets.ts checkBet: each needed card takes the first unused card that fits. */
+  function checkBet(figure, cards) {
+    const used = new Set();
+    const slots = figure.map((want) => {
+      const w = parse(want);
+      const hit = cards.findIndex((c, i) => {
+        if (used.has(i)) return false;
+        const p = parse(c.code);
+        return (!w.r || p.r === w.r) && (!w.s || p.s === w.s);
+      });
+      if (hit >= 0) used.add(hit);
+      return hit >= 0;
+    });
+    return { slots, used, found: slots.filter(Boolean).length, needed: slots.length, exists: slots.every(Boolean) };
+  }
+
+  const qTable = document.getElementById('q-table');
+  const qTitle = document.getElementById('q-title');
+  const qIntro = document.getElementById('q-intro');
+  const qResult = document.getElementById('q-result');
+  const qResTitle = document.getElementById('q-res-title');
+  const qResText = document.getElementById('q-res-text');
+  const qProg = document.querySelectorAll('#q-prog i');
+  let qIndex = 0;
+
+  function renderPuzzle(answer) {
+    const p = PUZZLES[qIndex];
+    qTitle.textContent = `Hand ${qIndex + 1} of ${PUZZLES.length}`;
+    qIntro.textContent = p.intro;
+    qProg.forEach((el, i) => el.classList.toggle('on', i <= qIndex));
+
+    // Every card on the table, tagged with whose it is.
+    const pool = [];
+    p.opps.forEach((o, oi) => o.hand.forEach((code, ci) => pool.push({ code, who: oi, ci })));
+    p.me.forEach((code, ci) => pool.push({ code, who: 'me', ci }));
+    const result = checkBet(p.figure, pool);
+    const matched = (who, ci) => [...result.used].some((i) => pool[i].who === who && pool[i].ci === ci);
+
+    const revealed = !!answer;
+    const checked = answer === 'check';
+    const bettorLoses = !result.exists;
+    const loser = bettorLoses ? p.bettor : (checked ? 'You' : null);
+
+    const opps = p.opps.map((o, oi) => {
+      const hl = revealed ? o.hand.map((_, ci) => (matched(oi, ci) ? ci : -1)).filter((x) => x >= 0) : [];
+      const lost = revealed && loser === o.name && (checked || bettorLoses);
+      return cell({
+        name: o.name, n: o.hand.length, bet: o.bet, bettor: o.bettor && !revealed, hand: o.hand,
+        shown: revealed, flip: revealed, order: oi, hl, dim: revealed,
+        pen: lost && checked, penAnim: true, lost: lost && checked,
+        detail: lost && checked ? 'Takes a card' : revealed ? '&nbsp;' : undefined,
+      });
+    }).join('');
+
+    let stage;
+    if (!revealed) {
+      stage = `<div class="stage a-rise"><span class="cap">${p.bettor} bets</span><div class="fig">${p.figure.map((c) => card(c, p.figure.length > 3 ? 'md' : 'lg')).join('')}</div><span class="ttl">${p.bet}</span><span class="sub">${p.trail}</span></div>`;
+    } else {
+      const size = p.figure.length > 3 ? 'md' : 'lg';
+      const fig = p.figure.map((c, i) => (result.slots[i] ? card(c, size, 'a-pop') : card(`!${c}`, size, 'a-shake'))
+        .replace('<span ', `<span style="animation-delay:${300 + i * 150}ms" `)).join('');
+      const vd = result.exists ? `<span class="vd a-verdict" style="animation-delay:${400 + p.figure.length * 150}ms">It's there</span>` : `<span class="vd bluff a-verdict" style="animation-delay:${400 + p.figure.length * 150}ms">Bluff</span>`;
+      const who = checked ? (loser === 'You' ? 'You take a card' : `${loser} takes a card`) : '&nbsp;';
+      stage = `<div class="stage">${checked ? `<div class="glow ${result.exists ? 'light' : 'red'}" style="animation-delay:${400 + p.figure.length * 150}ms"></div>` : ''}<span class="cap">${checked ? `You check ${p.bettor}'s bet` : `If you'd checked ${p.bettor}'s bet`}</span><div class="fig">${fig}</div><span class="cnt">${result.found} of ${result.needed} on the table</span>${vd}<span class="sub">${who}</span></div>`;
+    }
+
+    const myHl = revealed ? p.me.map((_, ci) => (matched('me', ci) ? ci : -1)).filter((x) => x >= 0) : null;
+    const mine = p.me.length === 1 ? '1 card, out at 4' : `${p.me.length} cards, out at 4`;
+    let handTitle = 'Your turn';
+    let handSub = mine;
+    if (revealed && checked) handTitle = result.exists ? 'You take a card' : 'Safe this deal';
+    if (revealed && !checked) handSub = 'Believing means betting higher';
+    const hand = handPanel(p.me, handTitle, handSub, { hl: myHl, dim: revealed });
+
+    const last = qIndex === PUZZLES.length - 1;
+    const acts = revealed
+      ? (last
+        ? `<div class="acts"><button class="btn btn-secondary" data-q="restart">Start over</button><a class="btn btn-primary wide" href="/">Play a real game</a></div>`
+        : `<div class="acts"><button class="btn btn-primary" data-q="next">Next hand</button></div>`)
+      : `<div class="acts"><button class="btn btn-secondary" data-q="check">Check</button><button class="btn btn-primary wide" data-q="believe">I believe it</button></div>`;
+
+    qTable.innerHTML = `<div class="opps">${opps}</div>${stage}${hand}${acts}`;
+
+    if (revealed) {
+      const right = checked ? !result.exists : result.exists;
+      qResTitle.className = right ? 'good' : 'bad';
+      if (checked) qResTitle.textContent = result.exists ? 'It was there. You take a card.' : `Good call. ${p.bettor} was bluffing.`;
+      else qResTitle.textContent = result.exists ? 'Good read. It was there.' : 'It was a bluff. Checking would have caught it.';
+      qResText.textContent = p.why;
+      qResult.classList.add('show');
+    } else {
+      qResult.classList.remove('show');
+    }
+  }
+
+  qTable.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-q]');
+    if (!btn) return;
+    const action = btn.dataset.q;
+    const hadFocus = document.activeElement === btn;
+    if (action === 'check' || action === 'believe') renderPuzzle(action);
+    if (action === 'next') { qIndex += 1; renderPuzzle(); }
+    if (action === 'restart') { qIndex = 0; renderPuzzle(); }
+    if (hadFocus) { const first = qTable.querySelector('[data-q], a.btn'); if (first) first.focus({ preventScroll: true }); }
+  });
+  renderPuzzle();
+
+  /* ---------- Page chrome ---------- */
+
+  const top = document.getElementById('top');
+  const onScroll = () => top.classList.toggle('scrolled', window.scrollY > 8);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  if (!reduced && 'IntersectionObserver' in window) {
+    const seen = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('in');
+        seen.unobserve(entry.target);
+      });
+    }, { rootMargin: '0px 0px -8% 0px' });
+    document.querySelectorAll('.reveal-on-scroll').forEach((el, i) => {
+      el.style.transitionDelay = `${(i % 4) * 60}ms`;
+      seen.observe(el);
+    });
+  } else {
+    document.querySelectorAll('.reveal-on-scroll').forEach((el) => el.classList.add('in'));
+  }
+})();
+</script>
+</body>
+</html>
