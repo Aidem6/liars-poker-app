@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, ScrollView } from 'react-native';
 import { Icon } from 'react-native-elements';
-import { theme } from '@/constants/theme';
+import { theme, elevation } from '@/constants/theme';
+import { useTheme } from '@/app/lib/ThemeContext';
+import type { ThemeMode } from '@/utils/themeStorage';
 import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { Button } from '@/components/ui/Button';
 import * as Haptics from 'expo-haptics';
@@ -62,6 +64,12 @@ export default function GameDrawerContent({
     { mode: 'timeline', label: 'Timeline' },
   ];
   const activeMode = displayMode === 'timeline' ? 'timeline' : 'board';
+  const { themeMode, setThemeMode } = useTheme();
+  const appearances: Array<{ mode: ThemeMode; label: string }> = [
+    { mode: 'system', label: 'Auto' },
+    { mode: 'light', label: 'Light' },
+    { mode: 'dark', label: 'Dark' },
+  ];
 
   return (
     <View style={styles.container}>
@@ -88,6 +96,27 @@ export default function GameDrawerContent({
                 accessibilityState={{ selected }}
               >
                 <Text style={[styles.segmentLabel, selected && styles.segmentLabelSelected]}>{view.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text style={[styles.sectionLabel, styles.sectionGap]}>Appearance</Text>
+        <View style={styles.segment} accessibilityRole="radiogroup" accessibilityLabel="Appearance">
+          {appearances.map(({ mode, label }) => {
+            const selected = themeMode === mode;
+            return (
+              <TouchableOpacity
+                key={mode}
+                style={[styles.segmentItem, selected && styles.segmentItemSelected]}
+                onPress={() => {
+                  handleHaptic();
+                  setThemeMode(mode);
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+              >
+                <Text style={[styles.segmentLabel, selected && styles.segmentLabelSelected]}>{label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -154,12 +183,16 @@ const useStyles = createStyles((c) => ({
     color: c.textMuted,
     marginBottom: 8,
   },
+  sectionGap: {
+    marginTop: 20,
+  },
   segment: {
     flexDirection: 'row',
     gap: 2,
     padding: 3,
     borderRadius: theme.radius.md,
-    backgroundColor: c.surface,
+    // Light: a grey track with a white pill. Dark: a dark track with a lighter pill.
+    backgroundColor: c.scheme === 'light' ? c.control : c.surface,
   },
   segmentItem: {
     flex: 1,
@@ -168,7 +201,8 @@ const useStyles = createStyles((c) => ({
     borderRadius: theme.radius.sm,
   },
   segmentItemSelected: {
-    backgroundColor: c.surfaceActive,
+    backgroundColor: c.scheme === 'light' ? c.surface : c.surfaceActive,
+    ...(c.scheme === 'light' ? (elevation('card', 'light') as object) : null),
   },
   segmentLabel: {
     fontSize: theme.font.body,

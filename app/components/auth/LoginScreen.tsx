@@ -22,6 +22,7 @@ import { FeedbackButton } from '../feedback/FeedbackButton';
 
 export default function LoginScreen() {
   const styles = useStyles();
+  const c = useColors();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -84,7 +85,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle={c.scheme === 'light' ? 'dark-content' : 'light-content'} backgroundColor="transparent" translucent />
 
       <SafeAreaView edges={['top']} style={styles.topBar}>
         <FeedbackButton screenName="Login" />

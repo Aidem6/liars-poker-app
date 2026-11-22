@@ -234,7 +234,7 @@ function Home() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle={c.scheme === 'light' ? 'dark-content' : 'light-content'} backgroundColor="transparent" translucent />
       <SafeAreaView edges={['top']} style={[styles.column, wide && styles.columnWide]}>
         <View style={[styles.header, wide && styles.headerWide]}>
           <View style={styles.headerTop}>

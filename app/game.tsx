@@ -245,7 +245,7 @@ function Game(): JSX.Element {
   if (!nameConfirmed) {
     return (
       <SafeAreaView style={styles.screen}>
-        <StatusBar barStyle="light-content" backgroundColor={c.bg} />
+        <StatusBar barStyle={c.scheme === 'light' ? 'dark-content' : 'light-content'} backgroundColor={c.bg} />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.joinContainer}>
           <View style={styles.joinContent}>
             <Text style={styles.joinTitle}>Choose a name</Text>
@@ -318,7 +318,7 @@ function Game(): JSX.Element {
     const iAmSeated = state.me.role === 'player';
     return (
       <SafeAreaView style={styles.screen}>
-        <StatusBar barStyle="light-content" backgroundColor={c.bg} />
+        <StatusBar barStyle={c.scheme === 'light' ? 'dark-content' : 'light-content'} backgroundColor={c.bg} />
         {offlineBanner}
         <View style={styles.column}>
           <View style={styles.roomHeader}>
@@ -463,7 +463,7 @@ function Game(): JSX.Element {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle="light-content" backgroundColor={c.bg} />
+      <StatusBar barStyle={c.scheme === 'light' ? 'dark-content' : 'light-content'} backgroundColor={c.bg} />
 
       <Drawer
         open={isDrawerOpen}
