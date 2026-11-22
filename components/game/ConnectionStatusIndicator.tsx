@@ -6,6 +6,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ConnectionStatus } from '../../socket';
 import { theme } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 
 interface ConnectionStatusIndicatorProps {
   status: ConnectionStatus;
@@ -16,21 +17,23 @@ export const ConnectionStatusIndicator: React.FC<ConnectionStatusIndicatorProps>
   status,
   latency,
 }) => {
+  const styles = useStyles();
+  const c = useColors();
   const unstable = status === 'connected' && latency !== null && latency > 500;
 
-  let color: string = theme.color.green;
+  let color: string = c.green;
   let label = '';
   if (status === 'disconnected') {
-    color = theme.color.red;
+    color = c.red;
     label = 'Offline';
   } else if (status === 'connecting') {
-    color = theme.color.amber;
+    color = c.amber;
     label = 'Connecting';
   } else if (status === 'reconnecting') {
-    color = theme.color.amber;
+    color = c.amber;
     label = 'Reconnecting';
   } else if (unstable) {
-    color = theme.color.amber;
+    color = c.amber;
     label = 'Unstable';
   }
 
@@ -45,7 +48,7 @@ export const ConnectionStatusIndicator: React.FC<ConnectionStatusIndicatorProps>
   );
 };
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -58,8 +61,8 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: theme.font.caption,
-    color: theme.color.textMuted,
+    color: c.textMuted,
   },
-});
+}));
 
 export default ConnectionStatusIndicator;

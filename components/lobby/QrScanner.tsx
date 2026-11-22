@@ -4,10 +4,13 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Button } from '@/components/ui/Button';
 import { theme } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { roomCodeFromScan } from '@/utils/roomCode';
 
 /** Camera view that reads a table's QR code (an invite link or a bare code). */
 export default function QrScanner({ onCode, onTypeInstead }: { onCode: (code: string) => void; onTypeInstead: () => void }) {
+  const styles = useStyles();
+  const c = useColors();
   const [permission, requestPermission] = useCameraPermissions();
   const [problem, setProblem] = useState<string | null>(null);
   const handled = useRef(false);
@@ -36,7 +39,7 @@ export default function QrScanner({ onCode, onTypeInstead }: { onCode: (code: st
   } else if (!permission.granted) {
     body = (
       <View style={[styles.viewfinder, styles.viewfinderEmpty]}>
-        <MaterialIcons name="no-photography" size={28} color={theme.color.textMuted} />
+        <MaterialIcons name="no-photography" size={28} color={c.textMuted} />
         <Text style={styles.cameraNote}>
           {permission.canAskAgain
             ? 'Allow the camera to scan the code.'
@@ -73,7 +76,7 @@ export default function QrScanner({ onCode, onTypeInstead }: { onCode: (code: st
       <Text style={styles.description}>Point the camera at the QR code on the host's screen.</Text>
       {body}
       <Text
-        style={[styles.hint, { color: problem ? theme.color.amber : theme.color.textFaint }]}
+        style={[styles.hint, { color: problem ? c.amber : c.textFaint }]}
         numberOfLines={2}
         accessibilityLiveRegion="polite"
       >
@@ -86,16 +89,16 @@ export default function QrScanner({ onCode, onTypeInstead }: { onCode: (code: st
 
 const CORNER = 22;
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.color.text,
+    color: c.text,
   },
   description: {
     fontSize: theme.font.body,
     lineHeight: 20,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginTop: 6,
     marginBottom: 20,
   },
@@ -113,19 +116,19 @@ const styles = StyleSheet.create({
     maxWidth: 280,
     borderRadius: theme.radius.lg,
     overflow: 'hidden',
-    backgroundColor: theme.color.bg,
+    backgroundColor: c.bg,
   },
   viewfinderEmpty: {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
     borderWidth: 1,
-    borderColor: theme.color.hairline,
+    borderColor: c.hairline,
   },
   cameraNote: {
     fontSize: theme.font.body,
     lineHeight: 20,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     textAlign: 'center',
     marginTop: 10,
   },
@@ -137,10 +140,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: CORNER,
     height: CORNER,
-    borderColor: theme.color.cardFace,
+    borderColor: c.cardFace,
   },
   cornerTL: { top: 0, left: 0, borderTopWidth: 3, borderLeftWidth: 3, borderTopLeftRadius: 8 },
   cornerTR: { top: 0, right: 0, borderTopWidth: 3, borderRightWidth: 3, borderTopRightRadius: 8 },
   cornerBL: { bottom: 0, left: 0, borderBottomWidth: 3, borderLeftWidth: 3, borderBottomLeftRadius: 8 },
   cornerBR: { bottom: 0, right: 0, borderBottomWidth: 3, borderRightWidth: 3, borderBottomRightRadius: 8 },
-});
+}));

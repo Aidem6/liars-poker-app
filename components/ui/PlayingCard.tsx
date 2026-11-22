@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { theme, elevation } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 
 export type CardSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
@@ -41,6 +42,7 @@ export const isRedSuit = (suit?: string) => suit === '♥' || suit === '♦';
 const suitGlyph = (suit: string) => `${suit}︎`;
 
 function CardBack({ w, h }: { w: number; h: number }) {
+  const c = useColors();
   const span = w + h;
   const stripes = Math.ceil(span / 5) + 2;
   return (
@@ -56,13 +58,15 @@ function CardBack({ w, h }: { w: number; h: number }) {
       }}
     >
       {Array.from({ length: stripes }).map((_, index) => (
-        <View key={index} style={{ height: 2, marginBottom: 3, backgroundColor: theme.color.cardBackStripe }} />
+        <View key={index} style={{ height: 2, marginBottom: 3, backgroundColor: c.cardBackStripe }} />
       ))}
     </View>
   );
 }
 
 export function PlayingCard({ rank, suit, size = 'md', variant = 'face', highlighted = false, style }: PlayingCardProps) {
+  const c = useColors();
+  const styles = useStyles();
   const { w, h, r, font, suit: suitFont } = SIZES[size];
   const box = { width: w, height: h, borderRadius: r };
 
@@ -70,7 +74,7 @@ export function PlayingCard({ rank, suit, size = 'md', variant = 'face', highlig
     return (
       <View style={[box, styles.empty, style]}>
         {variant === 'ghost' && rank ? (
-          <Text style={{ fontSize: font, fontWeight: '600', color: theme.color.textMuted }}>{displayRank(rank)}</Text>
+          <Text style={{ fontSize: font, fontWeight: '600', color: c.textMuted }}>{displayRank(rank)}</Text>
         ) : null}
       </View>
     );
@@ -79,7 +83,7 @@ export function PlayingCard({ rank, suit, size = 'md', variant = 'face', highlig
   if (variant === 'penalty') {
     return (
       <View style={[box, styles.penalty, style]}>
-        <Text style={{ fontSize: Math.max(font - 1, 9), fontWeight: '600', color: theme.color.red }}>{rank}</Text>
+        <Text style={{ fontSize: Math.max(font - 1, 9), fontWeight: '600', color: c.red }}>{rank}</Text>
       </View>
     );
   }
@@ -88,12 +92,12 @@ export function PlayingCard({ rank, suit, size = 'md', variant = 'face', highlig
     return (
       <View style={[box, styles.back, style]}>
         <CardBack w={w} h={h} />
-        <View style={[StyleSheet.absoluteFill, { borderRadius: r, borderWidth: 1, borderColor: theme.color.hairlineStrong }]} />
+        <View style={[StyleSheet.absoluteFill, { borderRadius: r, borderWidth: 1, borderColor: c.hairlineStrong }]} />
       </View>
     );
   }
 
-  const ink = isRedSuit(suit) ? theme.color.cardRed : theme.color.cardInk;
+  const ink = isRedSuit(suit) ? c.cardRed : c.cardInk;
   const label = displayRank(rank);
   const corner = size === 'xl';
 
@@ -103,7 +107,7 @@ export function PlayingCard({ rank, suit, size = 'md', variant = 'face', highlig
         box,
         styles.face,
         corner ? styles.faceCorner : styles.faceCentered,
-        (size === 'lg' || size === 'xl') && elevation('card'),
+        (size === 'lg' || size === 'xl') && elevation('card', c.scheme),
         highlighted && styles.highlighted,
         highlighted && { transform: [{ translateY: -4 }] },
         style,
@@ -129,9 +133,11 @@ export function PlayingCard({ rank, suit, size = 'md', variant = 'face', highlig
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   face: {
-    backgroundColor: theme.color.cardFace,
+    backgroundColor: c.cardFace,
+    // On the light page a white card needs an edge to stand off the background.
+    ...(c.scheme === 'light' ? { borderWidth: 1, borderColor: c.hairlineStrong } : null),
   },
   faceCentered: {
     alignItems: 'center',
@@ -147,26 +153,26 @@ const styles = StyleSheet.create({
   highlighted: {
     outlineWidth: 1.5,
     outlineStyle: 'solid',
-    outlineColor: theme.color.text,
+    outlineColor: c.text,
     outlineOffset: 2,
   },
   back: {
-    backgroundColor: theme.color.cardBack,
+    backgroundColor: c.cardBack,
     overflow: 'hidden',
   },
   empty: {
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: theme.color.hairlineStrong,
+    borderColor: c.hairlineStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
   penalty: {
     borderWidth: 1,
-    borderColor: theme.color.red,
+    borderColor: c.red,
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+}));
 
 export default PlayingCard;

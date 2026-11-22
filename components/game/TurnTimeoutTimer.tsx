@@ -5,6 +5,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, View, Text, StyleSheet } from 'react-native';
 import { theme, tabularNums } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 
 interface TurnTimeoutTimerProps {
   /** Local epoch milliseconds when the turn runs out (already corrected for clock skew). */
@@ -19,6 +20,8 @@ interface TurnTimeoutTimerProps {
  * time left regardless of when it received the update or reconnected.
  */
 export const TurnTimeoutTimer: React.FC<TurnTimeoutTimerProps> = ({ deadline, totalSeconds, isMyTurn }) => {
+  const styles = useStyles();
+  const c = useColors();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -35,7 +38,7 @@ export const TurnTimeoutTimer: React.FC<TurnTimeoutTimerProps> = ({ deadline, to
   // Exact time left (not whole seconds) so each 500ms glide continues the last one at the same speed.
   const progress = timeoutSeconds > 0 ? Math.min(Math.max(0, (deadline - now) / 1000) / timeoutSeconds, 1) : 0;
   const critical = remainingSeconds <= 10;
-  const barColor = critical ? theme.color.red : isMyTurn ? theme.color.text : theme.color.textFaint;
+  const barColor = critical ? c.red : isMyTurn ? c.text : c.textFaint;
 
   // The bar glides between ticks (linear: it is a constant countdown) instead of stepping every 500ms.
   const fill = useRef(new Animated.Value(progress)).current;
@@ -61,14 +64,14 @@ export const TurnTimeoutTimer: React.FC<TurnTimeoutTimerProps> = ({ deadline, to
           ]}
         />
       </View>
-      <Text style={[styles.time, tabularNums, critical && { color: theme.color.red }]}>
+      <Text style={[styles.time, tabularNums, critical && { color: c.red }]}>
         {`${minutes}:${seconds.toString().padStart(2, '0')}`}
       </Text>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -79,7 +82,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 2,
     borderRadius: 1,
-    backgroundColor: theme.color.track,
+    backgroundColor: c.track,
     overflow: 'hidden',
   },
   fill: {
@@ -88,10 +91,10 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: theme.font.small,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     minWidth: 30,
     textAlign: 'right',
   },
-});
+}));
 
 export default TurnTimeoutTimer;

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import PlayingCard, { CardSize, cardSize } from '@/components/ui/PlayingCard';
 import { theme, tabularNums, colorTransition, balance } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { BetCard, BetCheck, betShort, betTitle, findFigure, MAX_CARDS } from '@/utils/bets';
 import { Appear, Flash, FlipCard, Focus, Shake } from '@/components/ui/motion';
 import { REVEAL_FINAL, RevealStep, SLOT_MS } from './useRevealSequence';
@@ -76,6 +77,8 @@ function OpponentCell({
   step: number;
   animated: boolean;
 }) {
+  const styles = useStyles();
+  const c = useColors();
   const slotSize: CardSize = compact ? 'xs' : 'sm';
   const revealedHand = reveal?.hands[player.id];
   // The result is known from the first frame, but each part waits for its beat.
@@ -133,7 +136,7 @@ function OpponentCell({
         ))}
         {isLoser && (
           // Filled when it overlaps, so the card beneath does not show through its outline.
-          <View style={overlap ? { marginLeft: overlap, zIndex: 2, borderRadius: 6, backgroundColor: theme.color.bg } : null}>
+          <View style={overlap ? { marginLeft: overlap, zIndex: 2, borderRadius: 6, backgroundColor: c.bg } : null}>
             {animated ? (
               <Appear from={{ translateY: -18, scale: 1.4, rotate: -12 }} duration={320}>
                 <PlayingCard variant="penalty" rank="+1" size={REVEAL_CARD} />
@@ -153,22 +156,22 @@ function OpponentCell({
   }
 
   let detail = player.last_bet ? betShort(player.last_bet) : ' ';
-  let detailColor: string = isBettor ? theme.color.text : theme.color.textMuted;
+  let detailColor: string = isBettor ? c.text : c.textMuted;
   if (knockedOut) {
     detail = 'Knocked out';
-    detailColor = theme.color.red;
+    detailColor = c.red;
   } else if (!player.is_active && !revealedHand) {
     detail = 'Out';
-    detailColor = theme.color.textMuted;
+    detailColor = c.textMuted;
   } else if (isLoser) {
     detail = 'Takes a card';
-    detailColor = theme.color.red;
+    detailColor = c.red;
   } else if (isChecker) {
     detail = 'Checked';
-    detailColor = theme.color.text;
+    detailColor = c.text;
   } else if (player.connected === false) {
     detail = player.isYourTurn ? 'Away · waiting' : 'Away';
-    detailColor = theme.color.amber;
+    detailColor = c.amber;
   }
 
   const emphasised = reveal ? isLoser || inFocus : player.isYourTurn;
@@ -193,7 +196,7 @@ function OpponentCell({
           compact && styles.cellNameCompact,
           colorTransition,
           emphasised && styles.cellNameActive,
-          isLoser && { color: theme.color.red },
+          isLoser && { color: c.red },
         ]}
         numberOfLines={1}
       >
@@ -222,6 +225,7 @@ function FigureCards({
   shown?: number;
   animated?: boolean;
 }) {
+  const styles = useStyles();
   const figure = findFigure(betName);
   if (!figure) return null;
   return (
@@ -279,6 +283,8 @@ export default function TableView({
   revealStep = REVEAL_FINAL,
   revealAnimated = false,
 }: TableViewProps) {
+  const styles = useStyles();
+  const c = useColors();
   const step = reveal ? revealStep : REVEAL_FINAL;
   const animated = !!reveal && revealAnimated;
   const needed = reveal?.check.needed ?? 0;
@@ -295,7 +301,7 @@ export default function TableView({
     const enter = { translateY: 12, blur: 4 };
     stage = (
       <>
-        {iWon && <Flash color={theme.color.lightGlow} />}
+        {iWon && <Flash color={c.lightGlow} />}
         <Appear from={enter} duration={300}>
           <Text style={styles.caption}>Game over</Text>
         </Appear>
@@ -324,11 +330,11 @@ export default function TableView({
     const foundSoFar = reveal.check.slots.slice(0, shown).filter(Boolean).length;
     const verdict = step >= RevealStep.VERDICT;
     const verdictText = reveal.betWasTrue ? "It's there" : 'Bluff';
-    const verdictStyle = [styles.verdict, !reveal.betWasTrue && { color: theme.color.red }];
+    const verdictStyle = [styles.verdict, !reveal.betWasTrue && { color: c.red }];
     stage = (
       <>
         {verdict && animated && (
-          <Flash color={reveal.betWasTrue ? theme.color.lightGlow : theme.color.redGlow} />
+          <Flash color={reveal.betWasTrue ? c.lightGlow : c.redGlow} />
         )}
         <Text style={styles.caption}>
           {`${checkerLabel} ${checkerLabel === 'You' ? 'check' : 'checks'} ${bettorLabel === 'You' ? 'your' : `${bettorLabel}'s`} bet`}
@@ -375,7 +381,7 @@ export default function TableView({
     stage = (
       <>
         <Text style={styles.caption}>New deal</Text>
-        <Text style={[styles.title, { color: theme.color.textMuted }]}>No bet yet</Text>
+        <Text style={[styles.title, { color: c.textMuted }]}>No bet yet</Text>
         <Text style={styles.sub}>
           {turnPlayer ? (turnPlayer.isMe ? 'You open the betting' : `${turnPlayer.name} opens the betting`) : ' '}
         </Text>
@@ -414,7 +420,7 @@ export default function TableView({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   container: {
     flex: 1,
   },
@@ -443,14 +449,14 @@ const styles = StyleSheet.create({
   },
   cellName: {
     fontSize: 13,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     maxWidth: '100%',
   },
   cellNameCompact: {
     fontSize: 12,
   },
   cellNameActive: {
-    color: theme.color.text,
+    color: c.text,
     fontWeight: '600',
   },
   cellDetail: {
@@ -471,24 +477,24 @@ const styles = StyleSheet.create({
   },
   caption: {
     fontSize: theme.font.small,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     textAlign: 'center',
   },
   title: {
     fontSize: theme.font.title,
     fontWeight: '600',
     letterSpacing: -0.2,
-    color: theme.color.text,
+    color: c.text,
     textAlign: 'center',
   },
   sub: {
     fontSize: theme.font.caption,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     textAlign: 'center',
   },
   count: {
     fontSize: theme.font.small,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     textAlign: 'center',
   },
   stageGroup: {
@@ -500,16 +506,16 @@ const styles = StyleSheet.create({
     lineHeight: 46,
     fontWeight: '700',
     letterSpacing: -0.8,
-    color: theme.color.text,
+    color: c.text,
     textAlign: 'center',
   },
   // The bet as an open question until the verdict replaces it, at the same size so nothing jumps.
   question: {
-    color: theme.color.textFaint,
+    color: c.textFaint,
     fontWeight: '600',
     fontSize: 26,
   },
   missing: {
-    borderColor: theme.color.red,
+    borderColor: c.red,
   },
-});
+}));

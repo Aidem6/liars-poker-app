@@ -25,6 +25,7 @@ import { Appear, useNewKeys } from '@/components/ui/motion';
 import { Button } from '../components/ui/Button';
 import { TextField } from '../components/ui/TextField';
 import { theme, tabularNums, elevation } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { betShort, betTitle, figures, MAX_CARDS } from '@/utils/bets';
 import { useClientState, useGameClient } from '../socket';
 import { errorText } from '../net/protocol';
@@ -65,6 +66,8 @@ const REMOVED_TEXT: Record<string, string> = {
 };
 
 function Game(): JSX.Element {
+  const styles = useStyles();
+  const c = useColors();
   const { width } = useWindowDimensions();
   const isTabletOrDesktop = width >= TABLET_BREAKPOINT;
   const navigation = useNavigation();
@@ -242,7 +245,7 @@ function Game(): JSX.Element {
   if (!nameConfirmed) {
     return (
       <SafeAreaView style={styles.screen}>
-        <StatusBar barStyle="light-content" backgroundColor={theme.color.bg} />
+        <StatusBar barStyle="light-content" backgroundColor={c.bg} />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.joinContainer}>
           <View style={styles.joinContent}>
             <Text style={styles.joinTitle}>Choose a name</Text>
@@ -315,7 +318,7 @@ function Game(): JSX.Element {
     const iAmSeated = state.me.role === 'player';
     return (
       <SafeAreaView style={styles.screen}>
-        <StatusBar barStyle="light-content" backgroundColor={theme.color.bg} />
+        <StatusBar barStyle="light-content" backgroundColor={c.bg} />
         {offlineBanner}
         <View style={styles.column}>
           <View style={styles.roomHeader}>
@@ -339,16 +342,16 @@ function Game(): JSX.Element {
                 <Appear key={player.id} animate={newSeats.has(player.id)} from={{ translateY: 12, blur: 4 }} duration={300}>
                   <View style={[styles.roomRow, index > 0 && styles.roomRowDivider]}>
                     <Text style={[styles.roomSeat, tabularNums]}>{index + 1}</Text>
-                    <Text style={[styles.roomPlayer, !player.connected && { color: theme.color.textMuted }]} numberOfLines={1}>
+                    <Text style={[styles.roomPlayer, !player.connected && { color: c.textMuted }]} numberOfLines={1}>
                       {player.name}
                     </Text>
                     {isMe && <Text style={styles.roomTag}>You</Text>}
                     {player.id === state.room.host_id && <Text style={styles.roomTag}>Host</Text>}
                     {player.is_bot && <Text style={styles.roomTag}>Bot</Text>}
-                    {!player.connected && <Text style={[styles.roomTag, { color: theme.color.amber }]}>Away</Text>}
+                    {!player.connected && <Text style={[styles.roomTag, { color: c.amber }]}>Away</Text>}
                     {model.isHost && !isMe && (
                       <TouchableOpacity onPress={() => kick(player.id)} hitSlop={10} accessibilityLabel={`Remove ${player.name}`}>
-                        <Icon name="close" size={18} color={theme.color.textMuted} />
+                        <Icon name="close" size={18} color={c.textMuted} />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -460,7 +463,7 @@ function Game(): JSX.Element {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.color.bg} />
+      <StatusBar barStyle="light-content" backgroundColor={c.bg} />
 
       <Drawer
         open={isDrawerOpen}
@@ -470,9 +473,9 @@ function Game(): JSX.Element {
         drawerPosition="left"
         drawerStyle={{
           width: isTabletOrDesktop ? 280 : '80%',
-          backgroundColor: theme.color.bg,
+          backgroundColor: c.bg,
           borderRightWidth: 1,
-          borderRightColor: theme.color.hairline,
+          borderRightColor: c.hairline,
         }}
         renderDrawerContent={() => (
           <GameDrawerContent
@@ -498,7 +501,7 @@ function Game(): JSX.Element {
             <View style={styles.topBarSide}>
               {!isTabletOrDesktop && (
                 <TouchableOpacity onPress={() => setIsDrawerOpen(true)} hitSlop={12} accessibilityLabel="Open menu">
-                  <Icon name="menu" size={22} color={theme.color.textMuted} />
+                  <Icon name="menu" size={22} color={c.textMuted} />
                 </TouchableOpacity>
               )}
             </View>
@@ -521,7 +524,7 @@ function Game(): JSX.Element {
             <View style={[styles.topBarSide, styles.topBarRight]}>
               <ConnectionStatusIndicator status={net.status} latency={net.latency} />
               <TouchableOpacity onPress={() => setShowInstructionsModal(true)} hitSlop={12} accessibilityLabel="How to play">
-                <Icon name="help-outline" size={22} color={theme.color.textMuted} />
+                <Icon name="help-outline" size={22} color={c.textMuted} />
               </TouchableOpacity>
             </View>
           </View>
@@ -646,10 +649,10 @@ function Game(): JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   screen: {
     flex: 1,
-    backgroundColor: theme.color.bg,
+    backgroundColor: c.bg,
   },
   column: {
     flex: 1,
@@ -667,12 +670,12 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   banner: {
-    backgroundColor: theme.color.amber,
+    backgroundColor: c.amber,
     paddingVertical: 6,
     paddingHorizontal: theme.space.lg,
   },
   bannerText: {
-    color: '#1A1300',
+    color: c.onAmber,
     fontSize: theme.font.small,
     fontWeight: '600',
     textAlign: 'center',
@@ -692,12 +695,12 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '600',
     letterSpacing: -0.4,
-    color: theme.color.text,
+    color: c.text,
   },
   joinSubtitle: {
     fontSize: theme.font.body,
     lineHeight: 20,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginTop: 6,
   },
   // Waiting room
@@ -710,11 +713,11 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '600',
     letterSpacing: -0.4,
-    color: theme.color.text,
+    color: c.text,
   },
   roomSubtitle: {
     fontSize: theme.font.body,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginTop: 4,
   },
   invite: {
@@ -733,21 +736,21 @@ const styles = StyleSheet.create({
   },
   roomRowDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.color.hairlineStrong,
+    borderTopColor: c.hairlineStrong,
   },
   roomSeat: {
     width: 18,
     fontSize: theme.font.body,
-    color: theme.color.textFaint,
+    color: c.textFaint,
   },
   roomPlayer: {
     flex: 1,
     fontSize: 16,
-    color: theme.color.text,
+    color: c.text,
   },
   roomTag: {
     fontSize: theme.font.small,
-    color: theme.color.textMuted,
+    color: c.textMuted,
   },
   roomFooter: {
     paddingHorizontal: theme.space.xl,
@@ -757,7 +760,7 @@ const styles = StyleSheet.create({
   },
   roomHint: {
     fontSize: theme.font.body,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     textAlign: 'center',
     marginBottom: 4,
   },
@@ -789,11 +792,11 @@ const styles = StyleSheet.create({
   topBarTitle: {
     fontSize: theme.font.body,
     fontWeight: '600',
-    color: theme.color.text,
+    color: c.text,
   },
   topBarSubtitle: {
     fontSize: theme.font.caption,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginTop: 1,
   },
   picker: {
@@ -815,21 +818,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   toast: {
-    backgroundColor: theme.color.surfaceActive,
+    backgroundColor: c.surfaceActive,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: theme.radius.md,
-    ...(elevation('raised') as object),
+    ...(elevation('raised', c.scheme) as object),
   },
   toastSlot: {
     maxWidth: '80%',
   },
   toastText: {
-    color: theme.color.text,
+    color: c.text,
     fontSize: theme.font.body,
     fontWeight: '500',
     textAlign: 'center',
   },
-});
+}));
 
 export default Game;

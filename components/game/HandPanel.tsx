@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import PlayingCard, { cardSize } from '@/components/ui/PlayingCard';
 import { theme } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { Appear, Focus } from '@/components/ui/motion';
 import { BetCard } from '@/utils/bets';
 
@@ -33,6 +34,7 @@ export default function HandPanel({
   dealKey,
   children,
 }: HandPanelProps) {
+  const styles = useStyles();
   const middle = (hand.length - 1) / 2;
 
   return (
@@ -80,7 +82,7 @@ export default function HandPanel({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   container: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -101,15 +103,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.font.label,
     fontWeight: '600',
-    color: theme.color.text,
+    color: c.text,
   },
   titleIdle: {
-    color: theme.color.textMuted,
+    color: c.textMuted,
     fontWeight: '500',
   },
   subtitle: {
     fontSize: 13,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginTop: 2,
   },
-});
+}));

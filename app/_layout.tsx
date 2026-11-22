@@ -1,4 +1,4 @@
-import { DarkTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -9,12 +9,12 @@ import { SocketProvider } from '../socket';
 import { Icon } from 'react-native-elements';
 import { Platform, Pressable } from 'react-native';
 import { loadAuthData, pb } from './lib/pocketbase';
-import { ThemeProvider as CustomThemeProvider, useTheme } from './lib/ThemeContext';
+import { ThemeProvider as CustomThemeProvider, useResolvedScheme, useTheme } from './lib/ThemeContext';
 import { FeedbackButton } from './components/feedback/FeedbackButton';
 import { ThemeMetaTag } from '@/components/ThemeMetaTag';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { theme } from '@/constants/theme';
+import { palettes, type Palette } from '@/constants/theme';
 import { Text } from 'react-native';
 import { installGlobalErrorReporting, reportError } from '../net/errorReporter';
 import { Button } from '@/components/ui/Button';
@@ -27,10 +27,12 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   useEffect(() => {
     reportError('render_crash', error);
   }, [error]);
+  // May render outside the theme provider when the root layout itself fails.
+  const c = palettes[useResolvedScheme()];
   return (
-    <View style={{ flex: 1, backgroundColor: theme.color.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <Text style={{ color: theme.color.text, fontSize: 20, fontWeight: '600' }}>Something went wrong</Text>
-      <Text style={{ color: theme.color.textMuted, marginTop: 8, textAlign: 'center' }}>
+    <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <Text style={{ color: c.text, fontSize: 20, fontWeight: '600' }}>Something went wrong</Text>
+      <Text style={{ color: c.textMuted, marginTop: 8, textAlign: 'center' }}>
         The problem was reported automatically. Your seat at the table is kept.
       </Text>
       <Button label="Try again" onPress={retry} style={{ marginTop: 20, alignSelf: 'stretch' }} />
@@ -38,29 +40,33 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   );
 }
 
-const navigationTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: theme.color.bg,
-    card: theme.color.bg,
-    border: theme.color.hairline,
-    text: theme.color.text,
-    primary: theme.color.text,
-  },
+const navigationThemeFor = (c: Palette) => {
+  const base = c.scheme === 'light' ? DefaultTheme : DarkTheme;
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      background: c.bg,
+      card: c.bg,
+      border: c.hairline,
+      text: c.text,
+      primary: c.text,
+    },
+  };
 };
+const navigationThemes = { light: navigationThemeFor(palettes.light), dark: navigationThemeFor(palettes.dark) };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
-  const { isLightMode } = useTheme();
+  const { isLightMode, scheme, palette } = useTheme();
   const router = useRouter();
 
   return (
     <SafeAreaProvider>
       <SocketProvider>
-        <ThemeProvider value={navigationTheme}>
+        <ThemeProvider value={navigationThemes[scheme]}>
           <ThemeMetaTag />
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -68,7 +74,7 @@ function RootNavigator() {
               headerShown: true,
               headerLeft: () => (
                 <Pressable onPress={() => Platform.OS === 'web' ? router.push('/') : router.back()}>
-                  <Icon name="arrow-back" size={24} color={isLightMode ? 'black' : 'white'} />
+                  <Icon name="arrow-back" size={24} color={palette.text} />
                 </Pressable>
               ),
               headerRight: () => (

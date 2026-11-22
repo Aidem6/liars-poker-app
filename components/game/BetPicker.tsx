@@ -3,6 +3,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 import PlayingCard from '@/components/ui/PlayingCard';
 import { PressableScale } from '@/components/ui/Button';
 import { theme, colorTransition } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { BET_CATEGORIES, betTitle, categoryForIndex, figures } from '@/utils/bets';
 
 interface BetPickerProps {
@@ -19,6 +20,7 @@ interface BetPickerProps {
  * selected type that still beat the current bet.
  */
 export default function BetPicker({ chooseFigure, firstAvailableFigure, activeFigure, disabled = false }: BetPickerProps) {
+  const styles = useStyles();
   const lowest = Math.min(firstAvailableFigure, figures.length - 1);
   const [categoryKey, setCategoryKey] = useState(categoryForIndex(lowest).key);
   const optionsRef = useRef<ScrollView>(null);
@@ -134,7 +136,7 @@ const opacityTransition = Platform.select({
   default: {},
 }) as object;
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   container: {
     gap: 10,
   },
@@ -150,7 +152,7 @@ const styles = StyleSheet.create({
     gap: 2,
     padding: 3,
     borderRadius: theme.radius.md,
-    backgroundColor: theme.color.surface,
+    backgroundColor: c.surface,
   },
   segmentItem: {
     paddingVertical: 7,
@@ -158,21 +160,21 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.sm,
   },
   segmentItemHover: {
-    backgroundColor: theme.color.surfaceRaised,
+    backgroundColor: c.surfaceRaised,
   },
   segmentItemSelected: {
-    backgroundColor: theme.color.surfaceActive,
+    backgroundColor: c.surfaceActive,
   },
   segmentLabel: {
     fontSize: theme.font.small,
-    color: theme.color.textMuted,
+    color: c.textMuted,
   },
   segmentLabelSelected: {
-    color: theme.color.text,
+    color: c.text,
     fontWeight: '600',
   },
   segmentLabelExhausted: {
-    color: theme.color.textFaint,
+    color: c.textFaint,
     textDecorationLine: 'line-through',
   },
   options: {
@@ -191,10 +193,10 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   optionHover: {
-    backgroundColor: theme.color.surface,
+    backgroundColor: c.surface,
   },
   optionSelected: {
-    borderColor: theme.color.text,
+    borderColor: c.text,
   },
   exhausted: {
     paddingHorizontal: theme.space.lg,
@@ -202,7 +204,7 @@ const styles = StyleSheet.create({
   },
   exhaustedText: {
     fontSize: theme.font.small,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     textAlign: 'center',
   },
-});
+}));

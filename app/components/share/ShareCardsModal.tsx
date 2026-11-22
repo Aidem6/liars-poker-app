@@ -14,7 +14,7 @@ import { Icon } from 'react-native-elements';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import Toast from 'react-native-toast-message';
-import { useTheme } from '../../lib/ThemeContext';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 // @ts-ignore
 import QRCode from 'react-qr-code';
 
@@ -61,8 +61,8 @@ const SHARE_DATA: ShareCardData[] = [
 ];
 
 export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
-  const { isLightMode } = useTheme();
-  const isDarkMode = !isLightMode;
+  const styles = useStyles();
+  const c = useColors();
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -113,11 +113,11 @@ export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
         <View style={styles.modalContainer}>
           {/* Header */}
           <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+            <Text style={[styles.modalTitle, { color: c.text }]}>
               Share Liar's Poker
             </Text>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <Icon name="close" size={24} color="#85858A" />
+              <Icon name="close" size={24} color={c.textMuted} />
             </TouchableOpacity>
           </View>
 
@@ -140,7 +140,7 @@ export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
                 style={[
                   styles.card,
                   {
-                    backgroundColor: '#1C1C1F',
+                    backgroundColor: c.surfaceRaised,
                     width: CARD_WIDTH,
                     marginRight: index === SHARE_DATA.length - 1 ? CARD_MARGIN : CARD_MARGIN,
                   },
@@ -152,12 +152,12 @@ export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
                     name={data.icon}
                     type={data.iconType}
                     size={28}
-                    color="#85858A"
+                    color={c.textMuted}
                   />
-                  <Text style={[styles.cardTitle, { color: isDarkMode ? '#fff' : '#000' }]}>
+                  <Text style={[styles.cardTitle, { color: c.text }]}>
                     {data.title}
                   </Text>
-                  <Text style={[styles.platformLabel, { color: isDarkMode ? '#aaa' : '#666' }]}>
+                  <Text style={[styles.platformLabel, { color: c.textMuted }]}>
                     {data.platform}
                   </Text>
                 </View>
@@ -172,7 +172,7 @@ export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
                 {/* URL Text */}
                 <View style={styles.urlContainer}>
                   <Text
-                    style={[styles.urlText, { color: isDarkMode ? '#aaa' : '#666' }]}
+                    style={[styles.urlText, { color: c.textMuted }]}
                     numberOfLines={1}
                     ellipsizeMode="middle"
                   >
@@ -186,12 +186,12 @@ export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
                     style={[
                       styles.actionButton,
                       styles.copyButton,
-                      { backgroundColor: '#242427' },
+                      { backgroundColor: c.control },
                     ]}
                     onPress={() => handleCopyLink(data.url)}
                   >
-                    <Icon name="content-copy" size={20} color={isDarkMode ? '#fff' : '#000'} />
-                    <Text style={[styles.actionButtonText, { color: isDarkMode ? '#fff' : '#000' }]}>
+                    <Icon name="content-copy" size={20} color={c.text} />
+                    <Text style={[styles.actionButtonText, { color: c.text }]}>
                       Copy link
                     </Text>
                   </TouchableOpacity>
@@ -201,19 +201,19 @@ export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
                       style={[
                         styles.actionButton,
                         styles.storeButton,
-                        { backgroundColor: isDarkMode ? '#EDEDED' : '#0a7ea4' },
+                        { backgroundColor: c.primary },
                       ]}
                       onPress={() => handleOpenStore(data.url)}
                     >
                       <Icon
                         name="open-in-new"
                         size={20}
-                        color={isDarkMode ? '#0B0B0C' : '#fff'}
+                        color={c.onPrimary}
                       />
                       <Text
                         style={[
                           styles.actionButtonText,
-                          { color: isDarkMode ? '#0B0B0C' : '#fff' },
+                          { color: c.onPrimary },
                         ]}
                       >
                         {data.storeButtonText}
@@ -235,12 +235,8 @@ export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
                   {
                     backgroundColor:
                       currentCardIndex === index
-                        ? isDarkMode
-                          ? '#EDEDED'
-                          : '#0a7ea4'
-                        : isDarkMode
-                        ? '#444'
-                        : '#ccc',
+                        ? c.primary
+                        : c.surfaceActive,
                   },
                 ]}
               />
@@ -253,10 +249,10 @@ export function ShareCardsModal({ visible, onClose }: ShareCardsModalProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: c.scheme === 'dark' ? 'rgba(0, 0, 0, 0.75)' : c.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -287,7 +283,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: c.hairline,
     minHeight: 460,
   },
   cardHeader: {
@@ -356,4 +352,4 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
   },
-});
+}));

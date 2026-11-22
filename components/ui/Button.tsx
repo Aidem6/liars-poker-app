@@ -14,6 +14,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { theme, colorTransition } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { useHover } from '@/components/ui/motion';
 
 let reduceMotion = false;
@@ -110,18 +111,21 @@ export function Button({
   size = 'lg',
   testID,
 }: ButtonProps) {
+  const styles = useStyles();
+  const hover = useHoverFills();
+  const c = useColors();
   const textColor =
     variant === 'primary'
-      ? theme.color.onPrimary
+      ? c.onPrimary
       : variant === 'danger'
-        ? theme.color.red
-        : theme.color.text;
+        ? c.red
+        : c.text;
 
   return (
     <PressableScale
       onPress={onPress}
       disabled={disabled || loading}
-      hoverStyle={dimmed ? undefined : HOVER[variant]}
+      hoverStyle={dimmed ? undefined : hover[variant]}
       testID={testID}
       accessibilityRole="button"
       accessibilityState={{ disabled: disabled || loading }}
@@ -150,14 +154,14 @@ export function Button({
   );
 }
 
-const HOVER: Record<ButtonVariant, ViewStyle> = {
-  primary: { backgroundColor: theme.color.primaryHover },
-  secondary: { backgroundColor: theme.color.controlHover },
-  ghost: { backgroundColor: theme.color.control },
-  danger: { backgroundColor: 'rgba(229,72,77,0.2)' },
-};
+const useHoverFills = createStyles((c): Record<ButtonVariant, ViewStyle> => ({
+  primary: { backgroundColor: c.primaryHover },
+  secondary: { backgroundColor: c.controlHover },
+  ghost: { backgroundColor: c.control },
+  danger: { backgroundColor: c.redGlow },
+}));
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   base: {
     height: 50,
     borderRadius: theme.radius.lg,
@@ -171,13 +175,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   primary: {
-    backgroundColor: theme.color.primary,
+    backgroundColor: c.primary,
   },
   secondary: {
-    backgroundColor: theme.color.control,
+    backgroundColor: c.control,
   },
   danger: {
-    backgroundColor: theme.color.redSoft,
+    backgroundColor: c.redSoft,
   },
   disabled: {
     opacity: 0.35,
@@ -197,8 +201,8 @@ const styles = StyleSheet.create({
   },
   detail: {
     fontSize: theme.font.label,
-    color: theme.color.textFaint,
+    color: c.textFaint,
   },
-});
+}));
 
 export default Button;

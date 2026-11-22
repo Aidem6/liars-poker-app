@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, ScrollView } from 'react-native';
 import { Icon } from 'react-native-elements';
 import { theme } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { Button } from '@/components/ui/Button';
 import * as Haptics from 'expo-haptics';
 
@@ -34,6 +35,8 @@ export default function GameDrawerContent({
   onOpenBugReport,
   onOpenInstructions,
 }: GameDrawerContentProps) {
+  const styles = useStyles();
+  const c = useColors();
   const handleHaptic = () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -48,9 +51,9 @@ export default function GameDrawerContent({
         onPress();
       }}
     >
-      <Icon name={icon} size={20} color={theme.color.textMuted} />
+      <Icon name={icon} size={20} color={c.textMuted} />
       <Text style={styles.menuLabel}>{label}</Text>
-      <Icon name="chevron-right" size={20} color={theme.color.textFaint} />
+      <Icon name="chevron-right" size={20} color={c.textFaint} />
     </TouchableOpacity>
   );
 
@@ -118,10 +121,10 @@ export default function GameDrawerContent({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   container: {
     flex: 1,
-    backgroundColor: theme.color.bg,
+    backgroundColor: c.bg,
   },
   header: {
     paddingHorizontal: 20,
@@ -130,13 +133,13 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontSize: theme.font.small,
-    color: theme.color.textMuted,
+    color: c.textMuted,
   },
   roomName: {
     fontSize: 22,
     fontWeight: '600',
     letterSpacing: -0.2,
-    color: theme.color.text,
+    color: c.text,
     marginTop: 2,
   },
   menuItems: {
@@ -148,7 +151,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: theme.font.small,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginBottom: 8,
   },
   segment: {
@@ -156,7 +159,7 @@ const styles = StyleSheet.create({
     gap: 2,
     padding: 3,
     borderRadius: theme.radius.md,
-    backgroundColor: theme.color.surface,
+    backgroundColor: c.surface,
   },
   segmentItem: {
     flex: 1,
@@ -165,19 +168,19 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.sm,
   },
   segmentItemSelected: {
-    backgroundColor: theme.color.surfaceActive,
+    backgroundColor: c.surfaceActive,
   },
   segmentLabel: {
     fontSize: theme.font.body,
-    color: theme.color.textMuted,
+    color: c.textMuted,
   },
   segmentLabelSelected: {
-    color: theme.color.text,
+    color: c.text,
     fontWeight: '600',
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: theme.color.hairlineStrong,
+    backgroundColor: c.hairlineStrong,
     marginTop: 20,
     marginBottom: 4,
   },
@@ -189,7 +192,7 @@ const styles = StyleSheet.create({
   },
   menuLabel: {
     fontSize: 16,
-    color: theme.color.text,
+    color: c.text,
     flex: 1,
   },
   footer: {
@@ -198,4 +201,4 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     gap: 8,
   },
-});
+}));

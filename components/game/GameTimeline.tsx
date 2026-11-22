@@ -3,6 +3,7 @@ import { StyleSheet, View, ScrollView, Text } from 'react-native';
 import { GameEvent } from '@/types/gameEvents';
 import GameEventItem from './GameEventItem';
 import { theme } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 
 interface GameTimelineProps {
   events: GameEvent[];
@@ -12,6 +13,7 @@ interface GameTimelineProps {
 }
 
 export default function GameTimeline({ events, playerNames = {}, myUserId, myUsername }: GameTimelineProps) {
+  const styles = useStyles();
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Auto-scroll to bottom when new events are added
@@ -62,7 +64,7 @@ export default function GameTimeline({ events, playerNames = {}, myUserId, myUse
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   container: {
     flex: 1,
   },
@@ -83,6 +85,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
-    color: theme.color.textMuted,
+    color: c.textMuted,
   },
-});
+}));
