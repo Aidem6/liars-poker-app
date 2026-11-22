@@ -43,6 +43,8 @@ export function FeedbackModal({
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [includeDebugLogs, setIncludeDebugLogs] = useState(isBugReport); // Auto-include for bug reports
+  // Shown inside the modal: Alert.alert does nothing on web, so errors were invisible there.
+  const [error, setError] = useState<string | null>(null);
 
   const handlePickImage = async () => {
     if (Platform.OS !== 'web') {
@@ -53,7 +55,7 @@ export function FeedbackModal({
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (!permissionResult.granted) {
-        Alert.alert('Permission Required', 'Please allow access to your photo library to attach screenshots.');
+        setError('Allow photo library access to attach a screenshot.');
         return;
       }
 
@@ -69,7 +71,7 @@ export function FeedbackModal({
       }
     } catch (error) {
       console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      setError("Couldn't attach that image. Try again.");
     }
   };
 
@@ -78,19 +80,22 @@ export function FeedbackModal({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     setScreenshot(null);
+    setError(null);
   };
 
   const resetForm = () => {
     setMessage('');
     setEmail('');
     setScreenshot(null);
+    setError(null);
   };
 
   const handleSubmit = async () => {
     if (!message.trim()) {
-      Alert.alert('Message Required', 'Please enter a feedback message.');
+      setError('Write a message first.');
       return;
     }
+    setError(null);
 
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -152,7 +157,11 @@ export function FeedbackModal({
     } catch (error: any) {
       console.error('Error submitting feedback:', error);
       setIsSubmitting(false);
-      Alert.alert('Error', error?.message || 'Failed to submit feedback. Please try again.');
+      setError(
+        error?.status === 0
+          ? "Couldn't reach the server. Check your connection and try again."
+          : "Couldn't send right now. Please try again later."
+      );
     }
   };
 
@@ -160,6 +169,7 @@ export function FeedbackModal({
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+    setError(null);
     onClose();
   };
 
@@ -202,7 +212,10 @@ export function FeedbackModal({
               placeholder="Tell us what you think..."
               placeholderTextColor={'#5C5C61'}
               value={message}
-              onChangeText={setMessage}
+              onChangeText={(text) => {
+                setMessage(text);
+                if (error) setError(null);
+              }}
               multiline
               numberOfLines={6}
               textAlignVertical="top"
@@ -283,6 +296,12 @@ export function FeedbackModal({
                   Add screenshot
                 </Text>
               </TouchableOpacity>
+            )}
+
+            {error && (
+              <Text style={styles.errorText} accessibilityLiveRegion="polite">
+                {error}
+              </Text>
             )}
 
             <View style={styles.buttonRow}>
@@ -369,6 +388,11 @@ const styles = StyleSheet.create({
   },
   required: {
     color: '#E5484D',
+  },
+  errorText: {
+    color: '#E5484D',
+    fontSize: 14,
+    marginTop: 16,
   },
   input: {
     height: 50,
