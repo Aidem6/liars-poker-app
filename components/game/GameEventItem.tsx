@@ -50,7 +50,9 @@ export default function GameEventItem({ event, myUserId, myUsername }: GameEvent
     case 'game_start':
       return (
         <View style={styles.row}>
-          <Text style={[styles.text, styles.muted]}>Game started</Text>
+          <Text style={[styles.text, styles.muted]}>
+            {event.maxHand ? `Game started · out at ${event.maxHand + 1} cards` : 'Game started'}
+          </Text>
         </View>
       );
 

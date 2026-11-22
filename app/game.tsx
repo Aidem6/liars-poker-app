@@ -22,11 +22,11 @@ import HandPanel from '../components/game/HandPanel';
 import InviteCard from '../components/game/InviteCard';
 import { RevealStep, useRevealSequence } from '../components/game/useRevealSequence';
 import { Appear, useNewKeys } from '@/components/ui/motion';
-import { Button } from '../components/ui/Button';
+import { Button, PressableScale } from '../components/ui/Button';
 import { TextField } from '../components/ui/TextField';
 import { theme, tabularNums, elevation } from '@/constants/theme';
 import { createStyles, useColors } from '@/hooks/useThemedStyles';
-import { betShort, betTitle, figures, MAX_CARDS } from '@/utils/bets';
+import { betShort, betTitle, figures } from '@/utils/bets';
 import { useClientState, useGameClient } from '../socket';
 import { errorText } from '../net/protocol';
 import { namesOf, tableModel, timelineEvents } from '../net/view';
@@ -224,6 +224,11 @@ function Game(): JSX.Element {
     run(event, () => client.host(event));
   };
 
+  const setMaxHand = (maxHand: number | null) => {
+    haptic(Haptics.ImpactFeedbackStyle.Light);
+    run('Card limit', () => client.setMaxHand(maxHand));
+  };
+
   const kick = (playerId: string) => {
     haptic();
     run('Remove player', () => client.kick(playerId));
@@ -316,6 +321,22 @@ function Game(): JSX.Element {
     const seated = state.players;
     const canStart = seated.length >= 2;
     const iAmSeated = state.me.role === 'player';
+    // An older server sends no hand_limit: show its fixed limit without controls.
+    const limit = state.room.hand_limit ?? {
+      choice: null,
+      value: state.room.max_hand,
+      auto: state.room.max_hand,
+      max: state.room.max_hand,
+      max_choice: state.room.max_hand,
+    };
+    const canChangeLimit = model.isHost && !!state.room.hand_limit;
+    const tableSize = Math.max(2, seated.length);
+    const limitHint =
+      limit.choice === null
+        ? `Auto for ${tableSize} players`
+        : limit.value < limit.choice
+          ? `Lowered from ${limit.choice + 1} so the deck fits ${tableSize} players`
+          : `Auto would be ${limit.auto + 1}`;
     return (
       <SafeAreaView style={styles.screen}>
         <StatusBar barStyle={c.scheme === 'light' ? 'dark-content' : 'light-content'} backgroundColor={c.bg} />
@@ -366,6 +387,39 @@ function Game(): JSX.Element {
           </ScrollView>
 
           <View style={styles.roomFooter}>
+            <View style={styles.limitRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.limitTitle, tabularNums]}>{`Out at ${limit.value + 1} cards`}</Text>
+                <Text style={styles.limitHint} numberOfLines={2}>{limitHint}</Text>
+              </View>
+              {canChangeLimit && (
+                <>
+                  {limit.choice !== null && (
+                    <Button label="Auto" variant="ghost" size="md" onPress={() => setMaxHand(null)} />
+                  )}
+                  <PressableScale
+                    onPress={() => setMaxHand(limit.value - 1)}
+                    disabled={limit.value <= 1 || net.sending}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel="Fewer cards before you're out"
+                    style={[styles.stepper, limit.value <= 1 && styles.stepperDisabled]}
+                  >
+                    <Icon name="remove" size={18} color={c.text} />
+                  </PressableScale>
+                  <PressableScale
+                    onPress={() => setMaxHand(limit.value + 1)}
+                    disabled={limit.value >= limit.max || net.sending}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel="More cards before you're out"
+                    style={[styles.stepper, limit.value >= limit.max && styles.stepperDisabled]}
+                  >
+                    <Icon name="add" size={18} color={c.text} />
+                  </PressableScale>
+                </>
+              )}
+            </View>
             {model.isHost ? (
               <>
                 <Button label="Start game" onPress={() => hostAction('start_game')} disabled={!canStart} />
@@ -398,7 +452,8 @@ function Game(): JSX.Element {
   const { players, me, opponents, turnPlayer, reveal, winnerName, iWon, watching, iAmOut, isMyTurn } = model;
   const finished = state.room.status === 'finished';
   const waitingForReady = game?.phase === 'reveal';
-  const cardsLine = `${model.myCards} ${model.myCards === 1 ? 'card' : 'cards'}, out at ${MAX_CARDS}`;
+  const outAt = state.room.max_hand + 1;
+  const cardsLine = `${model.myCards} ${model.myCards === 1 ? 'card' : 'cards'}, out at ${outAt}`;
 
   let statusTitle = '';
   let statusSubtitle: string | undefined;
@@ -428,7 +483,7 @@ function Game(): JSX.Element {
   } else if (reveal) {
     const iLost = !!me && reveal.loserId === me.id;
     statusTitle = iLost ? 'You take a card' : 'Safe this deal';
-    statusSubtitle = iLost ? `Out at ${MAX_CARDS} cards` : cardsLine;
+    statusSubtitle = iLost ? `Out at ${outAt} cards` : cardsLine;
     statusActive = true;
   } else if (isMyTurn) {
     statusTitle = 'Your turn';
@@ -545,6 +600,7 @@ function Game(): JSX.Element {
                 iWon={iWon}
                 revealStep={revealStep}
                 revealAnimated={revealAnimated}
+                outAt={outAt}
               />
             )}
           </View>
@@ -767,6 +823,35 @@ const useStyles = createStyles((c) => ({
   actionRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  limitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingBottom: theme.space.sm,
+  },
+  limitTitle: {
+    fontSize: theme.font.label,
+    fontWeight: '600',
+    color: c.text,
+  },
+  limitHint: {
+    fontSize: theme.font.small,
+    color: c.textMuted,
+    marginTop: 2,
+  },
+  stepper: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.surfaceRaised,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.hairlineStrong,
+  },
+  stepperDisabled: {
+    opacity: 0.35,
   },
   // Game
   topBar: {
