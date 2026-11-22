@@ -17,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { theme, elevation } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import { useClientState, useGameClient } from '@/socket';
@@ -42,6 +43,8 @@ const WIDE_BREAKPOINT = 768;
 const WIDE_COLUMN = 600;
 
 function Home() {
+  const styles = useStyles();
+  const c = useColors();
   const client = useGameClient();
   const net = useClientState();
   const rooms = net.rooms;
@@ -218,20 +221,20 @@ function Home() {
             </Text>
           </View>
           <View style={styles.roomSide}>
-            <View style={[styles.statusDot, { backgroundColor: canJoinAsPlayer ? theme.color.green : canSpectate ? theme.color.amber : theme.color.textFaint }]} />
+            <View style={[styles.statusDot, { backgroundColor: canJoinAsPlayer ? c.green : canSpectate ? c.amber : c.textFaint }]} />
             <Text style={styles.roomStatus}>{canSpectate ? 'Watch' : status}</Text>
-            {canJoin && <Icon name="chevron-right" size={20} color={theme.color.textFaint} />}
+            {canJoin && <Icon name="chevron-right" size={20} color={c.textFaint} />}
           </View>
         </Pressable>
       </Appear>
     );
   };
 
-  const joinIcon = <MaterialIcons name="qr-code-scanner" size={17} color={theme.color.text} />;
+  const joinIcon = <MaterialIcons name="qr-code-scanner" size={17} color={c.text} />;
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle={c.scheme === 'light' ? 'dark-content' : 'light-content'} backgroundColor="transparent" translucent />
       <SafeAreaView edges={['top']} style={[styles.column, wide && styles.columnWide]}>
         <View style={[styles.header, wide && styles.headerWide]}>
           <View style={styles.headerTop}>
@@ -260,7 +263,7 @@ function Home() {
                 size="md"
                 onPress={handleCreateRoom}
                 loading={isCreatingRoom}
-                icon={<MaterialIcons name="add" size={18} color={theme.color.onPrimary} />}
+                icon={<MaterialIcons name="add" size={18} color={c.onPrimary} />}
                 style={styles.actionWide}
               />
               <Button
@@ -471,7 +474,7 @@ function Home() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   rejoin: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -481,27 +484,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.space.lg,
     paddingVertical: 12,
     borderRadius: theme.radius.md,
-    backgroundColor: theme.color.surfaceActive,
+    backgroundColor: c.surfaceActive,
   },
   rejoinText: {
-    color: theme.color.text,
+    color: c.text,
     fontSize: theme.font.body,
     flex: 1,
   },
   rejoinAction: {
-    color: theme.color.green,
+    color: c.green,
     fontSize: theme.font.body,
     fontWeight: '600',
   },
   offline: {
-    color: theme.color.amber,
+    color: c.amber,
     fontSize: theme.font.small,
     marginHorizontal: theme.space.xl,
     marginBottom: theme.space.sm,
   },
   container: {
     flex: 1,
-    backgroundColor: theme.color.bg,
+    backgroundColor: c.bg,
   },
   column: {
     flex: 1,
@@ -540,7 +543,7 @@ const styles = StyleSheet.create({
     fontSize: theme.font.display,
     fontWeight: '600',
     letterSpacing: -0.6,
-    color: theme.color.text,
+    color: c.text,
   },
   usernameRow: {
     flexDirection: 'row',
@@ -550,15 +553,15 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: theme.font.label,
-    color: theme.color.textMuted,
+    color: c.textMuted,
   },
   usernameText: {
-    color: theme.color.text,
+    color: c.text,
     fontWeight: '500',
   },
   changeLink: {
     fontSize: theme.font.label,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     textDecorationLine: 'underline',
   },
   sectionHeader: {
@@ -571,11 +574,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: theme.font.body,
     fontWeight: '600',
-    color: theme.color.textMuted,
+    color: c.textMuted,
   },
   sectionCount: {
     fontSize: theme.font.body,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     fontVariant: ['tabular-nums'],
   },
   list: {
@@ -595,10 +598,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingLeft: theme.space.lg,
     paddingRight: 10,
-    backgroundColor: theme.color.surface,
+    backgroundColor: c.surface,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: theme.color.hairline,
+    borderColor: c.hairline,
     ...(Platform.OS === 'web' ? ({ transitionProperty: 'background-color', transitionDuration: '150ms' } as object) : null),
   },
   roomRowFirst: {
@@ -613,10 +616,10 @@ const styles = StyleSheet.create({
   },
   roomRowDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.color.hairlineStrong,
+    borderTopColor: c.hairlineStrong,
   },
   roomRowHover: {
-    backgroundColor: theme.color.surfaceRaised,
+    backgroundColor: c.surfaceRaised,
   },
   roomRowDisabled: {
     opacity: 0.45,
@@ -627,11 +630,11 @@ const styles = StyleSheet.create({
   roomName: {
     fontSize: 16,
     fontWeight: '500',
-    color: theme.color.text,
+    color: c.text,
   },
   roomMeta: {
     fontSize: 13,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginTop: 2,
     fontVariant: ['tabular-nums'],
   },
@@ -647,7 +650,7 @@ const styles = StyleSheet.create({
   },
   roomStatus: {
     fontSize: 13,
-    color: theme.color.textMuted,
+    color: c.textMuted,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -656,17 +659,17 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.lg,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: theme.color.hairlineStrong,
+    borderColor: c.hairlineStrong,
   },
   emptyTitle: {
     fontSize: theme.font.label,
     fontWeight: '600',
-    color: theme.color.text,
+    color: c.text,
   },
   emptyText: {
     fontSize: theme.font.body,
     lineHeight: 21,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginTop: 6,
     maxWidth: 300,
     textAlign: 'center',
@@ -681,11 +684,11 @@ const styles = StyleSheet.create({
   storeLinksTitle: {
     flex: 1,
     fontSize: 13,
-    color: theme.color.textMuted,
+    color: c.textMuted,
   },
   storeLink: {
     fontSize: 13,
-    color: theme.color.text,
+    color: c.text,
     textDecorationLine: 'underline',
   },
   footer: {
@@ -700,7 +703,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: theme.color.overlay,
+    backgroundColor: c.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -709,20 +712,20 @@ const styles = StyleSheet.create({
     maxWidth: 380,
     borderRadius: theme.radius.xl,
     padding: 20,
-    backgroundColor: theme.color.surfaceRaised,
+    backgroundColor: c.surfaceRaised,
     borderWidth: 1,
-    borderColor: theme.color.hairline,
-    ...(elevation('raised') as object),
+    borderColor: c.hairline,
+    ...(elevation('raised', c.scheme) as object),
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.color.text,
+    color: c.text,
   },
   modalDescription: {
     fontSize: theme.font.body,
     lineHeight: 20,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginTop: 6,
     marginBottom: 20,
   },
@@ -737,6 +740,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     marginBottom: 20,
   },
-});
+}));
 
 export default Home;

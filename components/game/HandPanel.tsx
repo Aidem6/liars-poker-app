@@ -1,7 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import PlayingCard, { cardSize } from '@/components/ui/PlayingCard';
 import { theme } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { Appear, Focus } from '@/components/ui/motion';
 import { BetCard } from '@/utils/bets';
 
@@ -21,6 +22,10 @@ interface HandPanelProps {
 }
 
 const OVERLAP = 22;
+/** The fan takes at most this share of the panel, so the status beside it keeps its room. */
+const FAN_SHARE = 0.5;
+/** Total tilt across the fan, so a big hand fans no wider than a small one. */
+const MAX_SPREAD_DEG = 28;
 
 /** The local player's cards, fanned, beside a short status and the turn timer. */
 export default function HandPanel({
@@ -33,7 +38,17 @@ export default function HandPanel({
   dealKey,
   children,
 }: HandPanelProps) {
+  const styles = useStyles();
+  const screen = useWindowDimensions();
   const middle = (hand.length - 1) / 2;
+  const cardWidth = cardSize('xl').w;
+  // Big hands (small tables play to more cards) overlap more to keep the fan in its share.
+  const budget = Math.min(screen.width, theme.maxContentWidth) * FAN_SHARE;
+  const overlap =
+    hand.length < 2
+      ? OVERLAP
+      : Math.min(cardWidth * 0.8, Math.max(OVERLAP, (hand.length * cardWidth - budget) / (hand.length - 1)));
+  const tilt = middle > 0 ? Math.min(7, MAX_SPREAD_DEG / 2 / middle) : 0;
 
   return (
     <View style={styles.container}>
@@ -43,10 +58,10 @@ export default function HandPanel({
             <View
               key={`${dealKey ?? ''}:${index}`}
               style={{
-                marginLeft: index === 0 ? 0 : -OVERLAP,
+                marginLeft: index === 0 ? 0 : -overlap,
                 transform: [
-                  { rotate: `${(index - middle) * 7}deg` },
-                  { translateY: Math.abs(index - middle) * 3 },
+                  { rotate: `${(index - middle) * tilt}deg` },
+                  { translateY: Math.abs(index - middle) * tilt * 0.43 },
                 ],
               }}
             >
@@ -80,7 +95,7 @@ export default function HandPanel({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   container: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -101,15 +116,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.font.label,
     fontWeight: '600',
-    color: theme.color.text,
+    color: c.text,
   },
   titleIdle: {
-    color: theme.color.textMuted,
+    color: c.textMuted,
     fontWeight: '500',
   },
   subtitle: {
     fontSize: 13,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginTop: 2,
   },
-});
+}));

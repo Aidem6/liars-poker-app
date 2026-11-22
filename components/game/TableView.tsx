@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import PlayingCard, { CardSize, cardSize } from '@/components/ui/PlayingCard';
 import { theme, tabularNums, colorTransition, balance } from '@/constants/theme';
-import { BetCard, BetCheck, betShort, betTitle, findFigure, MAX_CARDS } from '@/utils/bets';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
+import { BetCard, BetCheck, betShort, betTitle, findFigure } from '@/utils/bets';
 import { Appear, Flash, FlipCard, Focus, Shake } from '@/components/ui/motion';
 import { REVEAL_FINAL, RevealStep, SLOT_MS } from './useRevealSequence';
 
@@ -44,6 +45,8 @@ interface TableViewProps {
   revealStep?: number;
   /** The reveal is being played out, rather than shown in its final state. */
   revealAnimated?: boolean;
+  /** Holding this many cards puts a player out: one slot each. */
+  outAt: number;
 }
 
 const nameOf = (player: TablePlayer | undefined, fallback = 'Someone') =>
@@ -57,6 +60,18 @@ const holdsMatch = (reveal: TableReveal | undefined, playerId: string) =>
 const REVEAL_CARD: CardSize = 'md';
 /** How far players whose cards decide the check come forward once the verdict lands. */
 const FOREGROUND_SCALE = 1.14;
+/** Horizontal padding of a cell (both sides). */
+const CELL_PADDING = 4;
+
+/**
+ * Space between `count` cards `width` wide so the row fits `budget`: the usual
+ * `gap` when there is room, else a negative margin that overlaps them, never
+ * covering more than two thirds of a card.
+ */
+const fitGap = (count: number, width: number, gap: number, budget: number) => {
+  if (count < 2 || count * width + (count - 1) * gap <= budget) return gap;
+  return Math.max(-width * 0.65, Math.floor((budget - count * width) / (count - 1)));
+};
 
 function OpponentCell({
   player,
@@ -66,6 +81,8 @@ function OpponentCell({
   order,
   step,
   animated,
+  outAt,
+  width,
 }: {
   player: TablePlayer;
   compact: boolean;
@@ -75,7 +92,12 @@ function OpponentCell({
   order: number;
   step: number;
   animated: boolean;
+  outAt: number;
+  /** Width of the cell, to fit the cards in. */
+  width: number;
 }) {
+  const styles = useStyles();
+  const c = useColors();
   const slotSize: CardSize = compact ? 'xs' : 'sm';
   const revealedHand = reveal?.hands[player.id];
   // The result is known from the first frame, but each part waits for its beat.
@@ -87,15 +109,22 @@ function OpponentCell({
   /** Out of the game because of this very deal: their hand stays on show for the reveal. */
   const knockedOut = isLoser && !player.is_active;
 
-  /** A crowded table with a full hand: the revealed cards overlap to fit their column. */
+  /** A full hand on a crowded table: the cards overlap to fit their column. */
   // Counts the penalty card from the start, so the spacing never changes mid-reveal.
-  const crowded =
-    compact && !!revealedHand && revealedHand.length + (reveal!.loserId === player.id ? 1 : 0) >= MAX_CARDS;
+  const shownCount = revealedHand ? revealedHand.length + (reveal!.loserId === player.id ? 1 : 0) : outAt;
+  const spacing = fitGap(
+    shownCount,
+    cardSize(revealedHand ? REVEAL_CARD : slotSize).w,
+    revealedHand ? (compact ? 3 : 4) : compact ? 2 : 3,
+    width - CELL_PADDING,
+  );
+  const overlap = spacing < 0 ? spacing : 0;
+  const after = (index: number) => (index > 0 ? { marginLeft: spacing } : undefined);
 
   let slots: React.ReactNode;
   if (!player.is_active && !revealedHand) {
-    slots = Array.from({ length: MAX_CARDS }).map((_, index) => (
-      <PlayingCard key={index} variant="empty" size={slotSize} />
+    slots = Array.from({ length: outAt }).map((_, index) => (
+      <PlayingCard key={index} variant="empty" size={slotSize} style={after(index)} />
     ));
   } else if (revealedHand) {
     const isMatch = (index: number) => reveal!.check.matched.has(`${player.id}:${index}`);
@@ -107,9 +136,8 @@ function OpponentCell({
         highlighted={highlightMatches && isMatch(index)}
       />
     );
-    const overlap = crowded ? -7 : 0;
     const place = (index: number) => [
-      index > 0 && overlap ? { marginLeft: overlap } : null,
+      after(index),
       // A matching card sits above its neighbours so its ring is never covered.
       highlightMatches && isMatch(index) ? { zIndex: 1 } : null,
     ];
@@ -133,7 +161,12 @@ function OpponentCell({
         ))}
         {isLoser && (
           // Filled when it overlaps, so the card beneath does not show through its outline.
-          <View style={overlap ? { marginLeft: overlap, zIndex: 2, borderRadius: 6, backgroundColor: theme.color.bg } : null}>
+          <View
+            style={[
+              revealedHand.length > 0 && { marginLeft: spacing },
+              overlap ? { zIndex: 2, borderRadius: 6, backgroundColor: c.bg } : null,
+            ]}
+          >
             {animated ? (
               <Appear from={{ translateY: -18, scale: 1.4, rotate: -12 }} duration={320}>
                 <PlayingCard variant="penalty" rank="+1" size={REVEAL_CARD} />
@@ -146,29 +179,29 @@ function OpponentCell({
       </>
     );
   } else {
-    const held = Math.min(player.hand_count, MAX_CARDS);
-    slots = Array.from({ length: MAX_CARDS }).map((_, index) => (
-      <PlayingCard key={index} variant={index < held ? 'back' : 'empty'} size={slotSize} />
+    const held = Math.min(player.hand_count, outAt);
+    slots = Array.from({ length: outAt }).map((_, index) => (
+      <PlayingCard key={index} variant={index < held ? 'back' : 'empty'} size={slotSize} style={after(index)} />
     ));
   }
 
   let detail = player.last_bet ? betShort(player.last_bet) : ' ';
-  let detailColor: string = isBettor ? theme.color.text : theme.color.textMuted;
+  let detailColor: string = isBettor ? c.text : c.textMuted;
   if (knockedOut) {
     detail = 'Knocked out';
-    detailColor = theme.color.red;
+    detailColor = c.red;
   } else if (!player.is_active && !revealedHand) {
     detail = 'Out';
-    detailColor = theme.color.textMuted;
+    detailColor = c.textMuted;
   } else if (isLoser) {
     detail = 'Takes a card';
-    detailColor = theme.color.red;
+    detailColor = c.red;
   } else if (isChecker) {
     detail = 'Checked';
-    detailColor = theme.color.text;
+    detailColor = c.text;
   } else if (player.connected === false) {
     detail = player.isYourTurn ? 'Away · waiting' : 'Away';
-    detailColor = theme.color.amber;
+    detailColor = c.amber;
   }
 
   const emphasised = reveal ? isLoser || inFocus : player.isYourTurn;
@@ -179,10 +212,7 @@ function OpponentCell({
       <View
         style={[
           styles.slots,
-          {
-            gap: revealedHand ? (compact ? (crowded ? 0 : 3) : 4) : compact ? 2 : 3,
-            minHeight: revealedHand ? 40 : compact ? 28 : 32,
-          },
+          { minHeight: revealedHand ? 40 : compact ? 28 : 32 },
         ]}
       >
         {slots}
@@ -193,7 +223,7 @@ function OpponentCell({
           compact && styles.cellNameCompact,
           colorTransition,
           emphasised && styles.cellNameActive,
-          isLoser && { color: theme.color.red },
+          isLoser && { color: c.red },
         ]}
         numberOfLines={1}
       >
@@ -222,6 +252,7 @@ function FigureCards({
   shown?: number;
   animated?: boolean;
 }) {
+  const styles = useStyles();
   const figure = findFigure(betName);
   if (!figure) return null;
   return (
@@ -278,7 +309,13 @@ export default function TableView({
   iWon,
   revealStep = REVEAL_FINAL,
   revealAnimated = false,
+  outAt,
 }: TableViewProps) {
+  const styles = useStyles();
+  const c = useColors();
+  const screen = useWindowDimensions();
+  // Measured once laid out; until then, a guess from the screen.
+  const [gridWidth, setGridWidth] = useState(() => Math.min(screen.width, theme.maxContentWidth) - 2 * theme.space.lg);
   const step = reveal ? revealStep : REVEAL_FINAL;
   const animated = !!reveal && revealAnimated;
   const needed = reveal?.check.needed ?? 0;
@@ -295,7 +332,7 @@ export default function TableView({
     const enter = { translateY: 12, blur: 4 };
     stage = (
       <>
-        {iWon && <Flash color={theme.color.lightGlow} />}
+        {iWon && <Flash color={c.lightGlow} />}
         <Appear from={enter} duration={300}>
           <Text style={styles.caption}>Game over</Text>
         </Appear>
@@ -324,11 +361,11 @@ export default function TableView({
     const foundSoFar = reveal.check.slots.slice(0, shown).filter(Boolean).length;
     const verdict = step >= RevealStep.VERDICT;
     const verdictText = reveal.betWasTrue ? "It's there" : 'Bluff';
-    const verdictStyle = [styles.verdict, !reveal.betWasTrue && { color: theme.color.red }];
+    const verdictStyle = [styles.verdict, !reveal.betWasTrue && { color: c.red }];
     stage = (
       <>
         {verdict && animated && (
-          <Flash color={reveal.betWasTrue ? theme.color.lightGlow : theme.color.redGlow} />
+          <Flash color={reveal.betWasTrue ? c.lightGlow : c.redGlow} />
         )}
         <Text style={styles.caption}>
           {`${checkerLabel} ${checkerLabel === 'You' ? 'check' : 'checks'} ${bettorLabel === 'You' ? 'your' : `${bettorLabel}'s`} bet`}
@@ -375,7 +412,7 @@ export default function TableView({
     stage = (
       <>
         <Text style={styles.caption}>New deal</Text>
-        <Text style={[styles.title, { color: theme.color.textMuted }]}>No bet yet</Text>
+        <Text style={[styles.title, { color: c.textMuted }]}>No bet yet</Text>
         <Text style={styles.sub}>
           {turnPlayer ? (turnPlayer.isMe ? 'You open the betting' : `${turnPlayer.name} opens the betting`) : ' '}
         </Text>
@@ -390,7 +427,7 @@ export default function TableView({
       showsVerticalScrollIndicator={false}
       bounces={false}
     >
-      <View style={styles.grid}>
+      <View style={styles.grid} onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}>
         {opponents.map((player, index) => (
           // Players brought forward in a reveal are drawn above their neighbours.
           <View
@@ -405,6 +442,8 @@ export default function TableView({
               order={index}
               step={step}
               animated={animated}
+              outAt={outAt}
+              width={gridWidth / columns}
             />
           </View>
         ))}
@@ -414,7 +453,7 @@ export default function TableView({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   container: {
     flex: 1,
   },
@@ -443,14 +482,14 @@ const styles = StyleSheet.create({
   },
   cellName: {
     fontSize: 13,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     maxWidth: '100%',
   },
   cellNameCompact: {
     fontSize: 12,
   },
   cellNameActive: {
-    color: theme.color.text,
+    color: c.text,
     fontWeight: '600',
   },
   cellDetail: {
@@ -471,24 +510,24 @@ const styles = StyleSheet.create({
   },
   caption: {
     fontSize: theme.font.small,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     textAlign: 'center',
   },
   title: {
     fontSize: theme.font.title,
     fontWeight: '600',
     letterSpacing: -0.2,
-    color: theme.color.text,
+    color: c.text,
     textAlign: 'center',
   },
   sub: {
     fontSize: theme.font.caption,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     textAlign: 'center',
   },
   count: {
     fontSize: theme.font.small,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     textAlign: 'center',
   },
   stageGroup: {
@@ -500,16 +539,16 @@ const styles = StyleSheet.create({
     lineHeight: 46,
     fontWeight: '700',
     letterSpacing: -0.8,
-    color: theme.color.text,
+    color: c.text,
     textAlign: 'center',
   },
   // The bet as an open question until the verdict replaces it, at the same size so nothing jumps.
   question: {
-    color: theme.color.textFaint,
+    color: c.textFaint,
     fontWeight: '600',
     fontSize: 26,
   },
   missing: {
-    borderColor: theme.color.red,
+    borderColor: c.red,
   },
-});
+}));

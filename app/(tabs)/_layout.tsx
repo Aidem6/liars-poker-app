@@ -4,12 +4,10 @@ import { Platform, useWindowDimensions } from 'react-native';
 
 import { HapticTab } from '@/components/HapticTab';
 import { IconSymbol } from '@/components/ui/IconSymbol';
-import { Colors } from '@/constants/Colors';
 import { useTheme } from '../lib/ThemeContext';
 
 export default function TabLayout() {
-  const { isLightMode } = useTheme();
-  const colorScheme = isLightMode ? 'light' : 'dark';
+  const { palette: c } = useTheme();
   const { width } = useWindowDimensions();
   // On a wide browser window keep the two tabs near the content column instead of the screen edges.
   const tabInset = Platform.OS === 'web' ? Math.max(0, (width - 520) / 2) : 0;
@@ -17,14 +15,14 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
+        tabBarActiveTintColor: c.text,
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarInactiveTintColor: Colors[colorScheme].tabIconDefault,
+        tabBarInactiveTintColor: c.textMuted,
         // The bar is opaque and in the layout flow, so screens never render underneath it.
         tabBarStyle: {
-          backgroundColor: Colors[colorScheme].background,
-          borderTopColor: 'rgba(255,255,255,0.08)',
+          backgroundColor: c.bg,
+          borderTopColor: c.hairline,
           paddingHorizontal: tabInset,
         },
       }}>

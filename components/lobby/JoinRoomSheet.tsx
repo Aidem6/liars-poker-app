@@ -12,6 +12,7 @@ import {
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Button } from '@/components/ui/Button';
 import { theme, elevation, tabularNums, colorTransition } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { Appear, Caret, Shake } from '@/components/ui/motion';
 import type { RoomSummary } from '@/net/protocol';
 import {
@@ -37,6 +38,7 @@ const QrScanner = React.lazy(() => import('./QrScanner'));
 
 /** Join a table by typing its six-character code or scanning its QR code. */
 export function JoinRoomSheet({ visible, onClose, onJoin, rooms }: JoinRoomSheetProps) {
+  const styles = useStyles();
   const [mode, setMode] = useState<Mode>('code');
   const [code, setCode] = useState('');
 
@@ -95,6 +97,8 @@ function CodeEntry({
   onClose: () => void;
   rooms: RoomSummary[];
 }) {
+  const styles = useStyles();
+  const c = useColors();
   const input = useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
   const complete = isCompleteRoomCode(code);
@@ -102,13 +106,13 @@ function CodeEntry({
   const hasLookAlike = [...code].some((char) => !ROOM_CODE_ALPHABET.includes(char));
 
   let hint = 'The host sees it on their screen, next to a QR code.';
-  let hintColor: string = theme.color.textFaint;
+  let hintColor: string = c.textFaint;
   if (hasLookAlike) {
     hint = 'Codes never use I, L, O, 0 or 1.';
-    hintColor = theme.color.amber;
+    hintColor = c.amber;
   } else if (match) {
     hint = `${match.name} · ${match.playerCount}/${match.maxPlayers} players`;
-    hintColor = theme.color.text;
+    hintColor = c.text;
   }
 
   return (
@@ -139,7 +143,7 @@ function CodeEntry({
                     <Text style={[styles.boxChar, tabularNums]}>{char}</Text>
                   </Appear>
                 ) : isCaret ? (
-                  <Caret color={theme.color.text} height={22} />
+                  <Caret color={c.text} height={22} />
                 ) : null}
               </View>
             );
@@ -176,7 +180,7 @@ function CodeEntry({
         variant="secondary"
         size="md"
         onPress={onScan}
-        icon={<MaterialIcons name="qr-code-scanner" size={18} color={theme.color.text} />}
+        icon={<MaterialIcons name="qr-code-scanner" size={18} color={c.text} />}
         style={styles.scanButton}
       />
       <View style={styles.row}>
@@ -189,10 +193,10 @@ function CodeEntry({
 
 const BOX_W = 46;
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   overlay: {
     flex: 1,
-    backgroundColor: theme.color.overlay,
+    backgroundColor: c.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -201,20 +205,20 @@ const styles = StyleSheet.create({
     maxWidth: 380,
     borderRadius: theme.radius.xl,
     padding: 20,
-    backgroundColor: theme.color.surfaceRaised,
+    backgroundColor: c.surfaceRaised,
     borderWidth: 1,
-    borderColor: theme.color.hairline,
-    ...(elevation('raised') as object),
+    borderColor: c.hairline,
+    ...(elevation('raised', c.scheme) as object),
   },
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.color.text,
+    color: c.text,
   },
   description: {
     fontSize: theme.font.body,
     lineHeight: 20,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginTop: 6,
     marginBottom: 20,
   },
@@ -229,8 +233,8 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: theme.radius.md,
     borderWidth: 1,
-    borderColor: theme.color.hairlineStrong,
-    backgroundColor: theme.color.surface,
+    borderColor: c.hairlineStrong,
+    backgroundColor: c.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -238,15 +242,15 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   boxFilled: {
-    borderColor: theme.color.textFaint,
+    borderColor: c.textFaint,
   },
   boxCaret: {
-    borderColor: theme.color.text,
+    borderColor: c.text,
   },
   boxChar: {
     fontSize: 22,
     fontWeight: '600',
-    color: theme.color.text,
+    color: c.text,
   },
   hiddenInput: {
     ...StyleSheet.absoluteFillObject,
@@ -272,6 +276,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-});
+}));
 
 export default JoinRoomSheet;

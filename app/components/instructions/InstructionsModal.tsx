@@ -11,6 +11,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { Icon } from 'react-native-elements';
 import { theme, elevation } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 
 interface InstructionsModalProps {
   visible: boolean;
@@ -28,7 +29,7 @@ const translations = {
     },
     theDeck: {
       title: 'The Deck',
-      content: 'The game uses a special 24-card deck with 6 ranks: 9, 10, J, Q, K, A in all four suits: ♠ (spades), ♣ (clubs), ♦ (diamonds), ♥ (hearts).\n\nEach player starts with 1 card. When you lose a challenge, you get another card. Reach 4 cards and you\'re eliminated!',
+      content: 'The game uses a special 24-card deck with 6 ranks: 9, 10, J, Q, K, A in all four suits: ♠ (spades), ♣ (clubs), ♦ (diamonds), ♥ (hearts).\n\nEach player starts with 1 card. When you lose a challenge, you get another card. Go over the table\'s card limit and you\'re eliminated!',
     },
     howToPlay: {
       title: 'How to Play',
@@ -59,7 +60,7 @@ const translations = {
     },
     elimination: {
       title: 'Elimination & Winning',
-      content: 'When you reach 4 cards, you are eliminated from the game. The last player remaining wins!\n\nAfter each challenge is resolved:\n• The loser gets one more card\n• If the loser now has 4 cards, they\'re out\n• A new round begins with the remaining players\n• The player who lost the previous round starts the betting',
+      content: 'Each table has a card limit. Small tables play to more cards: by default you\'re out at 7 cards with 2 players, 5 with 3, and 4 with 4 or more. The host can change it in the lobby. The last player remaining wins!\n\nAfter each challenge is resolved:\n• The loser gets one more card\n• If the loser is now over the limit, they\'re out\n• A new round begins with the remaining players\n• The player who lost the previous round starts the betting',
     },
     bots: {
       title: 'Playing with Bots',
@@ -78,7 +79,7 @@ const translations = {
     },
     theDeck: {
       title: 'Talia Kart',
-      content: 'Gra wykorzystuje specjalną talię 24 kart z 6 rangami: 9, 10, J, Q, K, A we wszystkich czterech kolorach: ♠ (piki), ♣ (trefle), ♦ (kara), ♥ (kiery).\n\nKażdy gracz zaczyna z 1 kartą. Kiedy przegrasz rozdanie, dostajesz kolejną kartę. Gdy zbierzesz 4 karty, zostaniesz wyeliminowany!',
+      content: 'Gra wykorzystuje specjalną talię 24 kart z 6 rangami: 9, 10, J, Q, K, A we wszystkich czterech kolorach: ♠ (piki), ♣ (trefle), ♦ (kara), ♥ (kiery).\n\nKażdy gracz zaczyna z 1 kartą. Kiedy przegrasz rozdanie, dostajesz kolejną kartę. Gdy przekroczysz limit kart stołu, zostaniesz wyeliminowany!',
     },
     howToPlay: {
       title: 'Jak Grać',
@@ -109,7 +110,7 @@ const translations = {
     },
     elimination: {
       title: 'Eliminacja i Wygrana',
-      content: 'Kiedy osiągniesz 4 karty, zostajesz wyeliminowany z gry. Ostatni pozostały gracz wygrywa!\n\nPo rozwiązaniu każdego rozdania:\n• Przegrany dostaje jeszcze jedną kartę\n• Jeśli przegrany ma teraz 4 karty, odpada\n• Zaczyna się nowa runda z pozostałymi graczami\n• Gracz, który przegrał poprzednią rundę, zaczyna licytację',
+      content: 'Każdy stół ma limit kart. Przy mniejszej liczbie graczy gra się do większej liczby kart: domyślnie odpadasz przy 7 kartach w 2 osoby, przy 5 w 3 osoby i przy 4 od 4 graczy. Gospodarz może to zmienić w poczekalni. Ostatni pozostały gracz wygrywa!\n\nPo rozwiązaniu każdego rozdania:\n• Przegrany dostaje jeszcze jedną kartę\n• Jeśli przegrany przekroczył limit, odpada\n• Zaczyna się nowa runda z pozostałymi graczami\n• Gracz, który przegrał poprzednią rundę, zaczyna licytację',
     },
     bots: {
       title: 'Gra z Botami',
@@ -123,6 +124,8 @@ const translations = {
 };
 
 export function InstructionsModal({ visible, onClose }: InstructionsModalProps) {
+  const styles = useStyles();
+  const c = useColors();
   const [language, setLanguage] = useState<Language>('en');
 
   const t = translations[language];
@@ -152,51 +155,51 @@ export function InstructionsModal({ visible, onClose }: InstructionsModalProps) 
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, undefined]}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.color.text }]}>
+            <Text style={[styles.title, { color: c.text }]}>
               {t.title}
             </Text>
             <View style={styles.headerButtons}>
               <TouchableOpacity onPress={toggleLanguage} style={styles.languageButton}>
-                <Text style={[styles.languageText, { color: theme.color.text }]}>
+                <Text style={[styles.languageText, { color: c.text }]}>
                   {language === 'en' ? 'PL' : 'EN'}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                <Icon name="close" size={24} color={theme.color.textMuted} />
+                <Icon name="close" size={24} color={c.textMuted} />
               </TouchableOpacity>
             </View>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Game Overview */}
-            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
+            <Text style={[styles.sectionTitle, { color: c.text }]}>
               {t.gameOverview.title}
             </Text>
-            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
+            <Text style={[styles.paragraph, { color: c.textSoft }]}>
               {t.gameOverview.content}
             </Text>
 
             {/* Setup & Deck */}
-            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
+            <Text style={[styles.sectionTitle, { color: c.text }]}>
               {t.theDeck.title}
             </Text>
-            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
+            <Text style={[styles.paragraph, { color: c.textSoft }]}>
               {t.theDeck.content}
             </Text>
 
             {/* How to Play */}
-            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
+            <Text style={[styles.sectionTitle, { color: c.text }]}>
               {t.howToPlay.title}
             </Text>
-            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
+            <Text style={[styles.paragraph, { color: c.textSoft }]}>
               {t.howToPlay.content}
             </Text>
 
             {/* Hand Rankings */}
-            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
+            <Text style={[styles.sectionTitle, { color: c.text }]}>
               {t.handRankings.title}
             </Text>
-            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
+            <Text style={[styles.paragraph, { color: c.textSoft }]}>
               {t.handRankings.intro}
               <Text style={styles.bold}>
                 {t.handRankings.highCard}
@@ -214,42 +217,42 @@ export function InstructionsModal({ visible, onClose }: InstructionsModalProps) 
             </Text>
 
             {/* Betting Rules */}
-            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
+            <Text style={[styles.sectionTitle, { color: c.text }]}>
               {t.bettingRules.title}
             </Text>
-            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
+            <Text style={[styles.paragraph, { color: c.textSoft }]}>
               {t.bettingRules.content}
             </Text>
 
             {/* Checking & Challenges */}
-            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
+            <Text style={[styles.sectionTitle, { color: c.text }]}>
               {t.checking.title}
             </Text>
-            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
+            <Text style={[styles.paragraph, { color: c.textSoft }]}>
               {t.checking.content}
             </Text>
 
             {/* Elimination & Winning */}
-            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
+            <Text style={[styles.sectionTitle, { color: c.text }]}>
               {t.elimination.title}
             </Text>
-            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
+            <Text style={[styles.paragraph, { color: c.textSoft }]}>
               {t.elimination.content}
             </Text>
 
             {/* Bot Behavior */}
-            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
+            <Text style={[styles.sectionTitle, { color: c.text }]}>
               {t.bots.title}
             </Text>
-            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
+            <Text style={[styles.paragraph, { color: c.textSoft }]}>
               {t.bots.content}
             </Text>
 
             {/* Tips */}
-            <Text style={[styles.sectionTitle, { color: theme.color.text }]}>
+            <Text style={[styles.sectionTitle, { color: c.text }]}>
               {t.tips.title}
             </Text>
-            <Text style={[styles.paragraph, { color: '#B9B9BE' }]}>
+            <Text style={[styles.paragraph, { color: c.textSoft }]}>
               {t.tips.content}
             </Text>
 
@@ -261,10 +264,10 @@ export function InstructionsModal({ visible, onClose }: InstructionsModalProps) 
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   modalOverlay: {
     flex: 1,
-    backgroundColor: theme.color.overlay,
+    backgroundColor: c.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
@@ -276,10 +279,10 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.xl,
     paddingHorizontal: 20,
     paddingTop: 16,
-    backgroundColor: theme.color.surfaceRaised,
+    backgroundColor: c.surfaceRaised,
     borderWidth: 1,
-    borderColor: theme.color.hairline,
-    ...(elevation('raised') as object),
+    borderColor: c.hairline,
+    ...(elevation('raised', c.scheme) as object),
   },
   header: {
     flexDirection: 'row',
@@ -302,7 +305,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: theme.radius.sm,
-    backgroundColor: theme.color.control,
+    backgroundColor: c.control,
   },
   languageText: {
     fontSize: 13,
@@ -329,4 +332,4 @@ const styles = StyleSheet.create({
   bottomSpacer: {
     height: 24,
   },
-});
+}));

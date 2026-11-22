@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { StyleSheet, TextInput, TextInputProps } from 'react-native';
 import { theme } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 
 /** Single-line text input in the app's dark style. */
 export function TextField({ style, onFocus, onBlur, ...rest }: TextInputProps) {
+  const styles = useStyles();
+  const c = useColors();
   const [focused, setFocused] = useState(false);
 
   return (
     <TextInput
-      placeholderTextColor={theme.color.textFaint}
-      selectionColor={theme.color.text}
+      placeholderTextColor={c.textFaint}
+      selectionColor={c.text}
       {...rest}
       onFocus={(event) => {
         setFocused(true);
@@ -24,20 +27,20 @@ export function TextField({ style, onFocus, onBlur, ...rest }: TextInputProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   input: {
     height: 50,
     borderRadius: theme.radius.lg,
     borderWidth: 1,
-    borderColor: theme.color.hairlineStrong,
-    backgroundColor: theme.color.surface,
+    borderColor: c.hairlineStrong,
+    backgroundColor: c.surface,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: theme.color.text,
+    color: c.text,
   },
   focused: {
-    borderColor: theme.color.textMuted,
+    borderColor: c.textMuted,
   },
-});
+}));
 
 export default TextField;

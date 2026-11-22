@@ -6,6 +6,7 @@ import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-qr-code';
 import { Button, PressableScale } from '@/components/ui/Button';
 import { theme, elevation, tabularNums } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { inviteUrl, spacedRoomCode } from '@/utils/roomCode';
 import { SwapIcon } from '@/components/ui/motion';
 
@@ -14,6 +15,8 @@ const canShare =
 
 /** The room code, a QR code and a link, so friends can join the waiting room. */
 export default function InviteCard({ code, roomName }: { code: string; roomName: string }) {
+  const styles = useStyles();
+  const c = useColors();
   const [copied, setCopied] = useState(false);
   const [enlarged, setEnlarged] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -65,8 +68,8 @@ export default function InviteCard({ code, roomName }: { code: string; roomName:
               <SwapIcon
                 show={copied ? 'second' : 'first'}
                 size={16}
-                first={<MaterialIcons name="content-copy" size={16} color={theme.color.text} />}
-                second={<MaterialIcons name="check" size={16} color={theme.color.green} />}
+                first={<MaterialIcons name="content-copy" size={16} color={c.text} />}
+                second={<MaterialIcons name="check" size={16} color={c.green} />}
               />
             }
             style={styles.action}
@@ -77,7 +80,7 @@ export default function InviteCard({ code, roomName }: { code: string; roomName:
               size="md"
               variant="secondary"
               onPress={share}
-              icon={<MaterialIcons name="ios-share" size={16} color={theme.color.text} />}
+              icon={<MaterialIcons name="ios-share" size={16} color={c.text} />}
               style={styles.action}
             />
           )}
@@ -114,7 +117,7 @@ const QR_SMALL = 84;
 const QR_PAD = 8;
 const CARD_PAD = 12;
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -123,9 +126,9 @@ const styles = StyleSheet.create({
     padding: CARD_PAD,
     paddingLeft: theme.space.lg,
     borderRadius: theme.radius.xl,
-    backgroundColor: theme.color.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: theme.color.hairline,
+    borderColor: c.hairline,
   },
   main: {
     flex: 1,
@@ -133,14 +136,14 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: theme.font.small,
-    color: theme.color.textMuted,
+    color: c.textMuted,
   },
   code: {
     fontSize: 30,
     lineHeight: 36,
     fontWeight: '700',
     letterSpacing: 2,
-    color: theme.color.text,
+    color: c.text,
     marginTop: 2,
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'ui-monospace, SFMono-Regular, Menlo, monospace' }),
   },
@@ -163,7 +166,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: theme.color.overlay,
+    backgroundColor: c.overlay,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -172,20 +175,20 @@ const styles = StyleSheet.create({
     maxWidth: 340,
     padding: 20,
     borderRadius: theme.radius.xl,
-    backgroundColor: theme.color.surfaceRaised,
+    backgroundColor: c.surfaceRaised,
     borderWidth: 1,
-    borderColor: theme.color.hairline,
-    ...(elevation('raised') as object),
+    borderColor: c.hairline,
+    ...(elevation('raised', c.scheme) as object),
   },
   sheetTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.color.text,
+    color: c.text,
   },
   sheetText: {
     fontSize: theme.font.body,
     lineHeight: 20,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginTop: 6,
   },
   qrLarge: {
@@ -199,9 +202,9 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     letterSpacing: 2,
-    color: theme.color.text,
+    color: c.text,
     textAlign: 'center',
     marginTop: 14,
     marginBottom: 20,
   },
-});
+}));

@@ -64,6 +64,19 @@ export interface LogEntry {
   [key: string]: any;
 }
 
+export interface HandLimit {
+  /** The host's pick; null means auto. */
+  choice: number | null;
+  /** What the current seating would play with: the pick, lowered to fit the deck. */
+  value: number;
+  /** The auto limit for the current seating. */
+  auto: number;
+  /** The most the deck allows for the current seating. */
+  max: number;
+  /** The most a host may pick at all. */
+  max_choice: number;
+}
+
 export interface RoomState {
   v: number;
   server_time: number;
@@ -73,7 +86,10 @@ export interface RoomState {
     host_id: string;
     status: RoomStatus;
     max_players: number;
+    /** Most cards a player may hold in the game on screen (or the next one, in the lobby); one more and they are out. */
     max_hand: number;
+    /** The hand limit of the next game (missing from older servers). */
+    hand_limit?: HandLimit;
     games_played: number;
     /** A bot match that restarts itself. */
     autoplay?: boolean;
@@ -126,6 +142,7 @@ export const ERROR_TEXT: Record<string, string> = {
   room_not_found: 'This room no longer exists',
   not_in_room: "You're not in this room",
   player_not_found: 'That player is not here',
+  bad_max_hand: 'That card limit is not possible',
   rate_limited: 'Slow down a little',
   timeout: 'No answer from the server. Check your connection',
   offline: "You're offline",

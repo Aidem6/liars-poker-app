@@ -10,7 +10,16 @@ import {
 import { Icon } from 'react-native-elements';
 import * as Haptics from 'expo-haptics';
 import { theme, elevation } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '@/app/lib/ThemeContext';
+import type { ThemeMode } from '@/utils/themeStorage';
+
+const APPEARANCE: Array<{ mode: ThemeMode; label: string }> = [
+  { mode: 'system', label: 'Auto' },
+  { mode: 'light', label: 'Light' },
+  { mode: 'dark', label: 'Dark' },
+];
 
 interface HeaderMenuProps {
   onOpenInstructions: () => void;
@@ -19,8 +28,11 @@ interface HeaderMenuProps {
 }
 
 export function HeaderMenu({ onOpenInstructions, onOpenFeedback, onOpenShare }: HeaderMenuProps) {
+  const styles = useStyles();
+  const c = useColors();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const insets = useSafeAreaInsets();
+  const { themeMode, setThemeMode } = useTheme();
 
   const handleHaptic = () => {
     if (Platform.OS !== 'web') {
@@ -48,7 +60,7 @@ export function HeaderMenu({ onOpenInstructions, onOpenFeedback, onOpenShare }: 
   return (
     <View>
       <TouchableOpacity onPress={handleMenuToggle} style={styles.menuButton} accessibilityLabel="Open menu">
-        <Icon name="more-horiz" size={24} color={theme.color.textMuted} />
+        <Icon name="more-horiz" size={24} color={c.textMuted} />
       </TouchableOpacity>
 
       <Modal
@@ -70,10 +82,34 @@ export function HeaderMenu({ onOpenInstructions, onOpenFeedback, onOpenShare }: 
                 style={[styles.menuItem, index > 0 && styles.menuItemDivider]}
                 onPress={() => handleMenuItemPress(item.action)}
               >
-                <Icon name={item.icon} size={20} color={theme.color.textMuted} />
+                <Icon name={item.icon} size={20} color={c.textMuted} />
                 <Text style={styles.menuLabel}>{item.label}</Text>
               </TouchableOpacity>
             ))}
+            {/* Swallows taps between the segments so they don't close the menu. */}
+            <View style={[styles.menuItem, styles.menuItemDivider]} onStartShouldSetResponder={() => true}>
+              <Icon name="contrast" size={20} color={c.textMuted} />
+              <Text style={styles.menuLabel}>Appearance</Text>
+              <View style={styles.segments} accessibilityRole="radiogroup" accessibilityLabel="Appearance">
+                {APPEARANCE.map(({ mode, label }) => {
+                  const selected = themeMode === mode;
+                  return (
+                    <TouchableOpacity
+                      key={mode}
+                      onPress={() => {
+                        handleHaptic();
+                        setThemeMode(mode);
+                      }}
+                      style={[styles.segment, selected && styles.segmentSelected]}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                    >
+                      <Text style={[styles.segmentLabel, selected && styles.segmentLabelSelected]}>{label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -81,25 +117,25 @@ export function HeaderMenu({ onOpenInstructions, onOpenFeedback, onOpenShare }: 
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   menuButton: {
     padding: 8,
     marginRight: -8,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: c.scrim,
   },
   menuContainer: {
     position: 'absolute',
     right: 16,
-    minWidth: 210,
+    minWidth: 280,
     borderRadius: theme.radius.lg,
-    backgroundColor: theme.color.surfaceRaised,
+    backgroundColor: c.surfaceRaised,
     borderWidth: 1,
-    borderColor: theme.color.hairline,
+    borderColor: c.hairline,
     paddingHorizontal: 14,
-    ...(elevation('raised') as object),
+    ...(elevation('raised', c.scheme) as object),
   },
   menuItem: {
     flexDirection: 'row',
@@ -109,11 +145,36 @@ const styles = StyleSheet.create({
   },
   menuItemDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.color.hairlineStrong,
+    borderTopColor: c.hairlineStrong,
   },
   menuLabel: {
     flex: 1,
     fontSize: 15,
-    color: theme.color.text,
+    color: c.text,
   },
-});
+  segments: {
+    flexDirection: 'row',
+    padding: 2,
+    borderRadius: theme.radius.sm,
+    backgroundColor: c.control,
+  },
+  segment: {
+    height: 28,
+    paddingHorizontal: 9,
+    borderRadius: theme.radius.sm - 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentSelected: {
+    backgroundColor: c.scheme === 'light' ? c.surface : c.surfaceActive,
+    ...(c.scheme === 'light' ? (elevation('card', 'light') as object) : null),
+  },
+  segmentLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: c.textMuted,
+  },
+  segmentLabelSelected: {
+    color: c.text,
+  },
+}));

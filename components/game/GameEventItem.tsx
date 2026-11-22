@@ -3,6 +3,7 @@ import { StyleSheet, View, Text } from 'react-native';
 import { GameEvent } from '@/types/gameEvents';
 import PlayingCard from '@/components/ui/PlayingCard';
 import { theme, tabularNums } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { betTitle, findFigure, parseCard } from '@/utils/bets';
 
 interface GameEventItemProps {
@@ -13,6 +14,7 @@ interface GameEventItemProps {
 
 /** One entry in the game timeline: a plain row, separated from the next by a hairline. */
 export default function GameEventItem({ event, myUserId, myUsername }: GameEventItemProps) {
+  const styles = useStyles();
   // Helper to replace player name with "You" if it's the current user
   const getDisplayName = (playerId?: string, playerName?: string) => {
     // First try matching by player ID
@@ -48,7 +50,9 @@ export default function GameEventItem({ event, myUserId, myUsername }: GameEvent
     case 'game_start':
       return (
         <View style={styles.row}>
-          <Text style={[styles.text, styles.muted]}>Game started</Text>
+          <Text style={[styles.text, styles.muted]}>
+            {event.maxHand ? `Game started · out at ${event.maxHand + 1} cards` : 'Game started'}
+          </Text>
         </View>
       );
 
@@ -166,7 +170,7 @@ export default function GameEventItem({ event, myUserId, myUsername }: GameEvent
   }
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -174,7 +178,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.color.hairlineStrong,
+    borderBottomColor: c.hairlineStrong,
   },
   column: {
     flexDirection: 'column',
@@ -191,31 +195,31 @@ const styles = StyleSheet.create({
   dealTitle: {
     fontSize: theme.font.label,
     fontWeight: '600',
-    color: theme.color.text,
+    color: c.text,
   },
   text: {
     fontSize: theme.font.body,
-    color: theme.color.text,
+    color: c.text,
   },
   name: {
     fontWeight: '600',
-    color: theme.color.text,
+    color: c.text,
   },
   caption: {
     fontSize: theme.font.small,
-    color: theme.color.textMuted,
+    color: c.textMuted,
   },
   muted: {
-    color: theme.color.textMuted,
+    color: c.textMuted,
     fontWeight: '400',
   },
   red: {
-    color: theme.color.red,
+    color: c.red,
   },
   won: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.color.text,
+    color: c.text,
   },
   cards: {
     flexDirection: 'row',
@@ -229,4 +233,4 @@ const styles = StyleSheet.create({
   handName: {
     width: 84,
   },
-});
+}));

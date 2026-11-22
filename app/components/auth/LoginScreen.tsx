@@ -14,12 +14,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { pb, saveAuthData } from '../../lib/pocketbase';
 import { theme, elevation } from '@/constants/theme';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/TextField';
 import * as Haptics from 'expo-haptics';
 import { FeedbackButton } from '../feedback/FeedbackButton';
 
 export default function LoginScreen() {
+  const styles = useStyles();
+  const c = useColors();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -82,7 +85,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle={c.scheme === 'light' ? 'dark-content' : 'light-content'} backgroundColor="transparent" translucent />
 
       <SafeAreaView edges={['top']} style={styles.topBar}>
         <FeedbackButton screenName="Login" />
@@ -229,10 +232,10 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   container: {
     flex: 1,
-    backgroundColor: theme.color.bg,
+    backgroundColor: c.bg,
   },
   topBar: {
     alignItems: 'flex-end',
@@ -257,12 +260,12 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '600',
     letterSpacing: -0.4,
-    color: theme.color.text,
+    color: c.text,
   },
   subtitle: {
     fontSize: theme.font.body,
     lineHeight: 20,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginTop: 6,
   },
   fields: {
@@ -277,12 +280,12 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginBottom: 6,
   },
   link: {
     fontSize: 13,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     textDecorationLine: 'underline',
   },
   switchContainer: {
@@ -291,16 +294,16 @@ const styles = StyleSheet.create({
   },
   switchText: {
     fontSize: theme.font.body,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     textAlign: 'center',
   },
   switchTextBold: {
-    color: theme.color.text,
+    color: c.text,
     fontWeight: '500',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: theme.color.overlay,
+    backgroundColor: c.overlay,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -309,20 +312,20 @@ const styles = StyleSheet.create({
     maxWidth: 380,
     borderRadius: theme.radius.xl,
     padding: 20,
-    backgroundColor: theme.color.surfaceRaised,
+    backgroundColor: c.surfaceRaised,
     borderWidth: 1,
-    borderColor: theme.color.hairline,
-    ...(elevation('raised') as object),
+    borderColor: c.hairline,
+    ...(elevation('raised', c.scheme) as object),
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: theme.color.text,
+    color: c.text,
   },
   modalDescription: {
     fontSize: theme.font.body,
     lineHeight: 20,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginTop: 6,
     marginBottom: 20,
   },
@@ -330,4 +333,4 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-});
+}));

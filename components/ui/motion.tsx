@@ -7,11 +7,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { theme } from '@/constants/theme';
+import { useColors } from '@/hooks/useThemedStyles';
 
 const native = Platform.OS !== 'web';
 /** The page colour, used to tint elements pushed into the background. */
-const PAGE = theme.color.bg;
 /** Strong ease-out: moves at once, settles softly. */
 export const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const EASE_IN_OUT = Easing.bezier(0.77, 0, 0.175, 1);
@@ -178,6 +177,7 @@ export function Focus({
   const reduced = useReducedMotion();
   const shade = useRef(new Animated.Value(dim ? 1 - dimTo : 0)).current;
   const size = useRef(new Animated.Value(reduced ? 1 : scale)).current;
+  const page = useColors().bg;
 
   useEffect(() => {
     const animation = Animated.parallel([
@@ -198,7 +198,7 @@ export function Focus({
       {children}
       <Animated.View
         pointerEvents="none"
-        style={[StyleSheet.absoluteFill, { borderRadius: radius, backgroundColor: PAGE, opacity: shade }]}
+        style={[StyleSheet.absoluteFill, { borderRadius: radius, backgroundColor: page, opacity: shade }]}
       />
     </Animated.View>
   );

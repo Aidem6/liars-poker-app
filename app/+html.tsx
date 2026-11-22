@@ -1,6 +1,6 @@
 import { ScrollViewStyleReset } from 'expo-router/html';
 import type { PropsWithChildren } from 'react';
-import { theme } from '@/constants/theme';
+import { palettes } from '@/constants/theme';
 
 /**
  * The HTML shell for the web build (static output only). It paints the dark
@@ -22,7 +22,10 @@ export default function Root({ children }: PropsWithChildren) {
 }
 
 const css = `
-html, body { background-color: ${theme.color.bg}; color-scheme: dark; }
+html, body { background-color: ${palettes.dark.bg}; color-scheme: dark; }
+@media (prefers-color-scheme: light) {
+  html, body { background-color: ${palettes.light.bg}; color-scheme: light; }
+}
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

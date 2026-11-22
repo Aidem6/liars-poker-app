@@ -22,10 +22,11 @@ import HandPanel from '../components/game/HandPanel';
 import InviteCard from '../components/game/InviteCard';
 import { RevealStep, useRevealSequence } from '../components/game/useRevealSequence';
 import { Appear, useNewKeys } from '@/components/ui/motion';
-import { Button } from '../components/ui/Button';
+import { Button, PressableScale } from '../components/ui/Button';
 import { TextField } from '../components/ui/TextField';
 import { theme, tabularNums, elevation } from '@/constants/theme';
-import { betShort, betTitle, figures, MAX_CARDS } from '@/utils/bets';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
+import { betShort, betTitle, figures } from '@/utils/bets';
 import { useClientState, useGameClient } from '../socket';
 import { errorText } from '../net/protocol';
 import { namesOf, tableModel, timelineEvents } from '../net/view';
@@ -65,6 +66,8 @@ const REMOVED_TEXT: Record<string, string> = {
 };
 
 function Game(): JSX.Element {
+  const styles = useStyles();
+  const c = useColors();
   const { width } = useWindowDimensions();
   const isTabletOrDesktop = width >= TABLET_BREAKPOINT;
   const navigation = useNavigation();
@@ -221,6 +224,11 @@ function Game(): JSX.Element {
     run(event, () => client.host(event));
   };
 
+  const setMaxHand = (maxHand: number | null) => {
+    haptic(Haptics.ImpactFeedbackStyle.Light);
+    run('Card limit', () => client.setMaxHand(maxHand));
+  };
+
   const kick = (playerId: string) => {
     haptic();
     run('Remove player', () => client.kick(playerId));
@@ -242,7 +250,7 @@ function Game(): JSX.Element {
   if (!nameConfirmed) {
     return (
       <SafeAreaView style={styles.screen}>
-        <StatusBar barStyle="light-content" backgroundColor={theme.color.bg} />
+        <StatusBar barStyle={c.scheme === 'light' ? 'dark-content' : 'light-content'} backgroundColor={c.bg} />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.joinContainer}>
           <View style={styles.joinContent}>
             <Text style={styles.joinTitle}>Choose a name</Text>
@@ -313,9 +321,25 @@ function Game(): JSX.Element {
     const seated = state.players;
     const canStart = seated.length >= 2;
     const iAmSeated = state.me.role === 'player';
+    // An older server sends no hand_limit: show its fixed limit without controls.
+    const limit = state.room.hand_limit ?? {
+      choice: null,
+      value: state.room.max_hand,
+      auto: state.room.max_hand,
+      max: state.room.max_hand,
+      max_choice: state.room.max_hand,
+    };
+    const canChangeLimit = model.isHost && !!state.room.hand_limit;
+    const tableSize = Math.max(2, seated.length);
+    const limitHint =
+      limit.choice === null
+        ? `Auto for ${tableSize} players`
+        : limit.value < limit.choice
+          ? `Lowered from ${limit.choice + 1} so the deck fits ${tableSize} players`
+          : `Auto would be ${limit.auto + 1}`;
     return (
       <SafeAreaView style={styles.screen}>
-        <StatusBar barStyle="light-content" backgroundColor={theme.color.bg} />
+        <StatusBar barStyle={c.scheme === 'light' ? 'dark-content' : 'light-content'} backgroundColor={c.bg} />
         {offlineBanner}
         <View style={styles.column}>
           <View style={styles.roomHeader}>
@@ -339,16 +363,16 @@ function Game(): JSX.Element {
                 <Appear key={player.id} animate={newSeats.has(player.id)} from={{ translateY: 12, blur: 4 }} duration={300}>
                   <View style={[styles.roomRow, index > 0 && styles.roomRowDivider]}>
                     <Text style={[styles.roomSeat, tabularNums]}>{index + 1}</Text>
-                    <Text style={[styles.roomPlayer, !player.connected && { color: theme.color.textMuted }]} numberOfLines={1}>
+                    <Text style={[styles.roomPlayer, !player.connected && { color: c.textMuted }]} numberOfLines={1}>
                       {player.name}
                     </Text>
                     {isMe && <Text style={styles.roomTag}>You</Text>}
                     {player.id === state.room.host_id && <Text style={styles.roomTag}>Host</Text>}
                     {player.is_bot && <Text style={styles.roomTag}>Bot</Text>}
-                    {!player.connected && <Text style={[styles.roomTag, { color: theme.color.amber }]}>Away</Text>}
+                    {!player.connected && <Text style={[styles.roomTag, { color: c.amber }]}>Away</Text>}
                     {model.isHost && !isMe && (
                       <TouchableOpacity onPress={() => kick(player.id)} hitSlop={10} accessibilityLabel={`Remove ${player.name}`}>
-                        <Icon name="close" size={18} color={theme.color.textMuted} />
+                        <Icon name="close" size={18} color={c.textMuted} />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -363,6 +387,39 @@ function Game(): JSX.Element {
           </ScrollView>
 
           <View style={styles.roomFooter}>
+            <View style={styles.limitRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.limitTitle, tabularNums]}>{`Out at ${limit.value + 1} cards`}</Text>
+                <Text style={styles.limitHint} numberOfLines={2}>{limitHint}</Text>
+              </View>
+              {canChangeLimit && (
+                <>
+                  {limit.choice !== null && (
+                    <Button label="Auto" variant="ghost" size="md" onPress={() => setMaxHand(null)} />
+                  )}
+                  <PressableScale
+                    onPress={() => setMaxHand(limit.value - 1)}
+                    disabled={limit.value <= 1 || net.sending}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel="Fewer cards before you're out"
+                    style={[styles.stepper, limit.value <= 1 && styles.stepperDisabled]}
+                  >
+                    <Icon name="remove" size={18} color={c.text} />
+                  </PressableScale>
+                  <PressableScale
+                    onPress={() => setMaxHand(limit.value + 1)}
+                    disabled={limit.value >= limit.max || net.sending}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel="More cards before you're out"
+                    style={[styles.stepper, limit.value >= limit.max && styles.stepperDisabled]}
+                  >
+                    <Icon name="add" size={18} color={c.text} />
+                  </PressableScale>
+                </>
+              )}
+            </View>
             {model.isHost ? (
               <>
                 <Button label="Start game" onPress={() => hostAction('start_game')} disabled={!canStart} />
@@ -395,7 +452,8 @@ function Game(): JSX.Element {
   const { players, me, opponents, turnPlayer, reveal, winnerName, iWon, watching, iAmOut, isMyTurn } = model;
   const finished = state.room.status === 'finished';
   const waitingForReady = game?.phase === 'reveal';
-  const cardsLine = `${model.myCards} ${model.myCards === 1 ? 'card' : 'cards'}, out at ${MAX_CARDS}`;
+  const outAt = state.room.max_hand + 1;
+  const cardsLine = `${model.myCards} ${model.myCards === 1 ? 'card' : 'cards'}, out at ${outAt}`;
 
   let statusTitle = '';
   let statusSubtitle: string | undefined;
@@ -425,7 +483,7 @@ function Game(): JSX.Element {
   } else if (reveal) {
     const iLost = !!me && reveal.loserId === me.id;
     statusTitle = iLost ? 'You take a card' : 'Safe this deal';
-    statusSubtitle = iLost ? `Out at ${MAX_CARDS} cards` : cardsLine;
+    statusSubtitle = iLost ? `Out at ${outAt} cards` : cardsLine;
     statusActive = true;
   } else if (isMyTurn) {
     statusTitle = 'Your turn';
@@ -460,7 +518,7 @@ function Game(): JSX.Element {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.color.bg} />
+      <StatusBar barStyle={c.scheme === 'light' ? 'dark-content' : 'light-content'} backgroundColor={c.bg} />
 
       <Drawer
         open={isDrawerOpen}
@@ -470,9 +528,9 @@ function Game(): JSX.Element {
         drawerPosition="left"
         drawerStyle={{
           width: isTabletOrDesktop ? 280 : '80%',
-          backgroundColor: theme.color.bg,
+          backgroundColor: c.bg,
           borderRightWidth: 1,
-          borderRightColor: theme.color.hairline,
+          borderRightColor: c.hairline,
         }}
         renderDrawerContent={() => (
           <GameDrawerContent
@@ -498,7 +556,7 @@ function Game(): JSX.Element {
             <View style={styles.topBarSide}>
               {!isTabletOrDesktop && (
                 <TouchableOpacity onPress={() => setIsDrawerOpen(true)} hitSlop={12} accessibilityLabel="Open menu">
-                  <Icon name="menu" size={22} color={theme.color.textMuted} />
+                  <Icon name="menu" size={22} color={c.textMuted} />
                 </TouchableOpacity>
               )}
             </View>
@@ -521,7 +579,7 @@ function Game(): JSX.Element {
             <View style={[styles.topBarSide, styles.topBarRight]}>
               <ConnectionStatusIndicator status={net.status} latency={net.latency} />
               <TouchableOpacity onPress={() => setShowInstructionsModal(true)} hitSlop={12} accessibilityLabel="How to play">
-                <Icon name="help-outline" size={22} color={theme.color.textMuted} />
+                <Icon name="help-outline" size={22} color={c.textMuted} />
               </TouchableOpacity>
             </View>
           </View>
@@ -542,6 +600,7 @@ function Game(): JSX.Element {
                 iWon={iWon}
                 revealStep={revealStep}
                 revealAnimated={revealAnimated}
+                outAt={outAt}
               />
             )}
           </View>
@@ -646,10 +705,10 @@ function Game(): JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   screen: {
     flex: 1,
-    backgroundColor: theme.color.bg,
+    backgroundColor: c.bg,
   },
   column: {
     flex: 1,
@@ -667,12 +726,12 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   banner: {
-    backgroundColor: theme.color.amber,
+    backgroundColor: c.amber,
     paddingVertical: 6,
     paddingHorizontal: theme.space.lg,
   },
   bannerText: {
-    color: '#1A1300',
+    color: c.onAmber,
     fontSize: theme.font.small,
     fontWeight: '600',
     textAlign: 'center',
@@ -692,12 +751,12 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '600',
     letterSpacing: -0.4,
-    color: theme.color.text,
+    color: c.text,
   },
   joinSubtitle: {
     fontSize: theme.font.body,
     lineHeight: 20,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginTop: 6,
   },
   // Waiting room
@@ -710,11 +769,11 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '600',
     letterSpacing: -0.4,
-    color: theme.color.text,
+    color: c.text,
   },
   roomSubtitle: {
     fontSize: theme.font.body,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginTop: 4,
   },
   invite: {
@@ -733,21 +792,21 @@ const styles = StyleSheet.create({
   },
   roomRowDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.color.hairlineStrong,
+    borderTopColor: c.hairlineStrong,
   },
   roomSeat: {
     width: 18,
     fontSize: theme.font.body,
-    color: theme.color.textFaint,
+    color: c.textFaint,
   },
   roomPlayer: {
     flex: 1,
     fontSize: 16,
-    color: theme.color.text,
+    color: c.text,
   },
   roomTag: {
     fontSize: theme.font.small,
-    color: theme.color.textMuted,
+    color: c.textMuted,
   },
   roomFooter: {
     paddingHorizontal: theme.space.xl,
@@ -757,13 +816,42 @@ const styles = StyleSheet.create({
   },
   roomHint: {
     fontSize: theme.font.body,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     textAlign: 'center',
     marginBottom: 4,
   },
   actionRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  limitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingBottom: theme.space.sm,
+  },
+  limitTitle: {
+    fontSize: theme.font.label,
+    fontWeight: '600',
+    color: c.text,
+  },
+  limitHint: {
+    fontSize: theme.font.small,
+    color: c.textMuted,
+    marginTop: 2,
+  },
+  stepper: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.surfaceRaised,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.hairlineStrong,
+  },
+  stepperDisabled: {
+    opacity: 0.35,
   },
   // Game
   topBar: {
@@ -789,11 +877,11 @@ const styles = StyleSheet.create({
   topBarTitle: {
     fontSize: theme.font.body,
     fontWeight: '600',
-    color: theme.color.text,
+    color: c.text,
   },
   topBarSubtitle: {
     fontSize: theme.font.caption,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginTop: 1,
   },
   picker: {
@@ -815,21 +903,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   toast: {
-    backgroundColor: theme.color.surfaceActive,
+    backgroundColor: c.surfaceActive,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: theme.radius.md,
-    ...(elevation('raised') as object),
+    ...(elevation('raised', c.scheme) as object),
   },
   toastSlot: {
     maxWidth: '80%',
   },
   toastText: {
-    color: theme.color.text,
+    color: c.text,
     fontSize: theme.font.body,
     fontWeight: '500',
     textAlign: 'center',
   },
-});
+}));
 
 export default Game;

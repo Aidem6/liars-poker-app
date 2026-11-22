@@ -16,9 +16,6 @@ export interface Figure {
 
 export const figures = cardList as Figure[];
 
-/** A player is out once they hold this many cards. */
-export const MAX_CARDS = 4;
-
 const RANK_WORD: Record<string, [string, string]> = {
   '9': ['nine', 'nines'],
   T: ['ten', 'tens'],

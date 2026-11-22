@@ -328,6 +328,11 @@ export class GameClient {
     return this.request(event);
   }
 
+  /** Host only, in the lobby: how many cards a player may hold before they are out, or null for auto. */
+  setMaxHand(maxHand: number | null): Promise<Reply> {
+    return this.request('set_max_hand', { max_hand: maxHand });
+  }
+
   kick(playerId: string): Promise<Reply> {
     return this.request('kick', { player_id: playerId });
   }

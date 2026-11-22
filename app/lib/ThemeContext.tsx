@@ -1,13 +1,19 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import { ThemeStorage, ThemeMode } from '@/utils/themeStorage';
-import { theme } from '@/constants/theme';
+import { palettes, type ColorScheme, type Palette } from '@/constants/theme';
 
 type ThemeContextType = {
+  /** The skin in use after resolving "system". */
+  scheme: ColorScheme;
   isLightMode: boolean;
+  /** Design tokens for the current skin. */
+  palette: Palette;
   toggleTheme: () => void;
+  /** What the player picked: light, dark, or follow the device. */
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => Promise<void>;
+  /** Older, smaller colour set used by the profile and settings screens. */
   colors: {
     background: string;
     text: string;
@@ -22,56 +28,42 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useColorScheme();
-  const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
-    // Default to system theme, will be overridden by stored value
-    return systemColorScheme === 'light' ? 'light' : 'dark';
-  });
+  const [themeMode, setThemeModeState] = useState<ThemeMode>('system');
 
-  // The app ships a single dark skin. The stored preference is kept so a
-  // light skin can be added later without a storage migration.
-  const isLightMode = false;
-
-  // Load theme on mount
   useEffect(() => {
-    const loadTheme = async () => {
-      const storedTheme = await ThemeStorage.getTheme();
-      if (storedTheme) {
-        setThemeModeState(storedTheme);
-      } else {
-        // If no stored theme, set to system default and save it
-        const defaultTheme = systemColorScheme === 'light' ? 'light' : 'dark';
-        setThemeModeState(defaultTheme);
-        await ThemeStorage.setTheme(defaultTheme);
-      }
+    ThemeStorage.getTheme().then((stored) => {
+      if (stored === 'light' || stored === 'dark' || stored === 'system') setThemeModeState(stored);
+    });
+  }, []);
+
+  const scheme: ColorScheme =
+    themeMode === 'system' ? (systemColorScheme === 'light' ? 'light' : 'dark') : themeMode;
+  const palette = palettes[scheme];
+
+  const value = useMemo<ThemeContextType>(() => {
+    const setThemeMode = async (mode: ThemeMode) => {
+      setThemeModeState(mode);
+      await ThemeStorage.setTheme(mode);
     };
-    loadTheme();
-  }, [systemColorScheme]);
+    return {
+      scheme,
+      isLightMode: scheme === 'light',
+      palette,
+      themeMode,
+      setThemeMode,
+      toggleTheme: () => setThemeMode(scheme === 'light' ? 'dark' : 'light'),
+      colors: {
+        background: palette.bg,
+        text: palette.text,
+        primary: palette.primary,
+        secondary: palette.surface,
+        border: palette.hairlineStrong,
+        secondaryText: palette.textMuted,
+      },
+    };
+  }, [scheme, palette, themeMode]);
 
-  const colors = {
-    background: theme.color.bg,
-    text: theme.color.text,
-    primary: theme.color.primary,
-    secondary: theme.color.surface,
-    border: theme.color.hairlineStrong,
-    secondaryText: theme.color.textMuted,
-  };
-
-  const toggleTheme = async () => {
-    const newMode = isLightMode ? 'dark' : 'light';
-    setThemeModeState(newMode);
-    await ThemeStorage.setTheme(newMode);
-  };
-
-  const setThemeMode = async (mode: ThemeMode) => {
-    setThemeModeState(mode);
-    await ThemeStorage.setTheme(mode);
-  };
-
-  return (
-    <ThemeContext.Provider value={{ isLightMode, toggleTheme, themeMode, setThemeMode, colors }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {
@@ -82,5 +74,15 @@ export function useTheme() {
   return context;
 }
 
+/**
+ * The skin in use, or the device setting when rendered outside the provider
+ * (error screens, isolated tests).
+ */
+export function useResolvedScheme(): ColorScheme {
+  const context = useContext(ThemeContext);
+  const device = useColorScheme();
+  return context?.scheme ?? (device === 'light' ? 'light' : 'dark');
+}
+
 // Add default export for expo-router compatibility
-export default ThemeProvider; 
+export default ThemeProvider;

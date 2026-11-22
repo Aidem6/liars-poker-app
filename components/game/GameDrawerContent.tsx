@@ -1,7 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, ScrollView } from 'react-native';
 import { Icon } from 'react-native-elements';
-import { theme } from '@/constants/theme';
+import { theme, elevation } from '@/constants/theme';
+import { useTheme } from '@/app/lib/ThemeContext';
+import type { ThemeMode } from '@/utils/themeStorage';
+import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { Button } from '@/components/ui/Button';
 import * as Haptics from 'expo-haptics';
 
@@ -34,6 +37,8 @@ export default function GameDrawerContent({
   onOpenBugReport,
   onOpenInstructions,
 }: GameDrawerContentProps) {
+  const styles = useStyles();
+  const c = useColors();
   const handleHaptic = () => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -48,9 +53,9 @@ export default function GameDrawerContent({
         onPress();
       }}
     >
-      <Icon name={icon} size={20} color={theme.color.textMuted} />
+      <Icon name={icon} size={20} color={c.textMuted} />
       <Text style={styles.menuLabel}>{label}</Text>
-      <Icon name="chevron-right" size={20} color={theme.color.textFaint} />
+      <Icon name="chevron-right" size={20} color={c.textFaint} />
     </TouchableOpacity>
   );
 
@@ -59,6 +64,12 @@ export default function GameDrawerContent({
     { mode: 'timeline', label: 'Timeline' },
   ];
   const activeMode = displayMode === 'timeline' ? 'timeline' : 'board';
+  const { themeMode, setThemeMode } = useTheme();
+  const appearances: Array<{ mode: ThemeMode; label: string }> = [
+    { mode: 'system', label: 'Auto' },
+    { mode: 'light', label: 'Light' },
+    { mode: 'dark', label: 'Dark' },
+  ];
 
   return (
     <View style={styles.container}>
@@ -85,6 +96,27 @@ export default function GameDrawerContent({
                 accessibilityState={{ selected }}
               >
                 <Text style={[styles.segmentLabel, selected && styles.segmentLabelSelected]}>{view.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text style={[styles.sectionLabel, styles.sectionGap]}>Appearance</Text>
+        <View style={styles.segment} accessibilityRole="radiogroup" accessibilityLabel="Appearance">
+          {appearances.map(({ mode, label }) => {
+            const selected = themeMode === mode;
+            return (
+              <TouchableOpacity
+                key={mode}
+                style={[styles.segmentItem, selected && styles.segmentItemSelected]}
+                onPress={() => {
+                  handleHaptic();
+                  setThemeMode(mode);
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+              >
+                <Text style={[styles.segmentLabel, selected && styles.segmentLabelSelected]}>{label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -118,10 +150,10 @@ export default function GameDrawerContent({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = createStyles((c) => ({
   container: {
     flex: 1,
-    backgroundColor: theme.color.bg,
+    backgroundColor: c.bg,
   },
   header: {
     paddingHorizontal: 20,
@@ -130,13 +162,13 @@ const styles = StyleSheet.create({
   },
   eyebrow: {
     fontSize: theme.font.small,
-    color: theme.color.textMuted,
+    color: c.textMuted,
   },
   roomName: {
     fontSize: 22,
     fontWeight: '600',
     letterSpacing: -0.2,
-    color: theme.color.text,
+    color: c.text,
     marginTop: 2,
   },
   menuItems: {
@@ -148,15 +180,19 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: theme.font.small,
-    color: theme.color.textMuted,
+    color: c.textMuted,
     marginBottom: 8,
+  },
+  sectionGap: {
+    marginTop: 20,
   },
   segment: {
     flexDirection: 'row',
     gap: 2,
     padding: 3,
     borderRadius: theme.radius.md,
-    backgroundColor: theme.color.surface,
+    // Light: a grey track with a white pill. Dark: a dark track with a lighter pill.
+    backgroundColor: c.scheme === 'light' ? c.control : c.surface,
   },
   segmentItem: {
     flex: 1,
@@ -165,19 +201,20 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.sm,
   },
   segmentItemSelected: {
-    backgroundColor: theme.color.surfaceActive,
+    backgroundColor: c.scheme === 'light' ? c.surface : c.surfaceActive,
+    ...(c.scheme === 'light' ? (elevation('card', 'light') as object) : null),
   },
   segmentLabel: {
     fontSize: theme.font.body,
-    color: theme.color.textMuted,
+    color: c.textMuted,
   },
   segmentLabelSelected: {
-    color: theme.color.text,
+    color: c.text,
     fontWeight: '600',
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: theme.color.hairlineStrong,
+    backgroundColor: c.hairlineStrong,
     marginTop: 20,
     marginBottom: 4,
   },
@@ -189,7 +226,7 @@ const styles = StyleSheet.create({
   },
   menuLabel: {
     fontSize: 16,
-    color: theme.color.text,
+    color: c.text,
     flex: 1,
   },
   footer: {
@@ -198,4 +235,4 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     gap: 8,
   },
-});
+}));
