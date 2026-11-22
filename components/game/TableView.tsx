@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import PlayingCard, { CardSize } from '@/components/ui/PlayingCard';
+import PlayingCard, { CardSize, cardSize } from '@/components/ui/PlayingCard';
 import { theme, tabularNums, colorTransition, balance } from '@/constants/theme';
 import { BetCard, BetCheck, betShort, betTitle, findFigure, MAX_CARDS } from '@/utils/bets';
-import { Appear, Flash, FlipCard, Shake } from '@/components/ui/motion';
+import { Appear, Flash, FlipCard, Focus, Shake } from '@/components/ui/motion';
 import { REVEAL_FINAL, RevealStep, SLOT_MS } from './useRevealSequence';
 
 export interface TablePlayer {
@@ -49,6 +49,15 @@ interface TableViewProps {
 const nameOf = (player: TablePlayer | undefined, fallback = 'Someone') =>
   player ? (player.isMe ? 'You' : player.name) : fallback;
 
+/** Whether any card in this player's revealed hand counts towards the bet. */
+const holdsMatch = (reveal: TableReveal | undefined, playerId: string) =>
+  !!reveal?.hands[playerId]?.some((_, index) => reveal.check.matched.has(`${playerId}:${index}`));
+
+/** Revealed hands are shown a size up, whatever the table size, so they read at a glance. */
+const REVEAL_CARD: CardSize = 'md';
+/** How far players whose cards decide the check come forward once the verdict lands. */
+const FOREGROUND_SCALE = 1.14;
+
 function OpponentCell({
   player,
   compact,
@@ -73,8 +82,15 @@ function OpponentCell({
   const isLoser = !!reveal && reveal.loserId === player.id && step >= RevealStep.PENALTY;
   const isChecker = !!reveal && reveal.checkerId === player.id;
   const highlightMatches = step >= RevealStep.VERDICT;
+  /** Holds cards that decide the check: brought forward once the verdict lands. */
+  const inFocus = highlightMatches && holdsMatch(reveal, player.id);
   /** Out of the game because of this very deal: their hand stays on show for the reveal. */
   const knockedOut = isLoser && !player.is_active;
+
+  /** A crowded table with a full hand: the revealed cards overlap to fit their column. */
+  // Counts the penalty card from the start, so the spacing never changes mid-reveal.
+  const crowded =
+    compact && !!revealedHand && revealedHand.length + (reveal!.loserId === player.id ? 1 : 0) >= MAX_CARDS;
 
   let slots: React.ReactNode;
   if (!player.is_active && !revealedHand) {
@@ -82,38 +98,51 @@ function OpponentCell({
       <PlayingCard key={index} variant="empty" size={slotSize} />
     ));
   } else if (revealedHand) {
+    const isMatch = (index: number) => reveal!.check.matched.has(`${player.id}:${index}`);
     const faceOf = (card: BetCard, index: number) => (
       <PlayingCard
         rank={card.rank}
         suit={card.suit}
-        size="sm"
-        highlighted={highlightMatches && reveal!.check.matched.has(`${player.id}:${index}`)}
+        size={REVEAL_CARD}
+        highlighted={highlightMatches && isMatch(index)}
       />
     );
+    const overlap = crowded ? -7 : 0;
+    const place = (index: number) => [
+      index > 0 && overlap ? { marginLeft: overlap } : null,
+      // A matching card sits above its neighbours so its ring is never covered.
+      highlightMatches && isMatch(index) ? { zIndex: 1 } : null,
+    ];
     slots = (
       <>
-        {revealedHand.map((card, index) =>
-          step < RevealStep.HANDS ? (
-            <PlayingCard key={index} variant="back" size="sm" />
-          ) : animated ? (
-            <FlipCard
-              key={index}
-              delay={order * 90 + index * 50}
-              back={<PlayingCard variant="back" size="sm" />}
-              face={faceOf(card, index)}
-            />
-          ) : (
-            <React.Fragment key={index}>{faceOf(card, index)}</React.Fragment>
-          ),
+        {revealedHand.map((card, index) => (
+          // Once the verdict lands, cards that play no part in it fade back.
+          <Focus key={index} dim={highlightMatches && !isMatch(index)} radius={cardSize(REVEAL_CARD).r} style={place(index)}>
+            {step < RevealStep.HANDS ? (
+              <PlayingCard variant="back" size={REVEAL_CARD} />
+            ) : animated ? (
+              <FlipCard
+                delay={order * 90 + index * 50}
+                back={<PlayingCard variant="back" size={REVEAL_CARD} />}
+                face={faceOf(card, index)}
+              />
+            ) : (
+              faceOf(card, index)
+            )}
+          </Focus>
+        ))}
+        {isLoser && (
+          // Filled when it overlaps, so the card beneath does not show through its outline.
+          <View style={overlap ? { marginLeft: overlap, zIndex: 2, borderRadius: 6, backgroundColor: theme.color.bg } : null}>
+            {animated ? (
+              <Appear from={{ translateY: -18, scale: 1.4, rotate: -12 }} duration={320}>
+                <PlayingCard variant="penalty" rank="+1" size={REVEAL_CARD} />
+              </Appear>
+            ) : (
+              <PlayingCard variant="penalty" rank="+1" size={REVEAL_CARD} />
+            )}
+          </View>
         )}
-        {isLoser &&
-          (animated ? (
-            <Appear from={{ translateY: -18, scale: 1.4, rotate: -12 }} duration={320}>
-              <PlayingCard variant="penalty" rank="+1" size="sm" />
-            </Appear>
-          ) : (
-            <PlayingCard variant="penalty" rank="+1" size="sm" />
-          ))}
       </>
     );
   } else {
@@ -142,11 +171,22 @@ function OpponentCell({
     detailColor = theme.color.amber;
   }
 
-  const emphasised = reveal ? isLoser : player.isYourTurn;
+  const emphasised = reveal ? isLoser || inFocus : player.isYourTurn;
 
   return (
+    <Focus scale={inFocus ? FOREGROUND_SCALE : 1}>
     <Shake trigger={animated && isLoser} style={[styles.cell, !player.is_active && !revealedHand && styles.cellOut]}>
-      <View style={[styles.slots, { gap: compact && !revealedHand ? 2 : 3, minHeight: compact ? 28 : 32 }]}>{slots}</View>
+      <View
+        style={[
+          styles.slots,
+          {
+            gap: revealedHand ? (compact ? (crowded ? 0 : 3) : 4) : compact ? 2 : 3,
+            minHeight: revealedHand ? 40 : compact ? 28 : 32,
+          },
+        ]}
+      >
+        {slots}
+      </View>
       <Text
         style={[
           styles.cellName,
@@ -163,6 +203,7 @@ function OpponentCell({
         {detail}
       </Text>
     </Shake>
+    </Focus>
   );
 }
 
@@ -351,7 +392,11 @@ export default function TableView({
     >
       <View style={styles.grid}>
         {opponents.map((player, index) => (
-          <View key={player.id} style={{ width: `${100 / columns}%` }}>
+          // Players brought forward in a reveal are drawn above their neighbours.
+          <View
+            key={player.id}
+            style={{ width: `${100 / columns}%`, zIndex: holdsMatch(reveal, player.id) ? 1 : 0 }}
+          >
             <OpponentCell
               player={player}
               compact={compact}

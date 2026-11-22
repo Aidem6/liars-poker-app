@@ -7,8 +7,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { theme } from '@/constants/theme';
 
 const native = Platform.OS !== 'web';
+/** The page colour, used to tint elements pushed into the background. */
+const PAGE = theme.color.bg;
 /** Strong ease-out: moves at once, settles softly. */
 export const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
 const EASE_IN_OUT = Easing.bezier(0.77, 0, 0.175, 1);
@@ -142,6 +145,61 @@ export function FlipCard({
       >
         {face}
       </Animated.View>
+    </Animated.View>
+  );
+}
+
+/**
+ * Eases an element back (dimmed) or forward (scaled up) whenever `dim` or
+ * `scale` change, e.g. to spotlight the cards that decide a reveal. Dimming
+ * lays a tint of the page colour over the element rather than fading it, so
+ * overlapping cards stay solid and never show through one another. It mounts
+ * at its target without animating, so a reveal joined midway shows as is.
+ */
+export function Focus({
+  dim = false,
+  scale = 1,
+  dimTo = 0.32,
+  radius = 0,
+  duration = 360,
+  children,
+  style,
+}: {
+  dim?: boolean;
+  scale?: number;
+  /** How much of the element still shows through when dimmed, 0 to 1. */
+  dimTo?: number;
+  /** Corner radius of the tint, to match the element's own. */
+  radius?: number;
+  duration?: number;
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const reduced = useReducedMotion();
+  const shade = useRef(new Animated.Value(dim ? 1 - dimTo : 0)).current;
+  const size = useRef(new Animated.Value(reduced ? 1 : scale)).current;
+
+  useEffect(() => {
+    const animation = Animated.parallel([
+      Animated.timing(shade, {
+        toValue: dim ? 1 - dimTo : 0,
+        duration: reduced ? 180 : duration,
+        easing: EASE_OUT,
+        useNativeDriver: native,
+      }),
+      Animated.timing(size, { toValue: reduced ? 1 : scale, duration, easing: EASE_OUT, useNativeDriver: native }),
+    ]);
+    animation.start();
+    return () => animation.stop();
+  }, [dim, scale, dimTo, reduced]);
+
+  return (
+    <Animated.View style={[style, { transform: [{ scale: size }] }]}>
+      {children}
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { borderRadius: radius, backgroundColor: PAGE, opacity: shade }]}
+      />
     </Animated.View>
   );
 }

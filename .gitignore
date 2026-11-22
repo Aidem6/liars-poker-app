@@ -41,3 +41,6 @@ yarn-error.*
 app-example
 /ios
 /android
+
+# Personal to-do notes (contain server details)
+TODO.md

@@ -553,6 +553,7 @@ function Game(): JSX.Element {
             subtitle={statusSubtitle}
             active={statusActive}
             highlighted={myHighlights}
+            spotlight={!!reveal && !!me && verdictShown}
             dealKey={game?.deal_no}
           >
             {showTimer && (
