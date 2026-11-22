@@ -83,6 +83,7 @@ const mockFake = {
     act: jest.fn(() => Promise.resolve({ ok: true })),
     host: jest.fn(() => Promise.resolve({ ok: true })),
     kick: jest.fn(() => Promise.resolve({ ok: true })),
+    setMaxHand: jest.fn(() => Promise.resolve({ ok: true })),
     toLocalTime: (t: number) => t,
   },
 };
@@ -270,6 +271,44 @@ describe('Game screen', () => {
     expect(mockFake.client.host).toHaveBeenCalledWith('start_game');
     fireEvent.press(getByText('Add bot'));
     expect(mockFake.client.host).toHaveBeenCalledWith('add_bot');
+  });
+
+  test('waiting room: host changes the card limit and can go back to auto', async () => {
+    const state = room({ status: 'lobby', game: null });
+    state.room.max_hand = 6;
+    state.room.hand_limit = { choice: null, value: 6, auto: 6, max: 12, max_choice: 12 };
+    const { getByText, getByLabelText, queryByText } = await renderGame(state);
+    expect(getByText('Out at 7 cards')).toBeTruthy();
+    expect(getByText('Auto for 2 players')).toBeTruthy();
+    expect(queryByText('Auto')).toBeNull();
+    fireEvent.press(getByLabelText('More cards before you\'re out'));
+    expect(mockFake.client.setMaxHand).toHaveBeenLastCalledWith(7);
+    fireEvent.press(getByLabelText('Fewer cards before you\'re out'));
+    expect(mockFake.client.setMaxHand).toHaveBeenLastCalledWith(5);
+
+    const lowered = room({ status: 'lobby', game: null, v: 2 });
+    lowered.room.hand_limit = { choice: 10, value: 8, auto: 4, max: 8, max_choice: 12 };
+    await show(lowered);
+    expect(getByText('Out at 9 cards')).toBeTruthy();
+    expect(getByText('Lowered from 11 so the deck fits 2 players')).toBeTruthy();
+    fireEvent.press(getByText('Auto'));
+    expect(mockFake.client.setMaxHand).toHaveBeenLastCalledWith(null);
+  });
+
+  test('waiting room: guests see the card limit but cannot change it', async () => {
+    const state = room({ status: 'lobby', game: null, host: 'p_2' });
+    state.room.hand_limit = { choice: 2, value: 2, auto: 6, max: 12, max_choice: 12 };
+    state.room.max_hand = 2;
+    const { getByText, queryByLabelText } = await renderGame(state);
+    expect(getByText('Out at 3 cards')).toBeTruthy();
+    expect(queryByLabelText('More cards before you\'re out')).toBeNull();
+  });
+
+  test("the table uses the game's card limit", async () => {
+    const state = room();
+    state.room.max_hand = 6;
+    const { getByText } = await renderGame(state);
+    expect(getByText('1 card, out at 7')).toBeTruthy();
   });
 
   test('waiting room: guests wait for the host', async () => {

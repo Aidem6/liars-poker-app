@@ -165,6 +165,9 @@ export function timelineEvents(state: RoomState, myHands: Record<number, string[
         events.push({ ...base, type: 'check', betName: entry.bet, playerHands: result?.hands, playerIdToName: names });
         break;
       }
+      case 'game_start':
+        events.push({ ...base, type: 'game_start', maxHand: entry.max_hand });
+        break;
       case 'game_won':
         events.push({ ...base, type: 'deal_won' });
         break;

@@ -30,4 +30,5 @@ export interface GameEvent {
   result?: string; // For game_end and deal_result events
   playerHands?: Record<string, Array<string>>; // Map of player ID to their hand (for check events)
   currentTurnPlayerId?: string; // ID of player whose turn it is (for new_deal events)
+  maxHand?: number; // Hand limit of the game (for game_start events)
 }
