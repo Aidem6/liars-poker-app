@@ -568,6 +568,7 @@ function Game(): JSX.Element {
                 chooseFigure={chooseFigure}
                 firstAvailableFigure={model.firstAvailableFigure}
                 activeFigure={activeFigure}
+                disabled={!isMyTurn}
               />
             </View>
           )}

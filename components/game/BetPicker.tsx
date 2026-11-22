@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import PlayingCard from '@/components/ui/PlayingCard';
 import { PressableScale } from '@/components/ui/Button';
 import { theme, colorTransition } from '@/constants/theme';
@@ -10,13 +10,15 @@ interface BetPickerProps {
   /** Index of the lowest bet that beats the current one. */
   firstAvailableFigure: number;
   activeFigure: string;
+  /** Not the player's turn: the picker shows but can't be used. */
+  disabled?: boolean;
 }
 
 /**
  * Bet selection: a segmented row of hand types and, below it, the bets of the
  * selected type that still beat the current bet.
  */
-export default function BetPicker({ chooseFigure, firstAvailableFigure, activeFigure }: BetPickerProps) {
+export default function BetPicker({ chooseFigure, firstAvailableFigure, activeFigure, disabled = false }: BetPickerProps) {
   const lowest = Math.min(firstAvailableFigure, figures.length - 1);
   const [categoryKey, setCategoryKey] = useState(categoryForIndex(lowest).key);
   const optionsRef = useRef<ScrollView>(null);
@@ -50,7 +52,10 @@ export default function BetPicker({ chooseFigure, firstAvailableFigure, activeFi
   }
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[styles.container, opacityTransition, disabled && styles.disabled]}
+      accessibilityState={{ disabled }}
+    >
       <ScrollView
         ref={categoriesRef}
         horizontal
@@ -64,7 +69,7 @@ export default function BetPicker({ chooseFigure, firstAvailableFigure, activeFi
             return (
               <Pressable
                 key={item.key}
-                disabled={exhausted}
+                disabled={exhausted || disabled}
                 onPress={() => selectCategory(item.key)}
                 onLayout={(event) => {
                   categoryOffsets.current[item.key] = event.nativeEvent.layout.x;
@@ -74,7 +79,7 @@ export default function BetPicker({ chooseFigure, firstAvailableFigure, activeFi
                 style={(state) => [
                   styles.segmentItem,
                   colorTransition,
-                  !selected && !exhausted && (state as { hovered?: boolean }).hovered && styles.segmentItemHover,
+                  !selected && !exhausted && !disabled && (state as { hovered?: boolean }).hovered && styles.segmentItemHover,
                   selected && styles.segmentItemSelected,
                 ]}
               >
@@ -104,10 +109,11 @@ export default function BetPicker({ chooseFigure, firstAvailableFigure, activeFi
           return (
             <PressableScale
               key={figure.name}
+              disabled={disabled}
               onPress={() => chooseFigure(figure.cards, figure.name)}
               accessibilityRole="button"
               accessibilityLabel={betTitle(figure.name)}
-              accessibilityState={{ selected }}
+              accessibilityState={{ selected, disabled }}
               style={[styles.option, selected && styles.optionSelected]}
               hoverStyle={selected ? undefined : styles.optionHover}
             >
@@ -122,9 +128,18 @@ export default function BetPicker({ chooseFigure, firstAvailableFigure, activeFi
   );
 }
 
+/** Web-only fade when the turn passes in or out; native snaps. */
+const opacityTransition = Platform.select({
+  web: { transitionProperty: 'opacity', transitionDuration: '200ms', transitionTimingFunction: 'ease' },
+  default: {},
+}) as object;
+
 const styles = StyleSheet.create({
   container: {
     gap: 10,
+  },
+  disabled: {
+    opacity: 0.4,
   },
   segmentScroll: {
     paddingHorizontal: theme.space.lg,
