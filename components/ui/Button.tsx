@@ -13,7 +13,8 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { theme } from '@/constants/theme';
+import { theme, colorTransition } from '@/constants/theme';
+import { useHover } from '@/components/ui/motion';
 
 let reduceMotion = false;
 try {
@@ -31,6 +32,8 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface PressableScaleProps extends Omit<PressableProps, 'style'> {
   style?: StyleProp<ViewStyle>;
+  /** Extra style while a mouse hovers (web only; touch never hovers). */
+  hoverStyle?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
 }
 
@@ -38,8 +41,9 @@ interface PressableScaleProps extends Omit<PressableProps, 'style'> {
  * A pressable that scales to 0.96 while held (150ms ease-out). Disabled
  * controls never scale, and the scale is skipped under reduced motion.
  */
-export function PressableScale({ style, children, disabled, onPressIn, onPressOut, ...rest }: PressableScaleProps) {
+export function PressableScale({ style, hoverStyle, children, disabled, onPressIn, onPressOut, ...rest }: PressableScaleProps) {
   const scale = useRef(new Animated.Value(1)).current;
+  const { hovered, hoverProps } = useHover();
 
   const animateTo = (toValue: number) => {
     if (reduceMotion) return;
@@ -66,8 +70,9 @@ export function PressableScale({ style, children, disabled, onPressIn, onPressOu
         animateTo(1);
         onPressOut?.(event);
       }}
+      {...hoverProps}
       {...rest}
-      style={[style, { transform: [{ scale }] }]}
+      style={[style, colorTransition, hovered && !disabled && hoverStyle, { transform: [{ scale }] }]}
     >
       {children}
     </AnimatedPressable>
@@ -116,6 +121,7 @@ export function Button({
     <PressableScale
       onPress={onPress}
       disabled={disabled || loading}
+      hoverStyle={dimmed ? undefined : HOVER[variant]}
       testID={testID}
       accessibilityRole="button"
       accessibilityState={{ disabled: disabled || loading }}
@@ -143,6 +149,13 @@ export function Button({
     </PressableScale>
   );
 }
+
+const HOVER: Record<ButtonVariant, ViewStyle> = {
+  primary: { backgroundColor: theme.color.primaryHover },
+  secondary: { backgroundColor: theme.color.controlHover },
+  ghost: { backgroundColor: theme.color.control },
+  danger: { backgroundColor: 'rgba(229,72,77,0.2)' },
+};
 
 const styles = StyleSheet.create({
   base: {

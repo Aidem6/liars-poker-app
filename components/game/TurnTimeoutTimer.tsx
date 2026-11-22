@@ -2,8 +2,8 @@
  * Turn Timeout Timer Component
  * A thin countdown bar with the remaining time for the current turn.
  */
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, View, Text, StyleSheet } from 'react-native';
 import { theme, tabularNums } from '@/constants/theme';
 
 interface TurnTimeoutTimerProps {
@@ -32,14 +32,34 @@ export const TurnTimeoutTimer: React.FC<TurnTimeoutTimerProps> = ({ deadline, to
 
   const minutes = Math.floor(remainingSeconds / 60);
   const seconds = remainingSeconds % 60;
-  const progress = timeoutSeconds > 0 ? Math.min(remainingSeconds / timeoutSeconds, 1) : 0;
+  // Exact time left (not whole seconds) so each 500ms glide continues the last one at the same speed.
+  const progress = timeoutSeconds > 0 ? Math.min(Math.max(0, (deadline - now) / 1000) / timeoutSeconds, 1) : 0;
   const critical = remainingSeconds <= 10;
   const barColor = critical ? theme.color.red : isMyTurn ? theme.color.text : theme.color.textFaint;
+
+  // The bar glides between ticks (linear: it is a constant countdown) instead of stepping every 500ms.
+  const fill = useRef(new Animated.Value(progress)).current;
+  const lastDeadline = useRef(deadline);
+  useEffect(() => {
+    if (lastDeadline.current !== deadline) {
+      lastDeadline.current = deadline;
+      fill.setValue(progress); // a new turn starts full at once, never slides back up
+      return;
+    }
+    const animation = Animated.timing(fill, { toValue: progress, duration: 500, easing: Easing.linear, useNativeDriver: false });
+    animation.start();
+    return () => animation.stop();
+  }, [progress, deadline]);
 
   return (
     <View style={styles.container} accessibilityRole="timer">
       <View style={styles.track}>
-        <View style={[styles.fill, { width: `${progress * 100}%`, backgroundColor: barColor }]} />
+        <Animated.View
+          style={[
+            styles.fill,
+            { width: fill.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }), backgroundColor: barColor },
+          ]}
+        />
       </View>
       <Text style={[styles.time, tabularNums, critical && { color: theme.color.red }]}>
         {`${minutes}:${seconds.toString().padStart(2, '0')}`}

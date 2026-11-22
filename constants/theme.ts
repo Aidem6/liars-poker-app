@@ -12,6 +12,9 @@ export const theme = {
     surfaceActive: '#2A2A2E',
     /** Fill for secondary buttons; reads on both the page and raised sheets. */
     control: '#242427',
+    /** Hover fills (mouse pointers only). */
+    controlHover: '#2E2E33',
+    primaryHover: '#FFFFFF',
     track: '#222225',
     hairline: 'rgba(255,255,255,0.08)',
     hairlineStrong: 'rgba(255,255,255,0.14)',
@@ -58,6 +61,15 @@ export const theme = {
   /** Widest the single-column layout is allowed to grow on tablets and web. */
   maxContentWidth: 480,
 } as const;
+
+/** Web-only CSS that eases colour changes such as hover fills; native ignores it. */
+export const colorTransition = Platform.select({
+  web: { transitionProperty: 'background-color, border-color, color', transitionDuration: '150ms', transitionTimingFunction: 'ease' },
+  default: {},
+}) as object;
+
+/** Balanced line breaks for headings on the web. */
+export const balance = Platform.select({ web: { textWrap: 'balance' }, default: {} }) as object;
 
 /** Tabular figures so timers and counts do not shift as digits change. */
 export const tabularNums = { fontVariant: ['tabular-nums' as const] };
