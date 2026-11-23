@@ -84,7 +84,17 @@ const mockFake = {
     host: jest.fn(() => Promise.resolve({ ok: true })),
     kick: jest.fn(() => Promise.resolve({ ok: true })),
     setMaxHand: jest.fn(() => Promise.resolve({ ok: true })),
+    react: jest.fn(() => Promise.resolve({ ok: true })),
+    reactionListeners: new Set<(r: object) => void>(),
+    onReaction(l: (r: object) => void) {
+      mockFake.client.reactionListeners.add(l);
+      return () => mockFake.client.reactionListeners.delete(l);
+    },
     toLocalTime: (t: number) => t,
+  },
+  /** A reaction arriving from the server. */
+  react(playerId: string, reaction: string) {
+    this.client.reactionListeners.forEach((l) => l({ room_id: 'ROOM1', player_id: playerId, reaction, ts: Date.now() }));
   },
 };
 
@@ -150,7 +160,7 @@ describe('Game screen', () => {
   test('on my turn: nothing is sent until a bet is chosen, then that bet is sent', async () => {
     const { getByText, getByLabelText, queryByText } = await renderGame();
     expect(getByText('Your turn')).toBeTruthy();
-    expect(queryByText('Next deal')).toBeNull();
+    expect(queryByText(/^Next deal/)).toBeNull();
     fireEvent.press(getByText('Check'));
     fireEvent.press(getByText('Choose a bet'));
     expect(mockFake.client.act).not.toHaveBeenCalled();
@@ -193,11 +203,13 @@ describe('Game screen', () => {
     expect(getByText('Bluff')).toBeTruthy();
     expect(getByText('Safe this deal')).toBeTruthy();
     expect(getByText('Bot 1 takes a card')).toBeTruthy();
-    fireEvent.press(getByText('Next deal'));
+    // The next deal comes on its own; the button shows when, and pressing it only hurries it.
+    expect(getByText('Next deal · 60s')).toBeTruthy();
+    fireEvent.press(getByText(/^Next deal/));
     expect(mockFake.client.act).toHaveBeenCalledWith('ready');
 
     show(room({ v: 2, game: game({ phase: 'reveal', phase_started: Date.now() - 10000, turn_id: null, reveal, ready_ids: ['me'] }) }));
-    expect(queryByText('Next deal')).toBeNull();
+    expect(queryByText(/^Next deal/)).toBeNull();
     expect(getByText(/Waiting for others/)).toBeTruthy();
 
     show(room({ v: 3, game: game({ deal_no: 2, turn_seq: 4 }) }));
@@ -219,12 +231,12 @@ describe('Game screen', () => {
     expect(getByText('Showdown')).toBeTruthy();
     expect(queryByText('Bluff')).toBeNull();
     expect(queryByText('You take a card')).toBeNull();
-    fireEvent.press(getByText('Next deal'));
+    fireEvent.press(getByText(/^Next deal/));
     expect(mockFake.client.act).not.toHaveBeenCalled();
 
     await waitFor(() => expect(getByText('You take a card')).toBeTruthy(), { timeout: 5000 });
     expect(getByText('Bluff')).toBeTruthy();
-    fireEvent.press(getByText('Next deal'));
+    fireEvent.press(getByText(/^Next deal/));
     expect(mockFake.client.act).toHaveBeenCalledWith('ready');
   }, 10000);
 
@@ -327,6 +339,31 @@ describe('Game screen', () => {
     expect(getByText('You won')).toBeTruthy();
     fireEvent.press(getByText('Play again'));
     expect(mockFake.client.host).toHaveBeenCalledWith('start_game');
+  });
+
+  test('a reaction is sent with one tap and shows at once', async () => {
+    const { getByLabelText, getByText, queryByText } = await renderGame();
+    expect(queryByText('Hurry up!')).toBeNull();
+    fireEvent.press(getByLabelText('Send a reaction'));
+    fireEvent.press(getByText('Thanks!'));
+    expect(mockFake.client.react).toHaveBeenCalledWith('thanks');
+    expect(getByLabelText('Thanks!')).toBeTruthy();
+    // The panel closed.
+    expect(getByLabelText('Send a reaction')).toBeTruthy();
+  });
+
+  test("another player's reaction shows over their seat", async () => {
+    const { getByLabelText } = await renderGame();
+    act(() => mockFake.react('b_1', 'hurry'));
+    expect(getByLabelText('Hurry up!')).toBeTruthy();
+  });
+
+  test('bot matches have no reactions button', async () => {
+    const state = room();
+    state.room.autoplay = true;
+    state.me.role = 'spectator';
+    const { queryByLabelText } = await renderGame(state);
+    expect(queryByLabelText('Send a reaction')).toBeNull();
   });
 
   test('being removed shows why and offers the lobby', async () => {

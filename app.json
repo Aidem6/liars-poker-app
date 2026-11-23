@@ -2,7 +2,7 @@
   "expo": {
     "name": "liars-poker-app",
     "slug": "liars-poker-app",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -18,7 +18,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#010710"
+        "backgroundColor": "#0B0B0C"
       },
       "package": "com.tomczyk006.liarspokerapp",
       "permissions": [
@@ -36,9 +36,13 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#010710"
+          "backgroundColor": "#F5F4F0",
+          "dark": {
+            "image": "./assets/images/splash-icon.png",
+            "backgroundColor": "#0B0B0C"
+          }
         }
       ],
       [

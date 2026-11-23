@@ -121,6 +121,16 @@ export interface Welcome {
   server_time: number;
 }
 
+/** A quick reaction someone in the room sent. Not part of the room state. */
+export interface ReactionEvent {
+  room_id: string;
+  player_id: string;
+  /** An id from components/game/reactions.ts. */
+  reaction: string;
+  /** Server clock, epoch milliseconds. */
+  ts: number;
+}
+
 export type Reply<T = {}> = ({ ok: true } & T) | { ok: false; error: string };
 
 /** Human text for the server's error codes. */
@@ -143,6 +153,7 @@ export const ERROR_TEXT: Record<string, string> = {
   not_in_room: "You're not in this room",
   player_not_found: 'That player is not here',
   bad_max_hand: 'That card limit is not possible',
+  bad_reaction: 'That reaction does not exist',
   rate_limited: 'Slow down a little',
   timeout: 'No answer from the server. Check your connection',
   offline: "You're offline",

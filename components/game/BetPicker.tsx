@@ -23,6 +23,8 @@ export default function BetPicker({ chooseFigure, firstAvailableFigure, activeFi
   const styles = useStyles();
   const lowest = Math.min(firstAvailableFigure, figures.length - 1);
   const [categoryKey, setCategoryKey] = useState(categoryForIndex(lowest).key);
+  /** Two pair / full house: the rank picked in the first step. */
+  const [firstRank, setFirstRank] = useState<string | null>(null);
   const optionsRef = useRef<ScrollView>(null);
   const categoriesRef = useRef<ScrollView>(null);
   const categoryOffsets = useRef<Record<string, number>>({});
@@ -31,6 +33,7 @@ export default function BetPicker({ chooseFigure, firstAvailableFigure, activeFi
   useEffect(() => {
     const next = categoryForIndex(lowest).key;
     setCategoryKey(next);
+    setFirstRank(null);
     optionsRef.current?.scrollTo({ x: 0, animated: false });
     categoriesRef.current?.scrollTo({ x: Math.max((categoryOffsets.current[next] ?? 0) - 3, 0), animated: true });
   }, [lowest]);
@@ -40,8 +43,17 @@ export default function BetPicker({ chooseFigure, firstAvailableFigure, activeFi
     .map((figure, index) => ({ figure, index }))
     .filter(({ index }) => index >= category.startIndex && index <= category.endIndex && index >= firstAvailableFigure);
 
+  const combo = isComboCategory(category.key);
+  const comboSteps = combo ? buildComboSteps(category.key, options, firstRank) : null;
+
   const selectCategory = (key: string) => {
     setCategoryKey(key);
+    setFirstRank(null);
+    optionsRef.current?.scrollTo({ x: 0, animated: false });
+  };
+
+  const pickFirstRank = (rank: string | null) => {
+    setFirstRank(rank);
     optionsRef.current?.scrollTo({ x: 0, animated: false });
   };
 
@@ -106,7 +118,56 @@ export default function BetPicker({ chooseFigure, firstAvailableFigure, activeFi
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.options}
       >
-        {options.map(({ figure }) => {
+        {comboSteps && comboSteps.first === null
+          ? comboSteps.ranks.map((rank) => (
+              <PressableScale
+                key={rank}
+                disabled={disabled}
+                onPress={() => pickFirstRank(rank)}
+                accessibilityRole="button"
+                accessibilityLabel={comboStepLabel(category.key, rank)}
+                style={styles.option}
+                hoverStyle={styles.optionHover}
+              >
+                <RankCards rank={rank} count={comboSteps.firstCount} />
+              </PressableScale>
+            ))
+          : null}
+
+        {comboSteps && comboSteps.first !== null ? (
+          <>
+            <PressableScale
+              disabled={disabled}
+              onPress={() => pickFirstRank(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Change first rank"
+              style={[styles.option, styles.optionPinned]}
+            >
+              <RankCards rank={comboSteps.first} count={comboSteps.firstCount} />
+              <Text style={styles.pinnedClear}>×</Text>
+            </PressableScale>
+            <Text style={styles.plus}>+</Text>
+            {comboSteps.seconds.map(({ rank, figure }) => {
+              const selected = activeFigure === figure.name;
+              return (
+                <PressableScale
+                  key={figure.name}
+                  disabled={disabled}
+                  onPress={() => chooseFigure(figure.cards, figure.name)}
+                  accessibilityRole="button"
+                  accessibilityLabel={betTitle(figure.name)}
+                  accessibilityState={{ selected, disabled }}
+                  style={[styles.option, selected && styles.optionSelected]}
+                  hoverStyle={selected ? undefined : styles.optionHover}
+                >
+                  <RankCards rank={rank} count={2} />
+                </PressableScale>
+              );
+            })}
+          </>
+        ) : null}
+
+        {!comboSteps && options.map(({ figure }) => {
           const selected = activeFigure === figure.name;
           return (
             <PressableScale
@@ -127,6 +188,59 @@ export default function BetPicker({ chooseFigure, firstAvailableFigure, activeFi
         })}
       </ScrollView>
     </View>
+  );
+}
+
+type Option = { figure: (typeof figures)[number]; index: number };
+
+const isComboCategory = (key: string) => key === 'two_pair' || key === 'full';
+
+/** "two_pair_Q_9" -> ["Q", "9"]; "full_A_K" -> ["A", "K"] (three, then pair). */
+const comboRanks = (name: string) => {
+  const parts = name.split('_');
+  return [parts[parts.length - 2], parts[parts.length - 1]];
+};
+
+const RANK_ORDER = ['9', 'T', 'J', 'Q', 'K', 'A'];
+const byRank = (a: string, b: string) => RANK_ORDER.indexOf(a) - RANK_ORDER.indexOf(b);
+
+/**
+ * Splits two pair and full house into two steps: pick one rank, then the
+ * other. Two pair takes its pairs in either order; full house picks the
+ * three first, then the pair. Only bets that still beat the current one show.
+ */
+function buildComboSteps(key: string, options: Option[], firstRank: string | null) {
+  const anyOrder = key === 'two_pair';
+  const firstCount = key === 'full' ? 3 : 2;
+  const pairs = options.map((option) => ({ option, ranks: comboRanks(option.figure.name) }));
+
+  const ranks = Array.from(
+    new Set(pairs.flatMap(({ ranks: [a, b] }) => (anyOrder ? [a, b] : [a]))),
+  ).sort(byRank);
+
+  // The chosen rank may have dropped out after the bet to beat went up.
+  const first = firstRank && ranks.includes(firstRank) ? firstRank : null;
+
+  const seconds = first
+    ? pairs
+        .filter(({ ranks: [a, b] }) => a === first || (anyOrder && b === first))
+        .map(({ option, ranks: [a, b] }) => ({ rank: a === first ? b : a, figure: option.figure }))
+        .sort((x, y) => byRank(x.rank, y.rank))
+    : [];
+
+  return { first, firstCount, ranks, seconds };
+}
+
+const comboStepLabel = (key: string, rank: string) =>
+  key === 'full' ? `Three ${rank === 'T' ? '10' : rank}s, then pick the pair` : `Pair of ${rank === 'T' ? '10' : rank}s, then pick the other pair`;
+
+function RankCards({ rank, count }: { rank: string; count: number }) {
+  return (
+    <>
+      {Array.from({ length: count }).map((_, index) => (
+        <PlayingCard key={index} rank={rank} size="md" />
+      ))}
+    </>
   );
 }
 
@@ -197,6 +311,21 @@ const useStyles = createStyles((c) => ({
   },
   optionSelected: {
     borderColor: c.text,
+  },
+  optionPinned: {
+    alignItems: 'center',
+    backgroundColor: c.surface,
+    borderColor: c.text,
+  },
+  pinnedClear: {
+    fontSize: theme.font.small,
+    color: c.textMuted,
+    paddingHorizontal: 3,
+  },
+  plus: {
+    fontSize: theme.font.small,
+    color: c.textMuted,
+    paddingHorizontal: 2,
   },
   exhausted: {
     paddingHorizontal: theme.space.lg,

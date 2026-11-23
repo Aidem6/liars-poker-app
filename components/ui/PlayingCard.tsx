@@ -19,7 +19,7 @@ interface PlayingCardProps {
   suit?: string;
   size?: CardSize;
   variant?: CardVariant;
-  /** Lifts the card and rings it, to mark it as part of the answer. */
+  /** Lifts the card, to mark it as part of the answer. */
   highlighted?: boolean;
   style?: StyleProp<ViewStyle>;
 }
@@ -108,7 +108,7 @@ export function PlayingCard({ rank, suit, size = 'md', variant = 'face', highlig
         styles.face,
         corner ? styles.faceCorner : styles.faceCentered,
         (size === 'lg' || size === 'xl') && elevation('card', c.scheme),
-        highlighted && styles.highlighted,
+        // Lifted, not ringed: the cards around it fade back, which is enough to pick it out.
         highlighted && { transform: [{ translateY: -4 }] },
         style,
       ]}
@@ -148,13 +148,6 @@ const useStyles = createStyles((c) => ({
     justifyContent: 'space-between',
     paddingVertical: 9,
     paddingHorizontal: 10,
-  },
-  // A ring with a gap, so the card face keeps its full size.
-  highlighted: {
-    outlineWidth: 1.5,
-    outlineStyle: 'solid',
-    outlineColor: c.text,
-    outlineOffset: 2,
   },
   back: {
     backgroundColor: c.cardBack,

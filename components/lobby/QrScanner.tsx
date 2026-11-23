@@ -1,11 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Button } from '@/components/ui/Button';
 import { theme } from '@/constants/theme';
 import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { roomCodeFromScan } from '@/utils/roomCode';
+
+/**
+ * Browsers only give the camera to secure pages (https, or localhost on the same computer).
+ * A phone opening the dev server at http://<Mac IP>:8081 has no camera at all.
+ */
+const webCameraBlocked =
+  Platform.OS === 'web' &&
+  typeof window !== 'undefined' &&
+  (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia);
 
 /** Camera view that reads a table's QR code (an invite link or a bare code). */
 export default function QrScanner({ onCode, onTypeInstead }: { onCode: (code: string) => void; onTypeInstead: () => void }) {
@@ -18,8 +27,13 @@ export default function QrScanner({ onCode, onTypeInstead }: { onCode: (code: st
 
   // Ask straight away the first time; the button below covers a later retry.
   useEffect(() => {
-    if (permission && !permission.granted && permission.canAskAgain) requestPermission();
+    if (webCameraBlocked) return;
+    if (permission && !permission.granted && permission.canAskAgain) askForCamera();
   }, [permission?.status]);
+
+  const askForCamera = () => {
+    requestPermission().catch(() => setProblem("Couldn't open the camera. Type the code instead."));
+  };
 
   const onScanned = ({ data }: { data: string }) => {
     if (handled.current) return;
@@ -34,7 +48,16 @@ export default function QrScanner({ onCode, onTypeInstead }: { onCode: (code: st
   };
 
   let body: React.ReactNode;
-  if (!permission) {
+  if (webCameraBlocked) {
+    body = (
+      <View style={[styles.viewfinder, styles.viewfinderEmpty]}>
+        <MaterialIcons name="no-photography" size={28} color={c.textMuted} />
+        <Text style={styles.cameraNote}>
+          This browser only allows the camera on secure (https) pages. Type the code instead.
+        </Text>
+      </View>
+    );
+  } else if (!permission) {
     body = <View style={styles.viewfinder} />;
   } else if (!permission.granted) {
     body = (
@@ -46,7 +69,7 @@ export default function QrScanner({ onCode, onTypeInstead }: { onCode: (code: st
             : 'Camera access is off. Turn it on in Settings, or type the code.'}
         </Text>
         {permission.canAskAgain && (
-          <Button label="Allow camera" size="md" onPress={requestPermission} style={{ marginTop: 12 }} />
+          <Button label="Allow camera" size="md" onPress={askForCamera} style={{ marginTop: 12 }} />
         )}
       </View>
     );
