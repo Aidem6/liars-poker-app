@@ -1,6 +1,7 @@
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import {
-  KeyboardAvoidingView,
+  Keyboard,
+  LayoutAnimation,
   Modal,
   Platform,
   Pressable,
@@ -41,6 +42,7 @@ export function JoinRoomSheet({ visible, onClose, onJoin, rooms }: JoinRoomSheet
   const styles = useStyles();
   const [mode, setMode] = useState<Mode>('code');
   const [code, setCode] = useState('');
+  const keyboardHeight = useKeyboardHeight();
 
   useEffect(() => {
     if (visible) {
@@ -55,7 +57,8 @@ export function JoinRoomSheet({ visible, onClose, onJoin, rooms }: JoinRoomSheet
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.overlay}>
+      {/* With the keyboard up, the sheet sits just above it rather than centred behind it. */}
+      <View style={[styles.overlay, keyboardHeight > 0 && { justifyContent: 'flex-end', paddingBottom: keyboardHeight + 12 }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close" />
         {/* Modals stay centred, so the sheet grows from 0.96 in place rather than from a trigger. */}
         <Appear from={{ scale: 0.96 }} duration={220} style={styles.sheet}>
@@ -77,9 +80,67 @@ export function JoinRoomSheet({ visible, onClose, onJoin, rooms }: JoinRoomSheet
             )}
           </Appear>
         </Appear>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
+}
+
+/**
+ * The on-screen keyboard's height (iOS and mobile web), 0 when hidden. KeyboardAvoidingView misses
+ * the first show inside a Modal (the input auto-focuses before the view is laid out), and does
+ * nothing on the web, so this listens directly.
+ */
+function useKeyboardHeight() {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    if (Platform.OS === 'web') return watchWebKeyboard(setHeight);
+    if (Platform.OS !== 'ios') return;
+    const animate = (duration: number) => {
+      if (duration > 0) {
+        LayoutAnimation.configureNext({
+          duration,
+          update: { duration, type: LayoutAnimation.Types.keyboard },
+        });
+      }
+    };
+    const show = Keyboard.addListener('keyboardWillShow', (e) => {
+      animate(e.duration);
+      setHeight(e.endCoordinates.height);
+    });
+    const hide = Keyboard.addListener('keyboardWillHide', (e) => {
+      animate(e.duration);
+      setHeight(0);
+    });
+    // The keyboard may already be up by the time this runs.
+    const metrics = Keyboard.metrics();
+    if (metrics) setHeight(metrics.height);
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  return height;
+}
+
+/**
+ * Mobile browsers don't shrink the page for the keyboard; they shrink the visual viewport.
+ * The keyboard's height is whatever of the page sits below the visible part.
+ */
+function watchWebKeyboard(setHeight: (height: number) => void) {
+  const viewport = typeof window !== 'undefined' ? window.visualViewport : null;
+  if (!viewport) return;
+  const update = () => {
+    const covered = window.innerHeight - (viewport.offsetTop + viewport.height);
+    // Ignore small differences (the browser's own toolbars), only a keyboard is this tall.
+    setHeight(covered > 80 ? Math.round(covered) : 0);
+  };
+  update();
+  viewport.addEventListener('resize', update);
+  viewport.addEventListener('scroll', update);
+  return () => {
+    viewport.removeEventListener('resize', update);
+    viewport.removeEventListener('scroll', update);
+  };
 }
 
 function CodeEntry({
