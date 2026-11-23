@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, View, ScrollView, Text } from 'react-native';
+import { View, ScrollView, Text, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { GameEvent } from '@/types/gameEvents';
 import GameEventItem from './GameEventItem';
 import { theme } from '@/constants/theme';
@@ -16,14 +16,38 @@ export default function GameTimeline({ events, playerNames = {}, myUserId, myUse
   const styles = useStyles();
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Auto-scroll to bottom when new events are added
+  // Stay pinned to the newest row. A new event always scrolls down; the list
+  // also follows when its content or its visible area changes size (the bet
+  // picker and hand panel resize after a move), as long as we were at the bottom.
+  const atBottom = useRef(true);
+  const pendingScroll = useRef(true);
+
   useEffect(() => {
-    if (events.length > 0) {
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }
+    pendingScroll.current = true;
   }, [events.length]);
+
+  const scrollDown = (animated: boolean) => {
+    requestAnimationFrame(() => scrollViewRef.current?.scrollToEnd({ animated }));
+  };
+
+  // Only the user's own scrolling decides whether we're "at the bottom", so our
+  // animated scrollToEnd never unpins the list halfway through.
+  const onUserScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    atBottom.current = contentOffset.y + layoutMeasurement.height >= contentSize.height - 40;
+  };
+
+  const onContentSizeChange = () => {
+    if (pendingScroll.current || atBottom.current) {
+      pendingScroll.current = false;
+      atBottom.current = true;
+      scrollDown(true);
+    }
+  };
+
+  const onLayout = () => {
+    if (atBottom.current) scrollDown(false);
+  };
 
   // Enhance events with player names
   const enhancedEvents = events.map(event => {
@@ -55,6 +79,10 @@ export default function GameTimeline({ events, playerNames = {}, myUserId, myUse
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
+        onScrollEndDrag={onUserScrollEnd}
+        onMomentumScrollEnd={onUserScrollEnd}
+        onContentSizeChange={onContentSizeChange}
+        onLayout={onLayout}
       >
         {enhancedEvents.map((event) => (
           <GameEventItem key={event.id} event={event} myUserId={myUserId} myUsername={myUsername} />
