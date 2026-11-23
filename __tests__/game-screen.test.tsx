@@ -150,7 +150,7 @@ describe('Game screen', () => {
   test('on my turn: nothing is sent until a bet is chosen, then that bet is sent', async () => {
     const { getByText, getByLabelText, queryByText } = await renderGame();
     expect(getByText('Your turn')).toBeTruthy();
-    expect(queryByText('Next deal')).toBeNull();
+    expect(queryByText(/^Next deal/)).toBeNull();
     fireEvent.press(getByText('Check'));
     fireEvent.press(getByText('Choose a bet'));
     expect(mockFake.client.act).not.toHaveBeenCalled();
@@ -193,11 +193,13 @@ describe('Game screen', () => {
     expect(getByText('Bluff')).toBeTruthy();
     expect(getByText('Safe this deal')).toBeTruthy();
     expect(getByText('Bot 1 takes a card')).toBeTruthy();
-    fireEvent.press(getByText('Next deal'));
+    // The next deal comes on its own; the button shows when, and pressing it only hurries it.
+    expect(getByText('Next deal · 60s')).toBeTruthy();
+    fireEvent.press(getByText(/^Next deal/));
     expect(mockFake.client.act).toHaveBeenCalledWith('ready');
 
     show(room({ v: 2, game: game({ phase: 'reveal', phase_started: Date.now() - 10000, turn_id: null, reveal, ready_ids: ['me'] }) }));
-    expect(queryByText('Next deal')).toBeNull();
+    expect(queryByText(/^Next deal/)).toBeNull();
     expect(getByText(/Waiting for others/)).toBeTruthy();
 
     show(room({ v: 3, game: game({ deal_no: 2, turn_seq: 4 }) }));
@@ -219,12 +221,12 @@ describe('Game screen', () => {
     expect(getByText('Showdown')).toBeTruthy();
     expect(queryByText('Bluff')).toBeNull();
     expect(queryByText('You take a card')).toBeNull();
-    fireEvent.press(getByText('Next deal'));
+    fireEvent.press(getByText(/^Next deal/));
     expect(mockFake.client.act).not.toHaveBeenCalled();
 
     await waitFor(() => expect(getByText('You take a card')).toBeTruthy(), { timeout: 5000 });
     expect(getByText('Bluff')).toBeTruthy();
-    fireEvent.press(getByText('Next deal'));
+    fireEvent.press(getByText(/^Next deal/));
     expect(mockFake.client.act).toHaveBeenCalledWith('ready');
   }, 10000);
 

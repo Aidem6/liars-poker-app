@@ -65,6 +65,18 @@ const REMOVED_TEXT: Record<string, string> = {
   room_full: 'This room is full.',
 };
 
+/** Whole seconds until `deadline` (local epoch ms), ticking down; null without one. */
+function useSecondsLeft(deadline: number | null): number | null {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (deadline === null) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(timer);
+  }, [deadline]);
+  return deadline === null ? null : Math.max(0, Math.ceil((deadline - now) / 1000));
+}
+
 function Game(): JSX.Element {
   const styles = useStyles();
   const c = useColors();
@@ -145,6 +157,8 @@ function Game(): JSX.Element {
     revealIsFresh,
   );
   const verdictShown = revealStep >= RevealStep.VERDICT;
+  // The server starts the next deal on its own when the reveal runs out; pressing the button only hurries it.
+  const nextDealIn = useSecondsLeft(game?.phase === 'reveal' && game.deadline ? client.toLocalTime(game.deadline) : null);
   const inLobby = state?.room.status === 'lobby';
   const newSeats = useNewKeys(inLobby ? state!.players.map((p) => p.id) : [], inLobby);
 
@@ -655,7 +669,10 @@ function Game(): JSX.Element {
               <Button label="Leave" variant="ghost" onPress={leave} style={{ flex: 1 }} />
             ) : waitingForReady ? (
               <Button
-                label={model.iAmReady ? `Waiting for others (${readyCount})` : 'Next deal'}
+                label={
+                  (model.iAmReady ? `Waiting for others (${readyCount})` : 'Next deal') +
+                  (nextDealIn !== null && verdictShown ? ` · ${nextDealIn}s` : '')
+                }
                 onPress={ready}
                 disabled={model.iAmReady || net.sending || !verdictShown}
                 style={{ flex: 1 }}
