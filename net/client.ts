@@ -15,7 +15,7 @@
  */
 import { AppState, Platform } from 'react-native';
 import { io, Socket } from 'socket.io-client';
-import { Reply, RoomState, RoomSummary, Welcome } from './protocol';
+import { ReactionEvent, Reply, RoomState, RoomSummary, Welcome } from './protocol';
 import { SessionStorage } from './storage';
 import { reportError } from './errorReporter';
 
@@ -45,6 +45,7 @@ export interface ClientSnapshot {
 }
 
 type Listener = () => void;
+type ReactionListener = (reaction: ReactionEvent) => void;
 
 const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -52,6 +53,7 @@ export class GameClient {
   private socket: Socket | null = null;
   private token: string | null = null;
   private listeners = new Set<Listener>();
+  private reactionListeners = new Set<ReactionListener>();
   private watchingRooms = false;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private everConnected = false;
@@ -144,6 +146,9 @@ export class GameClient {
     socket.on('welcome', (data: Welcome) => this.onWelcome(data));
     socket.on('state', (state: RoomState) => this.onState(state));
     socket.on('rooms', (data: { rooms: RoomSummary[] }) => this.update({ rooms: data.rooms || [] }));
+    socket.on('reaction', (data: ReactionEvent) => {
+      if (data?.room_id === this.snap.roomId) this.reactionListeners.forEach((listener) => listener(data));
+    });
     socket.on('kicked', (data: { room_id: string }) => this.onRemoved(data.room_id, 'kicked'));
     socket.on('room_closed', (data: { room_id: string }) => this.onRemoved(data.room_id, 'room_closed'));
 
@@ -337,6 +342,19 @@ export class GameClient {
   /** Host only, in the lobby: how many cards a player may hold before they are out, or null for auto. */
   setMaxHand(maxHand: number | null): Promise<Reply> {
     return this.request('set_max_hand', { max_hand: maxHand });
+  }
+
+  /** Reactions from people in the room on screen; they come and go, outside the room state. */
+  onReaction = (listener: ReactionListener) => {
+    this.reactionListeners.add(listener);
+    return () => {
+      this.reactionListeners.delete(listener);
+    };
+  };
+
+  /** Show a quick reaction to everyone in the room. Never retried: a late reaction is worse than none. */
+  react(reaction: string): Promise<Reply> {
+    return this.request('react', { reaction }, 4000);
   }
 
   kick(playerId: string): Promise<Reply> {

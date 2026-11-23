@@ -20,6 +20,9 @@ import TableView from '../components/game/TableView';
 import BetPicker from '../components/game/BetPicker';
 import HandPanel from '../components/game/HandPanel';
 import InviteCard from '../components/game/InviteCard';
+import ReactionBubble from '../components/game/ReactionBubble';
+import { ReactionButton, ReactionPanel } from '../components/game/ReactionPicker';
+import { Reaction, useReactions } from '../components/game/reactions';
 import { RevealStep, useRevealSequence } from '../components/game/useRevealSequence';
 import { Appear, useNewKeys } from '@/components/ui/motion';
 import { Button, PressableScale } from '../components/ui/Button';
@@ -99,6 +102,7 @@ function Game(): JSX.Element {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [showBugReportModal, setShowBugReportModal] = useState(false);
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
+  const [reactionsOpen, setReactionsOpen] = useState(false);
   /** Our own hand per deal, so the timeline can show it after the deal ends. */
   const myHands = useRef<Record<number, string[]>>({});
 
@@ -161,6 +165,7 @@ function Game(): JSX.Element {
   const nextDealIn = useSecondsLeft(game?.phase === 'reveal' && game.deadline ? client.toLocalTime(game.deadline) : null);
   const inLobby = state?.room.status === 'lobby';
   const newSeats = useNewKeys(inLobby ? state!.players.map((p) => p.id) : [], inLobby);
+  const reactions = useReactions(client, state?.room.id, state?.me.id);
 
   useEffect(() => {
     if (revealAnimated && revealStep === RevealStep.VERDICT) haptic(Haptics.ImpactFeedbackStyle.Heavy);
@@ -251,6 +256,17 @@ function Game(): JSX.Element {
   const chooseFigure = (_cards: unknown, figureName: string) => {
     haptic(Haptics.ImpactFeedbackStyle.Light);
     setActiveFigure(figureName);
+  };
+
+  const toggleReactions = () => {
+    haptic(Haptics.ImpactFeedbackStyle.Light);
+    setReactionsOpen((open) => !open);
+  };
+
+  const sendReaction = (reaction: Reaction) => {
+    setReactionsOpen(false);
+    debugLogger.logUserAction(`React ${reaction.id}`);
+    if (reactions.send(reaction.id)) haptic(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const changeDisplayMode = (mode: ViewMode) => {
@@ -529,6 +545,14 @@ function Game(): JSX.Element {
   const canAct = !watching && !iAmOut && !finished;
   const readyCount = game ? players.filter((p) => p.is_active && game.ready_ids.includes(p.id)).length : 0;
   const names = namesOf(state);
+  // Bot matches have nobody to react to.
+  const canReact = !state.room.autoplay;
+  const myReaction = reactions.shown[state.me.id];
+  // Reactions from people without a seat on screen (spectators; everyone in the timeline view).
+  const seatedOnTable = new Set(displayMode === 'timeline' ? [] : opponents.map((p) => p.id));
+  const looseReactions = Object.entries(reactions.shown).filter(
+    ([playerId]) => playerId !== state.me.id && !seatedOnTable.has(playerId),
+  );
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -615,11 +639,26 @@ function Game(): JSX.Element {
                 revealStep={revealStep}
                 revealAnimated={revealAnimated}
                 outAt={outAt}
+                reactions={reactions.shown}
               />
+            )}
+            {looseReactions.length > 0 && (
+              <View style={styles.looseReactions} pointerEvents="none">
+                {looseReactions.map(([playerId, shown]) => (
+                  <ReactionBubble
+                    key={`${playerId}:${shown.key}`}
+                    reaction={shown.reaction}
+                    name={names[playerId] ?? 'Someone'}
+                    tail="none"
+                    size="sm"
+                  />
+                ))}
+              </View>
             )}
           </View>
 
           {/* The local player's hand, status and turn timer */}
+          <View>
           <HandPanel
             hand={shownHand}
             title={statusTitle}
@@ -633,6 +672,10 @@ function Game(): JSX.Element {
               <TurnTimeoutTimer deadline={deadline!} totalSeconds={game!.turn_seconds} isMyTurn={isMyTurn} />
             )}
           </HandPanel>
+          {myReaction && (
+            <ReactionBubble key={myReaction.key} reaction={myReaction.reaction} style={styles.myReaction} />
+          )}
+          </View>
 
           {/* Bet picker and actions */}
           {canAct && !waitingForReady && (
@@ -647,6 +690,7 @@ function Game(): JSX.Element {
           )}
 
           <View style={styles.actions}>
+            {canReact && <ReactionButton open={reactionsOpen} onPress={toggleReactions} />}
             {finished ? (
               <>
                 <Button label="Leave" variant="secondary" onPress={leave} style={{ flex: 1 }} />
@@ -695,6 +739,10 @@ function Game(): JSX.Element {
               </>
             )}
           </View>
+
+          {canReact && (
+            <ReactionPanel open={reactionsOpen} onPick={sendReaction} onClose={() => setReactionsOpen(false)} />
+          )}
         </View>
 
         {/* Toast notifications */}
@@ -910,6 +958,20 @@ const useStyles = createStyles((c) => ({
     paddingHorizontal: theme.space.lg,
     paddingTop: 12,
     paddingBottom: 12,
+  },
+  myReaction: {
+    position: 'absolute',
+    left: theme.space.lg,
+    bottom: '100%',
+    marginBottom: -6,
+    zIndex: 5,
+  },
+  looseReactions: {
+    position: 'absolute',
+    top: theme.space.sm,
+    right: theme.space.lg,
+    alignItems: 'flex-end',
+    gap: 6,
   },
   toastContainer: {
     position: 'absolute',

@@ -6,6 +6,8 @@ import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { BetCard, BetCheck, betShort, betTitle, findFigure } from '@/utils/bets';
 import { Appear, Flash, FlipCard, Focus, Shake } from '@/components/ui/motion';
 import { REVEAL_FINAL, RevealStep, SLOT_MS } from './useRevealSequence';
+import ReactionBubble from './ReactionBubble';
+import type { ShownReaction } from './reactions';
 
 export interface TablePlayer {
   id: string;
@@ -47,6 +49,8 @@ interface TableViewProps {
   revealAnimated?: boolean;
   /** Holding this many cards puts a player out: one slot each. */
   outAt: number;
+  /** Reactions players are showing right now, by player id. */
+  reactions?: Record<string, ShownReaction>;
 }
 
 const nameOf = (player: TablePlayer | undefined, fallback = 'Someone') =>
@@ -85,6 +89,7 @@ function OpponentCell({
   animated,
   outAt,
   width,
+  reaction,
 }: {
   player: TablePlayer;
   compact: boolean;
@@ -97,6 +102,7 @@ function OpponentCell({
   outAt: number;
   /** Width of the cell, to fit the cards in. */
   width: number;
+  reaction?: ShownReaction;
 }) {
   const styles = useStyles();
   const c = useColors();
@@ -220,6 +226,16 @@ function OpponentCell({
         ]}
       >
         {slots}
+        {reaction && (
+          // Hangs from the bottom of the player's cards, so its tail ends just above their
+          // name whatever size the name is drawn at; a new one replaces it.
+          <ReactionBubble
+            key={reaction.key}
+            reaction={reaction.reaction}
+            size={compact ? 'sm' : 'md'}
+            style={styles.cellReaction}
+          />
+        )}
       </View>
       {/* Narrower while grown, so the bigger name still fits its column. */}
       <Focus scale={onTurn ? TURN_SCALE : 1} style={{ maxWidth: onTurn ? `${100 / TURN_SCALE}%` : '100%' }}>
@@ -323,6 +339,7 @@ export default function TableView({
   revealStep = REVEAL_FINAL,
   revealAnimated = false,
   outAt,
+  reactions,
 }: TableViewProps) {
   const styles = useStyles();
   const c = useColors();
@@ -445,7 +462,7 @@ export default function TableView({
           // Players brought forward in a reveal are drawn above their neighbours.
           <View
             key={player.id}
-            style={{ width: `${100 / columns}%`, zIndex: holdsMatch(reveal, player.id) ? 1 : 0 }}
+            style={{ width: `${100 / columns}%`, zIndex: reactions?.[player.id] ? 2 : holdsMatch(reveal, player.id) ? 1 : 0 }}
           >
             <OpponentCell
               player={player}
@@ -457,6 +474,7 @@ export default function TableView({
               animated={animated}
               outAt={outAt}
               width={gridWidth / columns}
+              reaction={reactions?.[player.id]}
             />
           </View>
         ))}
@@ -473,7 +491,8 @@ const useStyles = createStyles((c) => ({
   content: {
     flexGrow: 1,
     paddingHorizontal: theme.space.lg,
-    paddingTop: theme.space.md,
+    // Room above the seats for a two-line reaction bubble, which the scroll view would cut off.
+    paddingTop: 18,
   },
   grid: {
     flexDirection: 'row',
@@ -487,6 +506,15 @@ const useStyles = createStyles((c) => ({
   },
   cellOut: {
     opacity: 0.35,
+  },
+  cellReaction: {
+    position: 'absolute',
+    // Wider than the cards, centred on them (the bubble itself stays within the seat).
+    left: -70,
+    right: -70,
+    // The tail's tip reaches into the gap above the name.
+    bottom: -3,
+    zIndex: 3,
   },
   slots: {
     flexDirection: 'row',
