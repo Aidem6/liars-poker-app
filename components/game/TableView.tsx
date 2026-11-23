@@ -60,6 +60,8 @@ const holdsMatch = (reveal: TableReveal | undefined, playerId: string) =>
 const REVEAL_CARD: CardSize = 'md';
 /** How far players whose cards decide the check come forward once the verdict lands. */
 const FOREGROUND_SCALE = 1.14;
+/** How much bigger the name of the player whose turn it is grows. */
+const TURN_SCALE = 1.25;
 /** Horizontal padding of a cell (both sides). */
 const CELL_PADDING = 4;
 
@@ -205,6 +207,8 @@ function OpponentCell({
   }
 
   const emphasised = reveal ? isLoser || inFocus : player.isYourTurn;
+  /** Whose turn it is: their name grows, like the artist in the middle of a carousel. */
+  const onTurn = !reveal && player.isYourTurn && player.is_active;
 
   return (
     <Focus scale={inFocus ? FOREGROUND_SCALE : 1}>
@@ -217,18 +221,21 @@ function OpponentCell({
       >
         {slots}
       </View>
-      <Text
-        style={[
-          styles.cellName,
-          compact && styles.cellNameCompact,
-          colorTransition,
-          emphasised && styles.cellNameActive,
-          isLoser && { color: c.red },
-        ]}
-        numberOfLines={1}
-      >
-        {player.name}
-      </Text>
+      {/* Narrower while grown, so the bigger name still fits its column. */}
+      <Focus scale={onTurn ? TURN_SCALE : 1} style={{ maxWidth: onTurn ? `${100 / TURN_SCALE}%` : '100%' }}>
+        <Text
+          style={[
+            styles.cellName,
+            compact && styles.cellNameCompact,
+            colorTransition,
+            emphasised && styles.cellNameActive,
+            isLoser && { color: c.red },
+          ]}
+          numberOfLines={1}
+        >
+          {player.name}
+        </Text>
+      </Focus>
       <Text style={[styles.cellDetail, { color: detailColor }]} numberOfLines={1}>
         {detail}
       </Text>
