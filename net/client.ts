@@ -170,8 +170,14 @@ export class GameClient {
 
     const showing = this.snap.roomId;
     if (showing && data.room_id !== showing) {
-      // We were removed while offline (kicked, room closed, dropped after a long absence).
-      this.update({ roomError: 'not_in_room' });
+      if (this.snap.room) {
+        // We were removed while offline (kicked, room closed, dropped after a long absence).
+        this.update({ roomError: 'not_in_room' });
+      } else {
+        // Still opening it (e.g. a room link on a fresh page): the join sent before we were
+        // connected never went out, so join now.
+        this.openRoom(showing);
+      }
     } else if (showing) {
       this.sync();
     }
