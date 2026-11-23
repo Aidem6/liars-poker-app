@@ -284,9 +284,15 @@ function FigureCards({
 /** Counts up to `total`, one every `every` ms, while `running`. */
 function useCountUp(total: number, running: boolean, every: number) {
   const [count, setCount] = useState(0);
+  // Reset as soon as a new run starts, during render: resetting in the effect
+  // below would let one frame paint the last run's final count first.
+  const [wasRunning, setWasRunning] = useState(running);
+  if (running !== wasRunning) {
+    setWasRunning(running);
+    if (running) setCount(0);
+  }
   useEffect(() => {
     if (!running) return;
-    setCount(0);
     let n = 0;
     const timer = setInterval(() => {
       n += 1;
