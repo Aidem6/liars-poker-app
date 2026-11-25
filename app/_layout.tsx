@@ -110,6 +110,7 @@ function RootNavigator() {
             {/* Profile pages: what the player picks for the table. */}
             <Stack.Screen name="emotes" options={{ title: 'Emotes', ...subpageOptions }} />
             <Stack.Screen name="cards" options={{ title: 'Cards', ...subpageOptions }} />
+            <Stack.Screen name="how-to-play" options={{ headerShown: false, title: 'How to play' }} />
             <Stack.Screen name="+not-found" />
           </Stack>
           <StatusBar style={isLightMode ? 'dark' : 'light'} translucent backgroundColor="transparent" />

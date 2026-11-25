@@ -54,6 +54,8 @@ interface TableViewProps {
   reactions?: Record<string, ShownReaction>;
   /** How each opponent's seat is laid out (the experimental view tries others). */
   seatStyle?: SeatStyle;
+  /** Replaces "X checks Y's bet" above a reveal (the tutorial shows what a check would have found). */
+  revealCaption?: string;
 }
 
 const nameOf = (player: TablePlayer | undefined, fallback = 'Someone') =>
@@ -399,6 +401,7 @@ export default function TableView({
   outAt,
   reactions,
   seatStyle = 'classic',
+  revealCaption,
 }: TableViewProps) {
   const styles = useStyles();
   const c = useColors();
@@ -457,7 +460,8 @@ export default function TableView({
           <Flash color={reveal.betWasTrue ? c.lightGlow : c.redGlow} />
         )}
         <Text style={styles.caption}>
-          {`${checkerLabel} ${checkerLabel === 'You' ? 'check' : 'checks'} ${bettorLabel === 'You' ? 'your' : `${bettorLabel}'s`} bet`}
+          {revealCaption ??
+            `${checkerLabel} ${checkerLabel === 'You' ? 'check' : 'checks'} ${bettorLabel === 'You' ? 'your' : `${bettorLabel}'s`} bet`}
         </Text>
         <FigureCards betName={betName} found={reveal.check.slots} shown={shown} animated={animated} />
         <Text style={[styles.count, tabularNums, shown === 0 && { opacity: 0 }]}>
