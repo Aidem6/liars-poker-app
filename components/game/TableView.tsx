@@ -419,9 +419,11 @@ export default function TableView({
   const columns = compact ? 4 : Math.max(opponents.length, 1);
 
   let stage: React.ReactNode;
-  if (winnerName && step >= RevealStep.DONE) {
-    // A once-a-game moment: the parts arrive 100ms apart.
-    const enter = { translateY: 12, blur: 4 };
+  // The winner's entrance, a once-a-game moment: the parts arrive 100ms apart.
+  // No blur: on iPhone Safari a blurring line of text drew a stray coloured line above it.
+  const enter = { translateY: 12, scale: 1.08 };
+  if (winnerName && !reveal) {
+    // The game ended without a check (everyone else left), so there is no reveal to keep.
     stage = (
       <>
         {iWon && <Flash color={c.lightGlow} />}
@@ -454,11 +456,15 @@ export default function TableView({
     const verdict = step >= RevealStep.VERDICT;
     const verdictText = reveal.betWasTrue ? "It's there" : 'Bluff';
     const verdictStyle = [styles.verdict, !reveal.betWasTrue && { color: c.red }];
+    // The check that ended the game plays out, then its verdict gives way to the winner;
+    // the cards that decided it stay above.
+    const gameWon = !!winnerName && step >= RevealStep.DONE;
     stage = (
       <>
-        {verdict && animated && (
+        {verdict && animated && !gameWon && (
           <Flash color={reveal.betWasTrue ? c.lightGlow : c.redGlow} />
         )}
+        {gameWon && iWon && <Flash color={c.lightGlow} />}
         <Text style={styles.caption}>
           {revealCaption ??
             `${checkerLabel} ${checkerLabel === 'You' ? 'check' : 'checks'} ${bettorLabel === 'You' ? 'your' : `${bettorLabel}'s`} bet`}
@@ -467,7 +473,19 @@ export default function TableView({
         <Text style={[styles.count, tabularNums, shown === 0 && { opacity: 0 }]}>
           {`${foundSoFar} of ${needed} on the table`}
         </Text>
-        {verdict ? (
+        {gameWon ? (
+          <>
+            <Appear from={enter} duration={300}>
+              {/* Not clipped to one line: Safari draws a stray line along a clipped edge while it blurs. */}
+              <Text style={[styles.verdict, balance]} accessibilityLiveRegion="assertive">
+                {iWon ? 'You win' : `${winnerName} wins`}
+              </Text>
+            </Appear>
+            <Appear from={enter} duration={300} delay={100}>
+              <Text style={styles.sub}>Game over · last player standing</Text>
+            </Appear>
+          </>
+        ) : verdict ? (
           animated ? (
             <Appear from={{ scale: 1.9, rotate: reveal.betWasTrue ? 0 : -8 }} duration={300}>
               <Text style={verdictStyle} accessibilityLiveRegion="assertive">
@@ -483,9 +501,11 @@ export default function TableView({
           </Text>
         )}
         {/* Kept as a blank line until its beat, so the layout never jumps and nothing is announced early. */}
-        <Text style={styles.sub} accessibilityLiveRegion="polite">
-          {loserLabel && step >= RevealStep.PENALTY ? outcome : ' '}
-        </Text>
+        {!gameWon && (
+          <Text style={styles.sub} accessibilityLiveRegion="polite">
+            {loserLabel && step >= RevealStep.PENALTY ? outcome : ' '}
+          </Text>
+        )}
       </>
     );
   } else if (betName) {

@@ -15,7 +15,7 @@ export const RevealStep = {
   VERDICT: 3,
   /** The loser's extra card lands. */
   PENALTY: 4,
-  /** The result has sunk in; a game-ending deal may now give way to the winner. */
+  /** The result has sunk in. */
   DONE: 5,
 } as const;
 
