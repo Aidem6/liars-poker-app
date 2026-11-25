@@ -167,8 +167,14 @@ function Game(): JSX.Element {
   const events = useMemo(() => (state ? timelineEvents(state, myHands.current) : []), [state]);
 
   // Play a fresh reveal out beat by beat; one that started a while ago (we just joined) shows as is.
+  // Having watched this deal's betting also counts as fresh, whatever the server's clock says.
   const revealKey = model?.reveal && game ? `${state!.room.id}:${game.deal_no}` : null;
-  const revealIsFresh = !!game && Date.now() - client.toLocalTime(game.phase_started) < 1500;
+  const bettingSeen = useRef<string | null>(null);
+  useEffect(() => {
+    if (game?.phase === 'betting') bettingSeen.current = `${state!.room.id}:${game.deal_no}`;
+  }, [game?.phase, game?.deal_no]);
+  const revealIsFresh =
+    !!game && (Date.now() - client.toLocalTime(game.phase_started) < 1500 || bettingSeen.current === revealKey);
   const { step: revealStep, animated: revealAnimated } = useRevealSequence(
     revealKey,
     model?.reveal?.check.needed ?? 0,
@@ -526,7 +532,12 @@ function Game(): JSX.Element {
   let statusTitle = '';
   let statusSubtitle: string | undefined;
   let statusActive = false;
-  if (winnerName && revealStep >= RevealStep.DONE) {
+  if (winnerName && reveal && revealStep < RevealStep.DONE) {
+    // The deal that ended the game plays out first; the winner is named here as the table announces them.
+    statusTitle = 'Showdown';
+    statusSubtitle = 'Counting the cards…';
+    statusActive = true;
+  } else if (winnerName) {
     statusTitle = iWon ? 'You won' : watching ? 'Game over' : "You're out";
     statusSubtitle = iWon
       ? 'Everyone else is out'

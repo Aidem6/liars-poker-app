@@ -256,6 +256,41 @@ describe('Game screen', () => {
     expect(getByText('Bot 1 is out of the game')).toBeTruthy();
   });
 
+  test('game over: the last check plays out, then its verdict gives way to the winner', async () => {
+    const reveal = {
+      checker_id: 'me', bettor_id: 'b_1', bet: 'pair_A', held: false, loser_id: 'b_1', eliminated: true,
+      hands: { me: ['9♠'], b_1: ['T♥', 'T♦', 'Q♣', 'K♠'] },
+    };
+    const bets = [{ player_id: 'b_1', bet: 'pair_A' }];
+    const { getByText, queryByText } = await renderGame(
+      room({ game: game({ turn_id: 'me', bets, last_bet: 'pair_A', bettor_id: 'b_1', my_hand: ['9♠'] }) }),
+    );
+    // The game-ending check arrives with an old start time; having watched the betting, it still plays out.
+    show(
+      room({
+        v: 2,
+        status: 'finished',
+        players: [seat('me', 'TestUser'), seat('b_1', 'Bot 1', { cards: 5, out: true, out_reason: 'cards' })],
+        game: game({ phase: 'over', phase_started: Date.now() - 10000, deadline: null, turn_id: null, reveal, bets, last_bet: 'pair_A', bettor_id: 'b_1', my_hand: [], winner_id: 'me' }),
+      }),
+    );
+    expect(getByText('Pair of aces?')).toBeTruthy();
+    expect(getByText('Showdown')).toBeTruthy();
+    expect(queryByText('You won')).toBeNull();
+
+    // The verdict lands first, as in any deal...
+    await waitFor(() => expect(getByText('Bot 1 is out of the game')).toBeTruthy(), { timeout: 5000 });
+    expect(getByText('Bluff')).toBeTruthy();
+    expect(queryByText('You win')).toBeNull();
+
+    // ...then gives way to the winner, with the cards that decided it still above.
+    await waitFor(() => expect(getByText('You win')).toBeTruthy(), { timeout: 5000 });
+    expect(getByText('You won')).toBeTruthy();
+    expect(getByText('Game over · last player standing')).toBeTruthy();
+    expect(getByText('0 of 2 on the table')).toBeTruthy();
+    expect(queryByText('Bluff')).toBeNull();
+  }, 15000);
+
   test('waiting room: shows the room code to invite friends', async () => {
     const { getByText } = await renderGame(room({ status: 'lobby', game: null }));
     expect(getByText('ROO M1')).toBeTruthy();
