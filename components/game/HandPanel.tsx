@@ -4,7 +4,7 @@ import PlayingCard, { cardSize } from '@/components/ui/PlayingCard';
 import { theme } from '@/constants/theme';
 import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { Appear, Focus } from '@/components/ui/motion';
-import { BetCard } from '@/utils/bets';
+import { BetCard, sortHand } from '@/utils/bets';
 
 interface HandPanelProps {
   hand: BetCard[];
@@ -49,14 +49,15 @@ export default function HandPanel({
       ? OVERLAP
       : Math.min(cardWidth * 0.8, Math.max(OVERLAP, (hand.length * cardWidth - budget) / (hand.length - 1)));
   const tilt = middle > 0 ? Math.min(7, MAX_SPREAD_DEG / 2 / middle) : 0;
+  const sorted = React.useMemo(() => sortHand(hand), [hand]);
 
   return (
     <View style={styles.container}>
       {hand.length > 0 && (
         <View style={styles.fan}>
-          {hand.map((card, index) => (
+          {sorted.map(({ card, index: original }, index) => (
             <View
-              key={`${dealKey ?? ''}:${index}`}
+              key={`${dealKey ?? ''}:${original}`}
               style={{
                 marginLeft: index === 0 ? 0 : -overlap,
                 transform: [
@@ -67,12 +68,12 @@ export default function HandPanel({
             >
               {/* Dealt from below, one after another, once per deal. */}
               <Appear from={{ translateY: 24, scale: 0.96 }} duration={320} delay={index * 70}>
-                <Focus dim={spotlight && !highlighted?.has(`me:${index}`)} radius={cardSize('xl').r}>
+                <Focus dim={spotlight && !highlighted?.has(`me:${original}`)} radius={cardSize('xl').r}>
                   <PlayingCard
                     rank={card.rank}
                     suit={card.suit}
                     size="xl"
-                    highlighted={highlighted?.has(`me:${index}`)}
+                    highlighted={highlighted?.has(`me:${original}`)}
                   />
                 </Focus>
               </Appear>
