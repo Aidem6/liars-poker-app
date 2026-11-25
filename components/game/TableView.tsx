@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import PlayingCard, { CardSize, cardSize } from '@/components/ui/PlayingCard';
+import PlayingCard, { CardSize, cardSize, useFaceRadius } from '@/components/ui/PlayingCard';
 import { theme, tabularNums, colorTransition, balance } from '@/constants/theme';
 import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { BetCard, BetCheck, betShort, betTitle, findFigure } from '@/utils/bets';
@@ -104,6 +104,7 @@ function OpponentCell({
   width: number;
   reaction?: ShownReaction;
 }) {
+  const faceRadius = useFaceRadius(REVEAL_CARD);
   const styles = useStyles();
   const c = useColors();
   const slotSize: CardSize = compact ? 'xs' : 'sm';
@@ -153,7 +154,7 @@ function OpponentCell({
       <>
         {revealedHand.map((card, index) => (
           // Once the verdict lands, cards that play no part in it fade back.
-          <Focus key={index} dim={highlightMatches && !isMatch(index)} radius={cardSize(REVEAL_CARD).r} style={place(index)}>
+          <Focus key={index} dim={highlightMatches && !isMatch(index)} radius={faceRadius} style={place(index)}>
             {step < RevealStep.HANDS ? (
               <PlayingCard variant="back" size={REVEAL_CARD} />
             ) : animated ? (

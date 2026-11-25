@@ -99,6 +99,10 @@ function Home() {
   // Keep the room list live while this screen is visible.
   useFocusEffect(
     React.useCallback(() => {
+      // The name may have been changed on the profile tab.
+      if (!pb.authStore.isValid) {
+        UsernameStorage.getUsername().then((stored) => stored && setUsername(stored));
+      }
       client.watchRooms();
       return () => client.unwatchRooms();
     }, [client]),

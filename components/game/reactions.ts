@@ -22,22 +22,47 @@ export const EMOJI: Reaction[] = [
   { id: 'think', kind: 'emoji', glyph: '🤔', label: 'Thinking', motion: 'wobble' },
   { id: 'cool', kind: 'emoji', glyph: '😎', label: 'Cool', motion: 'bounce' },
   { id: 'clap', kind: 'emoji', glyph: '👏', label: 'Clapping', motion: 'pulse' },
+  { id: 'lying', kind: 'emoji', glyph: '🤥', label: 'Lying face', motion: 'wobble' },
+  { id: 'poker_face', kind: 'emoji', glyph: '😐', label: 'Poker face', motion: 'pulse' },
+  { id: 'smirk', kind: 'emoji', glyph: '😏', label: 'Smirking', motion: 'wobble' },
+  { id: 'wink', kind: 'emoji', glyph: '😉', label: 'Winking', motion: 'bounce' },
+  { id: 'shush', kind: 'emoji', glyph: '🤫', label: 'Shush', motion: 'pulse' },
+  { id: 'eyes', kind: 'emoji', glyph: '👀', label: 'Eyes', motion: 'shake' },
+  { id: 'sweat', kind: 'emoji', glyph: '😅', label: 'Nervous laugh', motion: 'wobble' },
+  { id: 'facepalm', kind: 'emoji', glyph: '🤦', label: 'Facepalm', motion: 'sink' },
+  { id: 'mind_blown', kind: 'emoji', glyph: '🤯', label: 'Mind blown', motion: 'shake' },
+  { id: 'skull', kind: 'emoji', glyph: '💀', label: 'Skull', motion: 'sink' },
+  { id: 'clown', kind: 'emoji', glyph: '🤡', label: 'Clown', motion: 'bounce' },
+  { id: 'devil', kind: 'emoji', glyph: '😈', label: 'Devilish', motion: 'wobble' },
+  { id: 'tongue', kind: 'emoji', glyph: '😛', label: 'Tongue out', motion: 'shake' },
+  { id: 'fire', kind: 'emoji', glyph: '🔥', label: 'Fire', motion: 'pulse' },
+  { id: 'party', kind: 'emoji', glyph: '🥳', label: 'Party', motion: 'bounce' },
+  { id: 'crown', kind: 'emoji', glyph: '👑', label: 'Crown', motion: 'bounce' },
+  { id: 'sleepy', kind: 'emoji', glyph: '😴', label: 'Sleepy', motion: 'sink' },
 ];
+
+/** The emoji in the picker until the player chooses their own (see the Emotes screen). */
+export const DEFAULT_EMOJI_IDS = ['thumbs', 'laugh', 'cry', 'angry', 'shock', 'think', 'cool', 'clap'];
+/** How many emoji fit in the in-game picker. */
+export const EMOJI_SLOTS = 8;
 
 export const PHRASES: Reaction[] = [
   { id: 'thanks', kind: 'phrase', text: 'Thanks!' },
   { id: 'hurry', kind: 'phrase', text: 'Hurry up!' },
   { id: 'good_game', kind: 'phrase', text: 'Good game!' },
-  { id: 'well_played', kind: 'phrase', text: 'Well played!' },
   { id: 'nice_bluff', kind: 'phrase', text: 'Nice bluff!' },
   { id: 'liar', kind: 'phrase', text: 'Liar!' },
+  { id: 'loser', kind: 'phrase', text: 'Loser!' },
   { id: 'close', kind: 'phrase', text: 'That was close!' },
   { id: 'again', kind: 'phrase', text: "Let's go again" },
   { id: 'oops', kind: 'phrase', text: 'Oops' },
   { id: 'sorry', kind: 'phrase', text: 'Sorry' },
 ];
 
-const BY_ID: Record<string, Reaction> = Object.fromEntries([...EMOJI, ...PHRASES].map((r) => [r.id, r]));
+/** No longer in the picker, but older app versions still send them, so they still show. */
+const RETIRED: Reaction[] = [{ id: 'well_played', kind: 'phrase', text: 'Well played!' }];
+
+const BY_ID: Record<string, Reaction> = Object.fromEntries([...EMOJI, ...PHRASES, ...RETIRED].map((r) => [r.id, r]));
 
 export const findReaction = (id: string): Reaction | undefined => BY_ID[id];
 
