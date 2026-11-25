@@ -16,29 +16,23 @@ interface TurnTimeoutTimerProps {
 }
 
 /**
- * Counts down to a deadline set by the server, so every device shows the same
- * time left regardless of when it received the update or reconnected.
+ * Time left before `deadline`, ticking twice a second, and `fill`: the share of
+ * the turn left (1 to 0), gliding between ticks. A new deadline starts full at once.
  */
-export const TurnTimeoutTimer: React.FC<TurnTimeoutTimerProps> = ({ deadline, totalSeconds, isMyTurn }) => {
-  const styles = useStyles();
-  const c = useColors();
+export function useTurnCountdown(deadline: number | null, totalSeconds: number) {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
+    if (deadline === null) return;
     setNow(Date.now());
     const timer = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(timer);
   }, [deadline]);
 
-  const remainingSeconds = Math.max(0, Math.ceil((deadline - now) / 1000));
-  const timeoutSeconds = totalSeconds;
-
-  const minutes = Math.floor(remainingSeconds / 60);
-  const seconds = remainingSeconds % 60;
+  const remainingSeconds = deadline === null ? totalSeconds : Math.max(0, Math.ceil((deadline - now) / 1000));
   // Exact time left (not whole seconds) so each 500ms glide continues the last one at the same speed.
-  const progress = timeoutSeconds > 0 ? Math.min(Math.max(0, (deadline - now) / 1000) / timeoutSeconds, 1) : 0;
-  const critical = remainingSeconds <= 10;
-  const barColor = critical ? c.red : isMyTurn ? c.text : c.textFaint;
+  const progress =
+    deadline === null ? 1 : totalSeconds > 0 ? Math.min(Math.max(0, (deadline - now) / 1000) / totalSeconds, 1) : 0;
 
   // The bar glides between ticks (linear: it is a constant countdown) instead of stepping every 500ms.
   const fill = useRef(new Animated.Value(progress)).current;
@@ -53,6 +47,23 @@ export const TurnTimeoutTimer: React.FC<TurnTimeoutTimerProps> = ({ deadline, to
     animation.start();
     return () => animation.stop();
   }, [progress, deadline]);
+
+  return { remainingSeconds, fill };
+}
+
+/**
+ * Counts down to a deadline set by the server, so every device shows the same
+ * time left regardless of when it received the update or reconnected.
+ */
+export const TurnTimeoutTimer: React.FC<TurnTimeoutTimerProps> = ({ deadline, totalSeconds, isMyTurn }) => {
+  const styles = useStyles();
+  const c = useColors();
+  const { remainingSeconds, fill } = useTurnCountdown(deadline, totalSeconds);
+
+  const minutes = Math.floor(remainingSeconds / 60);
+  const seconds = remainingSeconds % 60;
+  const critical = remainingSeconds <= 10;
+  const barColor = critical ? c.red : isMyTurn ? c.text : c.textFaint;
 
   return (
     <View style={styles.container} accessibilityRole="timer">

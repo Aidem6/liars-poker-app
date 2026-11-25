@@ -18,6 +18,8 @@ import ConnectionStatusIndicator from '../components/game/ConnectionStatusIndica
 import TurnTimeoutTimer from '../components/game/TurnTimeoutTimer';
 import TableView from '../components/game/TableView';
 import BetPicker from '../components/game/BetPicker';
+import BetSelect from '../components/game/BetSelect';
+import CountdownButton from '../components/game/CountdownButton';
 import HandPanel from '../components/game/HandPanel';
 import InviteCard from '../components/game/InviteCard';
 import ReactionBubble from '../components/game/ReactionBubble';
@@ -38,7 +40,7 @@ import * as Haptics from 'expo-haptics';
 import { Icon } from 'react-native-elements';
 import { pb } from './lib/pocketbase';
 import { UsernameStorage } from '@/utils/usernameStorage';
-import { ViewModeStorage, ViewMode } from '@/utils/viewModeStorage';
+import { PickerStyle, PickerStyleStorage, SeatStyle, SeatStyleStorage, ViewModeStorage, ViewMode } from '@/utils/viewModeStorage';
 import { useDebugLogger } from '@/hooks/useDebugLogger';
 import { FeedbackModal } from './components/feedback/FeedbackModal';
 import { InstructionsModal } from './components/instructions/InstructionsModal';
@@ -96,7 +98,15 @@ function Game(): JSX.Element {
   const [username, setUsername] = useState(net.name);
   const [nameConfirmed, setNameConfirmed] = useState(!!net.name);
   const [activeFigure, setActiveFigure] = useState('');
+  /** The bet the selects show in the experimental view: always ready to place. */
+  const [selectFigure, setSelectFigure] = useState('');
   const [displayMode, setDisplayMode] = useState<ViewMode>('board');
+  /** Which bet picker the experimental view tries out. */
+  const [pickerStyle, setPickerStyle] = useState<PickerStyle>('dropdown');
+  /** How the experimental view lays out each opponent's seat. */
+  const [seatStyle, setSeatStyle] = useState<SeatStyle>('classic');
+  /** The experimental view with a picker other than the classic one: whatever it shows is the bet. */
+  const usesSelects = displayMode === 'experimental' && pickerStyle !== 'classic';
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [toasts, setToasts] = useState<Array<{ id: string; message: string }>>([]);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -142,7 +152,11 @@ function Game(): JSX.Element {
   }, [net.status]);
 
   useEffect(() => {
-    ViewModeStorage.getViewMode().then((stored) => stored && setDisplayMode(stored === 'timeline' ? 'timeline' : 'board'));
+    PickerStyleStorage.get().then((stored) => stored && setPickerStyle(stored));
+    SeatStyleStorage.get().then((stored) => stored && setSeatStyle(stored));
+    ViewModeStorage.getViewMode().then(
+      (stored) => stored && setDisplayMode(stored === 'timeline' || stored === 'experimental' ? stored : 'board'),
+    );
   }, []);
 
   useEffect(() => {
@@ -214,9 +228,9 @@ function Game(): JSX.Element {
 
   const placeBet = () => {
     if (!model?.isMyTurn) return showToast('Wait for your turn');
-    if (!activeFigure) return showToast('Choose a bet first');
+    const bet = usesSelects ? selectFigure : activeFigure;
+    if (!bet) return showToast('Choose a bet first');
     haptic();
-    const bet = activeFigure;
     setActiveFigure('');
     run('Bet', () => client.act('bet', bet));
   };
@@ -273,6 +287,18 @@ function Game(): JSX.Element {
     haptic(Haptics.ImpactFeedbackStyle.Light);
     setDisplayMode(mode);
     ViewModeStorage.setViewMode(mode);
+  };
+
+  const changePickerStyle = (style: PickerStyle) => {
+    haptic(Haptics.ImpactFeedbackStyle.Light);
+    setPickerStyle(style);
+    PickerStyleStorage.set(style);
+  };
+
+  const changeSeatStyle = (style: SeatStyle) => {
+    haptic(Haptics.ImpactFeedbackStyle.Light);
+    setSeatStyle(style);
+    SeatStyleStorage.set(style);
   };
 
   // ----- screens ------------------------------------------------------
@@ -545,16 +571,21 @@ function Game(): JSX.Element {
   }
   const shownHand = watching ? [] : reveal && me ? reveal.hands[me.id] || model.myHand : model.myHand;
 
+  const betFigure = usesSelects ? selectFigure : activeFigure;
   let betLabel = 'Choose a bet';
-  if (activeFigure) {
-    const long = betTitle(activeFigure).toLowerCase();
-    const short = betShort(activeFigure);
+  if (betFigure) {
+    const long = betTitle(betFigure).toLowerCase();
+    const short = betShort(betFigure);
     betLabel = long.length <= 22 ? `Bet ${long}` : `Bet ${short.charAt(0).toLowerCase()}${short.slice(1)}`;
   }
+  // In the experimental view the button also carries the clock, so off your turn it says whose clock it is.
+  if (displayMode === 'experimental' && !isMyTurn && turnPlayer) betLabel = `${turnPlayer.name}'s turn`;
   if (net.sending) betLabel = 'Sending…';
 
   const deadline = game?.deadline ? client.toLocalTime(game.deadline) : null;
   const showTimer = !!deadline && game?.phase === 'betting';
+  /** The trial table: smaller hand, bet dropdowns, the timer in the bet button and the card limit up top. */
+  const experimental = displayMode === 'experimental';
   const canAct = !watching && !iAmOut && !finished;
   const readyCount = game ? players.filter((p) => p.is_active && game.ready_ids.includes(p.id)).length : 0;
   const names = namesOf(state);
@@ -592,6 +623,10 @@ function Game(): JSX.Element {
             onDeleteRoom={leave}
             displayMode={displayMode}
             onDisplayModeChange={changeDisplayMode}
+            pickerStyle={pickerStyle}
+            onPickerStyleChange={changePickerStyle}
+            seatStyle={seatStyle}
+            onSeatStyleChange={changeSeatStyle}
             onClose={() => setIsDrawerOpen(false)}
             isCloseable={!isTabletOrDesktop}
             onOpenFeedback={() => setShowFeedbackModal(true)}
@@ -629,6 +664,7 @@ function Game(): JSX.Element {
                   : reveal
                     ? 'Cards revealed'
                     : `${model.cardsInPlay} ${model.cardsInPlay === 1 ? 'card' : 'cards'} in play`}
+                {experimental && !finished ? ` · out at ${outAt}` : ''}
               </Text>
             </View>
             <View style={[styles.topBarSide, styles.topBarRight]}>
@@ -657,6 +693,7 @@ function Game(): JSX.Element {
                 revealAnimated={revealAnimated}
                 outAt={outAt}
                 reactions={reactions.shown}
+                seatStyle={experimental ? seatStyle : 'classic'}
               />
             )}
             {looseReactions.length > 0 && (
@@ -679,13 +716,15 @@ function Game(): JSX.Element {
           <HandPanel
             hand={shownHand}
             title={statusTitle}
-            subtitle={statusSubtitle}
+            // The card count lives in the header in the trial view.
+            subtitle={experimental && statusSubtitle === cardsLine ? undefined : statusSubtitle}
             active={statusActive}
             highlighted={myHighlights}
             spotlight={!!reveal && !!me && verdictShown}
             dealKey={game?.deal_no}
+            size={experimental ? 'lg' : 'xl'}
           >
-            {showTimer && (
+            {showTimer && !experimental && (
               <TurnTimeoutTimer deadline={deadline!} totalSeconds={game!.turn_seconds} isMyTurn={isMyTurn} />
             )}
           </HandPanel>
@@ -696,13 +735,22 @@ function Game(): JSX.Element {
 
           {/* Bet picker and actions */}
           {canAct && !waitingForReady && (
-            <View style={styles.picker}>
-              <BetPicker
-                chooseFigure={chooseFigure}
-                firstAvailableFigure={model.firstAvailableFigure}
-                activeFigure={activeFigure}
-                disabled={!isMyTurn}
-              />
+            <View style={[styles.picker, experimental && styles.pickerRaised]}>
+              {usesSelects ? (
+                <BetSelect
+                  onChange={setSelectFigure}
+                  firstAvailableFigure={model.firstAvailableFigure}
+                  disabled={!isMyTurn}
+                  variant={pickerStyle}
+                />
+              ) : (
+                <BetPicker
+                  chooseFigure={chooseFigure}
+                  firstAvailableFigure={model.firstAvailableFigure}
+                  activeFigure={activeFigure}
+                  disabled={!isMyTurn}
+                />
+              )}
             </View>
           )}
 
@@ -747,12 +795,23 @@ function Game(): JSX.Element {
                   disabled={!isMyTurn || !game?.last_bet || net.sending}
                   style={{ flex: 1 }}
                 />
-                <Button
-                  label={betLabel}
-                  onPress={placeBet}
-                  dimmed={!isMyTurn || !activeFigure || net.sending}
-                  style={{ flex: 1.7 }}
-                />
+                {experimental ? (
+                  <CountdownButton
+                    label={betLabel}
+                    onPress={placeBet}
+                    // Never dimmed: the selects always hold a legal bet, and the draining fill is the clock.
+                    deadline={showTimer ? deadline : null}
+                    totalSeconds={game?.turn_seconds ?? 0}
+                    style={{ flex: 1.7 }}
+                  />
+                ) : (
+                  <Button
+                    label={betLabel}
+                    onPress={placeBet}
+                    dimmed={!isMyTurn || !activeFigure || net.sending}
+                    style={{ flex: 1.7 }}
+                  />
+                )}
               </>
             )}
           </View>
@@ -984,6 +1043,12 @@ const useStyles = createStyles((c) => ({
   },
   picker: {
     paddingTop: 14,
+  },
+  // An open bet dropdown floats over the hand and table above.
+  pickerRaised: {
+    paddingTop: 10,
+    zIndex: 10,
+    elevation: 10,
   },
   actions: {
     flexDirection: 'row',
