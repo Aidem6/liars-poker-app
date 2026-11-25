@@ -13,12 +13,17 @@ import { theme, elevation } from '@/constants/theme';
 import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/app/lib/ThemeContext';
-import type { ThemeMode } from '@/utils/themeStorage';
+import type { DarkStyle, ThemeMode } from '@/utils/themeStorage';
 
 const APPEARANCE: Array<{ mode: ThemeMode; label: string }> = [
   { mode: 'system', label: 'Auto' },
   { mode: 'light', label: 'Light' },
   { mode: 'dark', label: 'Dark' },
+];
+
+const DARK_STYLES: Array<{ style: DarkStyle; label: string }> = [
+  { style: 'default', label: 'Default' },
+  { style: 'black', label: 'Super dark' },
 ];
 
 interface HeaderMenuProps {
@@ -32,7 +37,8 @@ export function HeaderMenu({ onOpenInstructions, onOpenFeedback, onOpenShare }: 
   const c = useColors();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const insets = useSafeAreaInsets();
-  const { themeMode, setThemeMode } = useTheme();
+  const { themeMode, setThemeMode, darkStyle, setDarkStyle } = useTheme();
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const handleHaptic = () => {
     if (Platform.OS !== 'web') {
@@ -109,7 +115,45 @@ export function HeaderMenu({ onOpenInstructions, onOpenFeedback, onOpenShare }: 
                   );
                 })}
               </View>
+              <TouchableOpacity
+                onPress={() => {
+                  handleHaptic();
+                  setShowAdvanced((v) => !v);
+                }}
+                style={[styles.advancedButton, showAdvanced && styles.segmentSelected]}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel="Advanced appearance settings"
+                accessibilityState={{ expanded: showAdvanced }}
+              >
+                <Icon name="tune" size={18} color={showAdvanced ? c.text : c.textMuted} />
+              </TouchableOpacity>
             </View>
+            {showAdvanced && (
+              <View style={[styles.menuItem, styles.menuItemDivider]} onStartShouldSetResponder={() => true}>
+                <Icon name="dark-mode" size={20} color={c.textMuted} />
+                <Text style={styles.menuLabel}>Dark mode</Text>
+                <View style={styles.segments} accessibilityRole="radiogroup" accessibilityLabel="Dark mode style">
+                  {DARK_STYLES.map(({ style, label }) => {
+                    const selected = darkStyle === style;
+                    return (
+                      <TouchableOpacity
+                        key={style}
+                        onPress={() => {
+                          handleHaptic();
+                          setDarkStyle(style);
+                        }}
+                        style={[styles.segment, selected && styles.segmentSelected]}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected }}
+                      >
+                        <Text style={[styles.segmentLabel, selected && styles.segmentLabelSelected]}>{label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -168,6 +212,15 @@ const useStyles = createStyles((c) => ({
   segmentSelected: {
     backgroundColor: c.scheme === 'light' ? c.surface : c.surfaceActive,
     ...(c.scheme === 'light' ? (elevation('card', 'light') as object) : null),
+  },
+  advancedButton: {
+    width: 32,
+    height: 32,
+    marginLeft: -4,
+    borderRadius: theme.radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.control,
   },
   segmentLabel: {
     fontSize: 13,

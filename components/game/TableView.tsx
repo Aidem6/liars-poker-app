@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import PlayingCard, { CardSize, cardSize } from '@/components/ui/PlayingCard';
+import PlayingCard, { CardSize, cardSize, useFaceRadius } from '@/components/ui/PlayingCard';
 import { theme, tabularNums, colorTransition, balance } from '@/constants/theme';
 import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { BetCard, BetCheck, betShort, betTitle, findFigure } from '@/utils/bets';
@@ -8,6 +8,7 @@ import { Appear, Flash, FlipCard, Focus, Shake } from '@/components/ui/motion';
 import { REVEAL_FINAL, RevealStep, SLOT_MS } from './useRevealSequence';
 import ReactionBubble from './ReactionBubble';
 import type { ShownReaction } from './reactions';
+import type { SeatStyle } from '@/utils/viewModeStorage';
 
 export interface TablePlayer {
   id: string;
@@ -51,6 +52,10 @@ interface TableViewProps {
   outAt: number;
   /** Reactions players are showing right now, by player id. */
   reactions?: Record<string, ShownReaction>;
+  /** How each opponent's seat is laid out (the experimental view tries others). */
+  seatStyle?: SeatStyle;
+  /** Replaces "X checks Y's bet" above a reveal (the tutorial shows what a check would have found). */
+  revealCaption?: string;
 }
 
 const nameOf = (player: TablePlayer | undefined, fallback = 'Someone') =>
@@ -90,6 +95,7 @@ function OpponentCell({
   outAt,
   width,
   reaction,
+  seatStyle,
 }: {
   player: TablePlayer;
   compact: boolean;
@@ -103,10 +109,17 @@ function OpponentCell({
   /** Width of the cell, to fit the cards in. */
   width: number;
   reaction?: ShownReaction;
+  seatStyle: SeatStyle;
 }) {
+  const faceRadius = useFaceRadius(REVEAL_CARD);
   const styles = useStyles();
   const c = useColors();
   const slotSize: CardSize = compact ? 'xs' : 'sm';
+  /** Only the cards held, without outlines for the ones still to come before the player is out. */
+  const heldOnly = seatStyle !== 'classic';
+  /** Last bet drawn as cards above the name, the hand below it. */
+  const handBelow = seatStyle === 'bet_cards';
+  const held = Math.min(player.hand_count, outAt);
   const revealedHand = reveal?.hands[player.id];
   // The result is known from the first frame, but each part waits for its beat.
   const isLoser = !!reveal && reveal.loserId === player.id && step >= RevealStep.PENALTY;
@@ -119,7 +132,7 @@ function OpponentCell({
 
   /** A full hand on a crowded table: the cards overlap to fit their column. */
   // Counts the penalty card from the start, so the spacing never changes mid-reveal.
-  const shownCount = revealedHand ? revealedHand.length + (reveal!.loserId === player.id ? 1 : 0) : outAt;
+  const shownCount = revealedHand ? revealedHand.length + (reveal!.loserId === player.id ? 1 : 0) : heldOnly ? held : outAt;
   const spacing = fitGap(
     shownCount,
     cardSize(revealedHand ? REVEAL_CARD : slotSize).w,
@@ -131,7 +144,7 @@ function OpponentCell({
 
   let slots: React.ReactNode;
   if (!player.is_active && !revealedHand) {
-    slots = Array.from({ length: outAt }).map((_, index) => (
+    slots = Array.from({ length: heldOnly ? 0 : outAt }).map((_, index) => (
       <PlayingCard key={index} variant="empty" size={slotSize} style={after(index)} />
     ));
   } else if (revealedHand) {
@@ -153,7 +166,7 @@ function OpponentCell({
       <>
         {revealedHand.map((card, index) => (
           // Once the verdict lands, cards that play no part in it fade back.
-          <Focus key={index} dim={highlightMatches && !isMatch(index)} radius={cardSize(REVEAL_CARD).r} style={place(index)}>
+          <Focus key={index} dim={highlightMatches && !isMatch(index)} radius={faceRadius} style={place(index)}>
             {step < RevealStep.HANDS ? (
               <PlayingCard variant="back" size={REVEAL_CARD} />
             ) : animated ? (
@@ -187,30 +200,41 @@ function OpponentCell({
       </>
     );
   } else {
-    const held = Math.min(player.hand_count, outAt);
-    slots = Array.from({ length: outAt }).map((_, index) => (
+    slots = Array.from({ length: heldOnly ? held : outAt }).map((_, index) => (
       <PlayingCard key={index} variant={index < held ? 'back' : 'empty'} size={slotSize} style={after(index)} />
     ));
   }
 
-  let detail = player.last_bet ? betShort(player.last_bet) : ' ';
+  /** Something more pressing than the player's last bet, shown in its place. */
+  let status: string | null = null;
   let detailColor: string = isBettor ? c.text : c.textMuted;
   if (knockedOut) {
-    detail = 'Knocked out';
+    status = 'Knocked out';
     detailColor = c.red;
   } else if (!player.is_active && !revealedHand) {
-    detail = 'Out';
+    status = 'Out';
     detailColor = c.textMuted;
   } else if (isLoser) {
-    detail = 'Takes a card';
+    status = 'Takes a card';
     detailColor = c.red;
   } else if (isChecker) {
-    detail = 'Checked';
+    status = 'Checked';
     detailColor = c.text;
   } else if (player.connected === false) {
-    detail = player.isYourTurn ? 'Away · waiting' : 'Away';
+    status = player.isYourTurn ? 'Away · waiting' : 'Away';
     detailColor = c.amber;
   }
+  const detail = status ?? (player.last_bet ? betShort(player.last_bet) : ' ');
+  const detailText = (
+    <Text style={[styles.cellDetail, { color: detailColor }]} numberOfLines={1}>
+      {detail}
+    </Text>
+  );
+  const bubble = reaction && (
+    // Hangs from the bottom of the row above the name, so its tail ends just above the
+    // name whatever size the name is drawn at; a new one replaces it.
+    <ReactionBubble key={reaction.key} reaction={reaction.reaction} size={compact ? 'sm' : 'md'} style={styles.cellReaction} />
+  );
 
   const emphasised = reveal ? isLoser || inFocus : player.isYourTurn;
   /** Whose turn it is: their name grows, like the artist in the middle of a carousel. */
@@ -219,24 +243,25 @@ function OpponentCell({
   return (
     <Focus scale={inFocus ? FOREGROUND_SCALE : 1}>
     <Shake trigger={animated && isLoser} style={[styles.cell, !player.is_active && !revealedHand && styles.cellOut]}>
-      <View
-        style={[
-          styles.slots,
-          { minHeight: revealedHand ? 40 : compact ? 28 : 32 },
-        ]}
-      >
-        {slots}
-        {reaction && (
-          // Hangs from the bottom of the player's cards, so its tail ends just above their
-          // name whatever size the name is drawn at; a new one replaces it.
-          <ReactionBubble
-            key={reaction.key}
-            reaction={reaction.reaction}
-            size={compact ? 'sm' : 'md'}
-            style={styles.cellReaction}
-          />
-        )}
-      </View>
+      {handBelow ? (
+        <View style={[styles.slots, { minHeight: compact ? 22 : 30 }]}>
+          {status ? (
+            detailText
+          ) : player.last_bet && !reveal ? (
+            // Earlier bets than the one on the table fade back.
+            <BetCardsRow betName={player.last_bet} size={slotSize} width={width - CELL_PADDING} shows={isBettor ? 1 : 0.45} />
+          ) : (
+            // Hidden during a reveal, so the eye goes to the hands being turned over.
+            <Text style={styles.cellDetail}> </Text>
+          )}
+          {bubble}
+        </View>
+      ) : (
+        <View style={[styles.slots, { minHeight: revealedHand ? 40 : compact ? 28 : 32 }]}>
+          {slots}
+          {bubble}
+        </View>
+      )}
       {/* Narrower while grown, so the bigger name still fits its column. */}
       <Focus scale={onTurn ? TURN_SCALE : 1} style={{ maxWidth: onTurn ? `${100 / TURN_SCALE}%` : '100%' }}>
         <Text
@@ -252,11 +277,46 @@ function OpponentCell({
           {player.name}
         </Text>
       </Focus>
-      <Text style={[styles.cellDetail, { color: detailColor }]} numberOfLines={1}>
-        {detail}
-      </Text>
+      {handBelow ? (
+        <View style={[styles.slots, { minHeight: revealedHand ? 40 : compact ? 20 : 28 }]}>{slots}</View>
+      ) : (
+        detailText
+      )}
     </Shake>
     </Focus>
+  );
+}
+
+/** Opacity of earlier bets on the table, newest first. */
+const HISTORY_FADE = [0.8, 0.55, 0.35];
+
+/**
+ * A bet as small cards. `shows` (0 to 1) fades it back by laying a tint of the page
+ * colour over each card rather than lowering its opacity: Safari leaves a smear of
+ * faded cards behind while they slide in.
+ */
+function BetCardsRow({ betName, size, width, shows = 1 }: { betName: string; size: CardSize; width: number; shows?: number }) {
+  const styles = useStyles();
+  const c = useColors();
+  const figure = findFigure(betName);
+  if (!figure) return null;
+  const { w } = cardSize(size);
+  const r = useFaceRadius(size);
+  const gap = fitGap(figure.cards.length, w, 2, width);
+  return (
+    <View style={styles.betCards} accessibilityLabel={`Bet ${betTitle(betName)}`}>
+      {figure.cards.map((card, index) => (
+        <View key={index} style={index > 0 ? { marginLeft: gap } : undefined}>
+          <PlayingCard rank={card.rank} suit={card.suit} size={size} />
+          {shows < 1 && (
+            <View
+              pointerEvents="none"
+              style={[StyleSheet.absoluteFill, { borderRadius: r, backgroundColor: c.bg, opacity: 1 - shows }]}
+            />
+          )}
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -340,6 +400,8 @@ export default function TableView({
   revealAnimated = false,
   outAt,
   reactions,
+  seatStyle = 'classic',
+  revealCaption,
 }: TableViewProps) {
   const styles = useStyles();
   const c = useColors();
@@ -398,7 +460,8 @@ export default function TableView({
           <Flash color={reveal.betWasTrue ? c.lightGlow : c.redGlow} />
         )}
         <Text style={styles.caption}>
-          {`${checkerLabel} ${checkerLabel === 'You' ? 'check' : 'checks'} ${bettorLabel === 'You' ? 'your' : `${bettorLabel}'s`} bet`}
+          {revealCaption ??
+            `${checkerLabel} ${checkerLabel === 'You' ? 'check' : 'checks'} ${bettorLabel === 'You' ? 'your' : `${bettorLabel}'s`} bet`}
         </Text>
         <FigureCards betName={betName} found={reveal.check.slots} shown={shown} animated={animated} />
         <Text style={[styles.count, tabularNums, shown === 0 && { opacity: 0 }]}>
@@ -433,9 +496,25 @@ export default function TableView({
         <Text style={styles.caption}>{bettor ? (bettor.isMe ? 'You bet' : `${bettor.name} bets`) : 'Current bet'}</Text>
         <FigureCards betName={betName} />
         <Text style={styles.title}>{betTitle(betName)}</Text>
-        <Text style={styles.sub}>
-          {earlier.length > 0 ? `after ${earlier.map((name) => betShort(name)).join(', ')}` : ' '}
-        </Text>
+        {seatStyle === 'bet_cards' && earlier.length > 0 ? (
+          // The bets before this one as cards, oldest first and faintest.
+          <View style={styles.history} accessibilityLabel={`after ${earlier.map((name) => betTitle(name)).join(', ')}`}>
+            <Text style={styles.sub}>after</Text>
+            {earlier.map((name, index) => (
+              <BetCardsRow
+                key={`${index}:${name}`}
+                betName={name}
+                size="sm"
+                width={Infinity}
+                shows={HISTORY_FADE[earlier.length - 1 - index]}
+              />
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.sub}>
+            {earlier.length > 0 ? `after ${earlier.map((name) => betShort(name)).join(', ')}` : ' '}
+          </Text>
+        )}
       </Appear>
     );
   } else {
@@ -475,6 +554,7 @@ export default function TableView({
               outAt={outAt}
               width={gridWidth / columns}
               reaction={reactions?.[player.id]}
+              seatStyle={seatStyle}
             />
           </View>
         ))}
@@ -532,6 +612,17 @@ const useStyles = createStyles((c) => ({
   cellNameActive: {
     color: c.text,
     fontWeight: '600',
+  },
+  betCards: {
+    flexDirection: 'row',
+  },
+  history: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    columnGap: 10,
+    rowGap: 6,
   },
   cellDetail: {
     fontSize: theme.font.caption,

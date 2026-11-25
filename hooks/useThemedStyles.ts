@@ -1,11 +1,11 @@
 import { StyleSheet } from 'react-native';
-import { useResolvedScheme } from '@/app/lib/ThemeContext';
-import type { ColorScheme, Palette } from '@/constants/theme';
+import { useResolvedSkin } from '@/app/lib/ThemeContext';
+import type { Palette, Skin } from '@/constants/theme';
 import { palettes } from '@/constants/theme';
 
 /** Colour tokens for the skin in use. */
 export function useColors(): Palette {
-  return palettes[useResolvedScheme()];
+  return palettes[useResolvedSkin()];
 }
 
 /**
@@ -13,10 +13,10 @@ export function useColors(): Palette {
  * gives the sheet for the current skin. Each skin's sheet is built once.
  */
 export function createStyles<T extends StyleSheet.NamedStyles<T>>(build: (c: Palette) => T) {
-  const cache: Partial<Record<ColorScheme, T>> = {};
-  const get = (scheme: ColorScheme): T =>
-    (cache[scheme] ??= StyleSheet.create(build(palettes[scheme])) as T);
+  const cache: Partial<Record<Skin, T>> = {};
+  const get = (skin: Skin): T =>
+    (cache[skin] ??= StyleSheet.create(build(palettes[skin])) as T);
   return function useStyles(): T {
-    return get(useResolvedScheme());
+    return get(useResolvedSkin());
   };
 }

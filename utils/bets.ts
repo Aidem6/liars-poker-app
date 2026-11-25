@@ -144,6 +144,29 @@ export function checkBet(betName: string | null | undefined, cards: RevealedCard
   return { matched, slots, found, needed: slots.length, exists: found === slots.length };
 }
 
+const RANK_ORDER = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
+/** Alternates colours, so neighbouring suits are easy to tell apart. */
+const SUIT_ORDER = ['♠', '♥', '♣', '♦'];
+const order = (list: string[], value: string) => {
+  const at = list.indexOf(value);
+  return at === -1 ? list.length : at;
+};
+
+/**
+ * The hand sorted low to high (9 … A), same ranks together and ordered by suit.
+ * Each card keeps its index in the original hand, so highlights still line up.
+ */
+export function sortHand<T extends BetCard>(hand: T[]): { card: T; index: number }[] {
+  return hand
+    .map((card, index) => ({ card, index }))
+    .sort(
+      (a, b) =>
+        order(RANK_ORDER, normalizeRank(a.card.rank)) - order(RANK_ORDER, normalizeRank(b.card.rank)) ||
+        order(SUIT_ORDER, a.card.suit) - order(SUIT_ORDER, b.card.suit) ||
+        a.index - b.index,
+    );
+}
+
 /** Accepts either "Q♣" strings or {rank, suit} objects from the server. */
 export function parseCard(card: any): BetCard {
   if (typeof card === 'string') {

@@ -1,10 +1,10 @@
 import React from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import PlayingCard, { cardSize } from '@/components/ui/PlayingCard';
+import PlayingCard, { CardSize, cardSize, useFaceRadius } from '@/components/ui/PlayingCard';
 import { theme } from '@/constants/theme';
 import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { Appear, Focus } from '@/components/ui/motion';
-import { BetCard } from '@/utils/bets';
+import { BetCard, sortHand } from '@/utils/bets';
 
 interface HandPanelProps {
   hand: BetCard[];
@@ -18,6 +18,8 @@ interface HandPanelProps {
   spotlight?: boolean;
   /** Changes with every deal, so the new hand is dealt in. */
   dealKey?: string | number;
+  /** Size of the cards in the fan. */
+  size?: CardSize;
   children?: React.ReactNode;
 }
 
@@ -36,27 +38,32 @@ export default function HandPanel({
   highlighted,
   spotlight = false,
   dealKey,
+  size = 'xl',
   children,
 }: HandPanelProps) {
   const styles = useStyles();
   const screen = useWindowDimensions();
   const middle = (hand.length - 1) / 2;
-  const cardWidth = cardSize('xl').w;
+  const cardWidth = cardSize(size).w;
+  const faceRadius = useFaceRadius(size);
+  // The usual overlap is for the biggest cards; smaller ones overlap in proportion.
+  const baseOverlap = Math.round((OVERLAP * cardWidth) / cardSize('xl').w);
   // Big hands (small tables play to more cards) overlap more to keep the fan in its share.
   const budget = Math.min(screen.width, theme.maxContentWidth) * FAN_SHARE;
   const overlap =
     hand.length < 2
-      ? OVERLAP
-      : Math.min(cardWidth * 0.8, Math.max(OVERLAP, (hand.length * cardWidth - budget) / (hand.length - 1)));
+      ? baseOverlap
+      : Math.min(cardWidth * 0.8, Math.max(baseOverlap, (hand.length * cardWidth - budget) / (hand.length - 1)));
   const tilt = middle > 0 ? Math.min(7, MAX_SPREAD_DEG / 2 / middle) : 0;
+  const sorted = React.useMemo(() => sortHand(hand), [hand]);
 
   return (
     <View style={styles.container}>
       {hand.length > 0 && (
         <View style={styles.fan}>
-          {hand.map((card, index) => (
+          {sorted.map(({ card, index: original }, index) => (
             <View
-              key={`${dealKey ?? ''}:${index}`}
+              key={`${dealKey ?? ''}:${original}`}
               style={{
                 marginLeft: index === 0 ? 0 : -overlap,
                 transform: [
@@ -67,12 +74,12 @@ export default function HandPanel({
             >
               {/* Dealt from below, one after another, once per deal. */}
               <Appear from={{ translateY: 24, scale: 0.96 }} duration={320} delay={index * 70}>
-                <Focus dim={spotlight && !highlighted?.has(`me:${index}`)} radius={cardSize('xl').r}>
+                <Focus dim={spotlight && !highlighted?.has(`me:${original}`)} radius={faceRadius}>
                   <PlayingCard
                     rank={card.rank}
                     suit={card.suit}
-                    size="xl"
-                    highlighted={highlighted?.has(`me:${index}`)}
+                    size={size}
+                    highlighted={highlighted?.has(`me:${original}`)}
                   />
                 </Focus>
               </Appear>

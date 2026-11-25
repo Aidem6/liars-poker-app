@@ -1,7 +1,9 @@
 import React from 'react';
-import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Image, ImageSourcePropType, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { theme, elevation } from '@/constants/theme';
 import { createStyles, useColors } from '@/hooks/useThemedStyles';
+import { CardBackArt, PixelSprite, backHasEdge } from '@/components/ui/CardBack';
+import { CardBackId, CardFace, useProfile } from '@/utils/profileStore';
 
 export type CardSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
@@ -21,6 +23,9 @@ interface PlayingCardProps {
   variant?: CardVariant;
   /** Lifts the card, to mark it as part of the answer. */
   highlighted?: boolean;
+  /** Overrides the player's chosen card look (for previews). */
+  face?: CardFace;
+  back?: CardBackId;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -34,6 +39,15 @@ const SIZES: Record<CardSize, { w: number; h: number; r: number; font: number; s
 
 export const cardSize = (size: CardSize) => SIZES[size];
 
+/** The 8-bit deck has nearly square corners. */
+const faceRadius = (size: CardSize, pixel: boolean) =>
+  pixel ? Math.max(2, Math.round(SIZES[size].r / 3)) : SIZES[size].r;
+
+/** Corner radius of a face-up card in the player's chosen deck, for tints laid over it. */
+export function useFaceRadius(size: CardSize) {
+  return faceRadius(size, useProfile().cardFace === 'pixel');
+}
+
 export const displayRank = (rank?: string) => (rank === 'T' ? '10' : rank || '');
 
 export const isRedSuit = (suit?: string) => suit === '♥' || suit === '♦';
@@ -41,40 +55,45 @@ export const isRedSuit = (suit?: string) => suit === '♥' || suit === '♦';
 /** Forces the text (not emoji) presentation of a suit glyph. */
 const suitGlyph = (suit: string) => `${suit}︎`;
 
-function CardBack({ w, h }: { w: number; h: number }) {
-  const c = useColors();
-  const span = w + h;
-  const stripes = Math.ceil(span / 5) + 2;
-  return (
-    <View
-      pointerEvents="none"
-      style={{
-        position: 'absolute',
-        width: span,
-        height: span,
-        left: (w - span) / 2,
-        top: (h - span) / 2,
-        transform: [{ rotate: '45deg' }],
-      }}
-    >
-      {Array.from({ length: stripes }).map((_, index) => (
-        <View key={index} style={{ height: 2, marginBottom: 3, backgroundColor: c.cardBackStripe }} />
-      ))}
-    </View>
-  );
+// ----- 8-bit deck -----------------------------------------------------------
+
+// Sheets of all 24 faces, one per size big enough to show the artwork (see PixelSprite).
+const PIXEL_FACE_SHEETS: Partial<Record<CardSize, ImageSourcePropType>> = {
+  lg: require('@/assets/cards/pixel/faces-lg.png'),
+  xl: require('@/assets/cards/pixel/faces-xl.png'),
+};
+const SHEET_RANKS = '9TJQKA';
+const SHEET_SUITS = ['♥', '♣', '♦', '♠'];
+
+/** The deck's own two inks. */
+const PIXEL_RED = '#AB5236';
+const PIXEL_INK = '#000000';
+export const PIXEL_FONT = 'Silkscreen_700Bold';
+
+/** Where a card sits on the face sheet, if it is there at all. */
+function sheetCell(rank?: string, suit?: string) {
+  const col = SHEET_RANKS.indexOf(rank === '10' ? 'T' : rank || '?');
+  const row = SHEET_SUITS.indexOf(suit || '?');
+  return col >= 0 && row >= 0 ? { col, row } : undefined;
 }
 
-export function PlayingCard({ rank, suit, size = 'md', variant = 'face', highlighted = false, style }: PlayingCardProps) {
+export function PlayingCard({ rank, suit, size = 'md', variant = 'face', highlighted = false, face, back, style }: PlayingCardProps) {
   const c = useColors();
   const styles = useStyles();
-  const { w, h, r, font, suit: suitFont } = SIZES[size];
+  const profile = useProfile();
+  const faceStyle = face ?? profile.cardFace;
+  const backId = back ?? profile.cardBack;
+  const pixel = faceStyle === 'pixel';
+  const { w, h, r: roundness, font, suit: suitFont } = SIZES[size];
+  const r = variant === 'back' ? roundness : faceRadius(size, pixel);
   const box = { width: w, height: h, borderRadius: r };
+  const fontFamily = pixel ? PIXEL_FONT : undefined;
 
   if (variant === 'empty' || variant === 'ghost') {
     return (
       <View style={[box, styles.empty, style]}>
         {variant === 'ghost' && rank ? (
-          <Text style={{ fontSize: font, fontWeight: '600', color: c.textMuted }}>{displayRank(rank)}</Text>
+          <Text style={{ fontSize: font, fontWeight: pixel ? undefined : '600', fontFamily, color: c.textMuted }}>{displayRank(rank)}</Text>
         ) : null}
       </View>
     );
@@ -91,21 +110,45 @@ export function PlayingCard({ rank, suit, size = 'md', variant = 'face', highlig
   if (variant === 'back') {
     return (
       <View style={[box, styles.back, style]}>
-        <CardBack w={w} h={h} />
-        <View style={[StyleSheet.absoluteFill, { borderRadius: r, borderWidth: 1, borderColor: c.hairlineStrong }]} />
+        <CardBackArt id={backId} size={size} width={w} height={h} />
+        {!backHasEdge(backId) && (
+          <View style={[StyleSheet.absoluteFill, { borderRadius: r, borderWidth: 1, borderColor: c.hairlineStrong }]} />
+        )}
       </View>
     );
   }
 
-  const ink = isRedSuit(suit) ? c.cardRed : c.cardInk;
+  // Big 8-bit cards show the deck's own artwork; small ones keep it readable with the pixel font.
+  const sheet = pixel ? PIXEL_FACE_SHEETS[size] : undefined;
+  const cell = sheet ? sheetCell(rank, suit) : undefined;
+  if (sheet && cell) {
+    return (
+      <View
+        style={[
+          box,
+          elevation('card', c.scheme),
+          highlighted && { transform: [{ translateY: -4 }] },
+          style,
+        ]}
+        accessible
+        accessibilityLabel={`${displayRank(rank)}${suit ?? ''}`}
+      >
+        <PixelSprite sheet={sheet} col={cell.col} row={cell.row} cols={6} rows={4} width={w} height={h} />
+      </View>
+    );
+  }
+
+  const ink = pixel ? (isRedSuit(suit) ? PIXEL_RED : PIXEL_INK) : isRedSuit(suit) ? c.cardRed : c.cardInk;
   const label = displayRank(rank);
   const corner = size === 'xl';
+  const labelFont = pixel ? Math.round(font * 0.78) : font;
 
   return (
     <View
       style={[
         box,
         styles.face,
+        pixel && styles.pixelFace,
         corner ? styles.faceCorner : styles.faceCentered,
         (size === 'lg' || size === 'xl') && elevation('card', c.scheme),
         // Lifted, not ringed: the cards around it fade back, which is enough to pick it out.
@@ -114,7 +157,10 @@ export function PlayingCard({ rank, suit, size = 'md', variant = 'face', highlig
       ]}
     >
       {label ? (
-        <Text style={{ fontSize: font, lineHeight: font + 2, fontWeight: '600', color: ink }} numberOfLines={1}>
+        <Text
+          style={{ fontSize: labelFont, lineHeight: labelFont + 3, fontWeight: pixel ? undefined : '600', fontFamily, color: ink }}
+          numberOfLines={1}
+        >
           {label}
         </Text>
       ) : null}
@@ -138,6 +184,9 @@ const useStyles = createStyles((c) => ({
     backgroundColor: c.cardFace,
     // On the light page a white card needs an edge to stand off the background.
     ...(c.scheme === 'light' ? { borderWidth: 1, borderColor: c.hairlineStrong } : null),
+  },
+  pixelFace: {
+    backgroundColor: '#FFFFFF',
   },
   faceCentered: {
     alignItems: 'center',

@@ -10,7 +10,8 @@ import { EASE_OUT } from '@/components/ui/motion';
 import { theme, elevation } from '@/constants/theme';
 import { createStyles, useColors } from '@/hooks/useThemedStyles';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { EMOJI, PHRASES, Reaction } from './reactions';
+import { findReaction, PHRASES, Reaction } from './reactions';
+import { useProfile } from '@/utils/profileStore';
 
 const native = Platform.OS !== 'web';
 /** The panel is opened many times a game: quick in, quicker out. */
@@ -50,6 +51,9 @@ export function ReactionPanel({ open, onPick, onClose }: ReactionPanelProps) {
   const reduced = useReducedMotion();
   const t = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = React.useState(open);
+  // The player picks these on the Emotes screen of their profile.
+  const { emotes } = useProfile();
+  const emoji = emotes.map(findReaction).filter((r): r is Reaction => !!r);
 
   useEffect(() => {
     if (open) setMounted(true);
@@ -88,7 +92,7 @@ export function ReactionPanel({ open, onPick, onClose }: ReactionPanelProps) {
         importantForAccessibility={open ? 'auto' : 'no-hide-descendants'}
       >
         <View style={styles.emojiGrid}>
-          {EMOJI.map((reaction) => (
+          {emoji.map((reaction) => (
             <PressableScale
               key={reaction.id}
               onPress={() => onPick(reaction)}

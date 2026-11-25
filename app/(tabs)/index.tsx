@@ -30,7 +30,8 @@ import { router, useFocusEffect } from 'expo-router';
 import { pb } from '../lib/pocketbase';
 import { UsernameStorage } from '@/utils/usernameStorage';
 import { FeedbackModal } from '../components/feedback/FeedbackModal';
-import { InstructionsModal } from '../components/instructions/InstructionsModal';
+import { rulesPromptStore } from '@/utils/tutorial';
+import { PlayingCard } from '@/components/ui/PlayingCard';
 import { HeaderMenu } from '../components/menu/HeaderMenu';
 import { ShareCardsModal } from '../components/share/ShareCardsModal';
 // @ts-ignore
@@ -41,6 +42,8 @@ type DynamicRoom = RoomSummary;
 const WIDE_BREAKPOINT = 768;
 /** The lobby is a list, so it may run a little wider than the game column on big screens. */
 const WIDE_COLUMN = 600;
+/** Side margin, the same 16 as Profile, Emotes and the game table; never less on a phone. */
+const GUTTER = theme.space.lg;
 
 function Home() {
   const styles = useStyles();
@@ -58,7 +61,8 @@ function Home() {
   const [selectedStoreName, setSelectedStoreName] = useState<string>('');
   const [showShareModal, setShowShareModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [showInstructionsModal, setShowInstructionsModal] = useState(false);
+  /** First launch asks for a name, then whether the player knows the game. */
+  const [welcomeStep, setWelcomeStep] = useState<'name' | 'rules'>('name');
   const [showJoin, setShowJoin] = useState(false);
   const { width } = useWindowDimensions();
   /** Laptops and tablets: actions sit under the title instead of a thumb-reach footer. */
@@ -99,6 +103,10 @@ function Home() {
   // Keep the room list live while this screen is visible.
   useFocusEffect(
     React.useCallback(() => {
+      // The name may have been changed on the profile tab.
+      if (!pb.authStore.isValid) {
+        UsernameStorage.getUsername().then((stored) => stored && setUsername(stored));
+      }
       client.watchRooms();
       return () => client.unwatchRooms();
     }, [client]),
@@ -144,10 +152,30 @@ function Home() {
       await UsernameStorage.setUsername(tempUsername.trim());
       setUsername(tempUsername.trim());
       client.setName(tempUsername.trim());
-      setShowUsernameModal(false);
-      setIsEditingUsername(false);
       setTempUsername('');
+      // A new player is asked once whether they know the game; it isn't regular poker.
+      const asked = !isEditingUsername && (await rulesPromptStore.load());
+      if (!isEditingUsername && !asked) {
+        setWelcomeStep('rules');
+      } else {
+        setShowUsernameModal(false);
+      }
+      setIsEditingUsername(false);
     }
+  };
+
+  const openHowToPlay = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    router.push('/how-to-play');
+  };
+
+  const answerRulesPrompt = (showTour: boolean) => {
+    rulesPromptStore.set(true);
+    setShowUsernameModal(false);
+    setWelcomeStep('name');
+    if (showTour) openHowToPlay();
   };
 
   const handleEditUsername = () => {
@@ -231,6 +259,8 @@ function Home() {
   };
 
   const joinIcon = <MaterialIcons name="qr-code-scanner" size={17} color={c.text} />;
+  // Both footer buttons carry an icon, so neither reads as the odd one out.
+  const botsIcon = <MaterialIcons name="smart-toy" size={17} color={c.text} />;
 
   return (
     <View style={styles.container}>
@@ -239,11 +269,21 @@ function Home() {
         <View style={[styles.header, wide && styles.headerWide]}>
           <View style={styles.headerTop}>
             <Text style={styles.headerText}>Liar's Poker</Text>
-            <HeaderMenu
-              onOpenInstructions={() => setShowInstructionsModal(true)}
+            <View style={styles.headerButtons}>
+              <TouchableOpacity
+                onPress={openHowToPlay}
+                style={styles.headerButton}
+                accessibilityRole="button"
+                accessibilityLabel="How to play"
+              >
+                <MaterialIcons name="help-outline" size={22} color={c.textMuted} />
+              </TouchableOpacity>
+              <HeaderMenu
+                onOpenInstructions={openHowToPlay}
               onOpenFeedback={() => setShowFeedbackModal(true)}
-              onOpenShare={() => setShowShareModal(true)}
-            />
+                onOpenShare={() => setShowShareModal(true)}
+              />
+            </View>
           </View>
           <View style={styles.usernameRow}>
             <Text style={styles.subtitle}>
@@ -358,6 +398,7 @@ function Home() {
                 variant="secondary"
                 onPress={handleWatchBots}
                 loading={isStartingBots}
+                icon={botsIcon}
                 style={{ flex: 1 }}
               />
             </View>
@@ -380,7 +421,9 @@ function Home() {
         visible={showUsernameModal}
         transparent
         animationType="fade"
-        onRequestClose={() => !isEditingUsername && setShowUsernameModal(false)}
+        onRequestClose={() =>
+          welcomeStep === 'rules' ? answerRulesPrompt(false) : !isEditingUsername && setShowUsernameModal(false)
+        }
         statusBarTranslucent
       >
         <KeyboardAvoidingView
@@ -388,6 +431,28 @@ function Home() {
           style={styles.modalOverlay}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
+          {welcomeStep === 'rules' ? (
+            <Appear key="rules" from={{ translateY: 8, scale: 0.98 }} duration={240} style={styles.modalContent}>
+              <View style={styles.welcomeCards} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+                <View style={styles.welcomeCardLeft}>
+                  <PlayingCard variant="back" size="lg" />
+                </View>
+                <View style={styles.welcomeCardRight}>
+                  <PlayingCard rank="A" suit="♥" size="lg" />
+                </View>
+              </View>
+              <Text style={styles.modalTitle}>New to Liar's Poker?</Text>
+              <Text style={styles.modalDescription}>
+                It isn't regular poker. You bet on hands hidden across everyone's cards, and call out the bluffs. A
+                short tour with four practice hands shows you how.
+              </Text>
+              <View style={styles.welcomeButtons}>
+                <Button label="Show me how" onPress={() => answerRulesPrompt(true)} />
+                <Button label="I know how to play" variant="secondary" onPress={() => answerRulesPrompt(false)} />
+              </View>
+              <Text style={styles.welcomeHint}>You can open the tour any time with the ? at the top of the lobby.</Text>
+            </Appear>
+          ) : (
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
               {isEditingUsername ? 'Change your name' : 'Choose a name'}
@@ -425,6 +490,7 @@ function Home() {
               />
             </View>
           </View>
+          )}
         </KeyboardAvoidingView>
       </Modal>
 
@@ -464,12 +530,6 @@ function Home() {
         onClose={() => setShowFeedbackModal(false)}
         screenName="Home"
       />
-
-      {/* Instructions Modal */}
-      <InstructionsModal
-        visible={showInstructionsModal}
-        onClose={() => setShowInstructionsModal(false)}
-      />
     </View>
   );
 }
@@ -479,7 +539,7 @@ const useStyles = createStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginHorizontal: theme.space.xl,
+    marginHorizontal: GUTTER,
     marginBottom: theme.space.md,
     paddingHorizontal: theme.space.lg,
     paddingVertical: 12,
@@ -499,7 +559,7 @@ const useStyles = createStyles((c) => ({
   offline: {
     color: c.amber,
     fontSize: theme.font.small,
-    marginHorizontal: theme.space.xl,
+    marginHorizontal: GUTTER,
     marginBottom: theme.space.sm,
   },
   container: {
@@ -516,7 +576,7 @@ const useStyles = createStyles((c) => ({
     maxWidth: WIDE_COLUMN,
   },
   header: {
-    paddingHorizontal: theme.space.xl,
+    paddingHorizontal: GUTTER,
     paddingTop: theme.space.lg,
     paddingBottom: theme.space.xl,
   },
@@ -538,6 +598,14 @@ const useStyles = createStyles((c) => ({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  headerButton: {
+    padding: 8,
   },
   headerText: {
     fontSize: theme.font.display,
@@ -568,7 +636,7 @@ const useStyles = createStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 8,
-    paddingHorizontal: theme.space.xl,
+    paddingHorizontal: GUTTER,
     paddingBottom: 10,
   },
   sectionTitle: {
@@ -585,7 +653,7 @@ const useStyles = createStyles((c) => ({
     flex: 1,
   },
   roomList: {
-    paddingHorizontal: theme.space.xl,
+    paddingHorizontal: GUTTER,
     paddingBottom: theme.space.xl,
     flexGrow: 1,
   },
@@ -679,7 +747,6 @@ const useStyles = createStyles((c) => ({
     alignItems: 'center',
     gap: 16,
     marginTop: theme.space.xl,
-    paddingHorizontal: 2,
   },
   storeLinksTitle: {
     flex: 1,
@@ -692,7 +759,7 @@ const useStyles = createStyles((c) => ({
     textDecorationLine: 'underline',
   },
   footer: {
-    paddingHorizontal: theme.space.xl,
+    paddingHorizontal: GUTTER,
     paddingTop: theme.space.md,
     paddingBottom: theme.space.lg,
     gap: theme.space.sm,
@@ -732,6 +799,29 @@ const useStyles = createStyles((c) => ({
   modalButtons: {
     flexDirection: 'row',
     gap: 8,
+  },
+  welcomeCards: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    height: 64,
+    marginTop: 4,
+    marginBottom: 18,
+  },
+  welcomeCardLeft: {
+    transform: [{ rotate: '-8deg' }, { translateX: 5 }],
+  },
+  welcomeCardRight: {
+    transform: [{ rotate: '8deg' }, { translateX: -5 }, { translateY: 2 }],
+  },
+  welcomeButtons: {
+    gap: 8,
+  },
+  welcomeHint: {
+    fontSize: theme.font.small,
+    lineHeight: 17,
+    color: c.textMuted,
+    textAlign: 'center',
+    marginTop: 14,
   },
   qrCodeWrapper: {
     alignSelf: 'center',

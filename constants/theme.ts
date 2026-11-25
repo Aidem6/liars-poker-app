@@ -6,6 +6,8 @@
 import { Platform } from 'react-native';
 
 export type ColorScheme = 'light' | 'dark';
+/** A full set of colours. "black" is the super dark take on the dark skin. */
+export type Skin = 'light' | 'dark' | 'black';
 
 export const darkColors = {
   scheme: 'dark' as ColorScheme,
@@ -86,7 +88,14 @@ export const lightColors: Palette = {
   scrim: 'rgba(0,0,0,0.18)',
 };
 
-export const palettes: Record<ColorScheme, Palette> = { dark: darkColors, light: lightColors };
+/** Super dark: the dark skin on a pure black page, for OLED screens. */
+export const blackColors: Palette = {
+  ...darkColors,
+  bg: '#000000',
+  onPrimary: '#000000',
+};
+
+export const palettes: Record<Skin, Palette> = { dark: darkColors, light: lightColors, black: blackColors };
 
 export const theme = {
   radius: {
