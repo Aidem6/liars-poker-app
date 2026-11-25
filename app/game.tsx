@@ -409,6 +409,18 @@ function Game(): JSX.Element {
                 </Appear>
               );
             })}
+            {/* Show where the next player will sit, so the empty list reads as waiting, not broken. */}
+            {seated.length < state.room.max_players && (
+              <View style={[styles.roomRow, seated.length > 0 && styles.roomRowDivider]}>
+                <Text style={[styles.roomSeat, tabularNums]}>{seated.length + 1}</Text>
+                <Text style={[styles.roomPlayer, styles.roomOpenSeat]}>Open seat</Text>
+              </View>
+            )}
+            {!canStart && model.isHost && (
+              <Text style={styles.roomNeedMore}>
+                A game needs 2 players. Share the code above or add a bot.
+              </Text>
+            )}
             {state.spectators.length > 0 && (
               <Text style={[styles.roomHint, { marginTop: 16 }]}>
                 {`Watching: ${state.spectators.map((s) => s.name).join(', ')}`}
@@ -503,7 +515,8 @@ function Game(): JSX.Element {
     statusActive = true;
   } else if (watching && state.room.autoplay) {
     statusTitle = 'Watching bots';
-    statusSubtitle = turnPlayer ? `${turnPlayer.name}'s turn` : reveal ? 'Cards revealed' : undefined;
+    // "Cards revealed" already sits in the header, so say what happens next instead.
+    statusSubtitle = turnPlayer ? `${turnPlayer.name}'s turn` : reveal ? 'Next deal starts in a moment' : undefined;
   } else if (watching) {
     statusTitle = 'Spectating';
     statusSubtitle = turnPlayer ? `${turnPlayer.name}'s turn` : undefined;
@@ -599,14 +612,18 @@ function Game(): JSX.Element {
               )}
             </View>
             <View style={styles.topBarCenter}>
+              {/* A short title that always fits; the game and deal numbers move to the line below. */}
               <Text style={[styles.topBarTitle, tabularNums]} numberOfLines={1}>
                 {state.room.autoplay
-                  ? `Bot match · game ${state.room.games_played}${model.dealNumber > 0 ? `, deal ${model.dealNumber}` : ''}`
+                  ? 'Bot match'
                   : model.dealNumber > 0
                     ? `Deal ${model.dealNumber}`
                     : state.room.name}
               </Text>
-              <Text style={[styles.topBarSubtitle, tabularNums]}>
+              <Text style={[styles.topBarSubtitle, tabularNums]} numberOfLines={1}>
+                {state.room.autoplay
+                  ? `Game ${state.room.games_played}${model.dealNumber > 0 ? `, deal ${model.dealNumber}` : ''} · `
+                  : ''}
                 {finished
                   ? 'Game over'
                   : reveal
@@ -710,7 +727,7 @@ function Game(): JSX.Element {
                 )}
               </>
             ) : watching || iAmOut ? (
-              <Button label="Leave" variant="ghost" onPress={leave} style={{ flex: 1 }} />
+              <Button label="Leave" variant="secondary" onPress={leave} style={{ flex: 1 }} />
             ) : waitingForReady ? (
               <Button
                 label={
@@ -825,8 +842,9 @@ const useStyles = createStyles((c) => ({
     marginTop: 6,
   },
   // Waiting room
+  // Waiting-room side margins are 16, like Home, so the title, invite card, list and buttons share one edge.
   roomHeader: {
-    paddingHorizontal: theme.space.xl,
+    paddingHorizontal: theme.space.lg,
     paddingTop: theme.space.xl,
     paddingBottom: theme.space.lg,
   },
@@ -846,7 +864,7 @@ const useStyles = createStyles((c) => ({
     paddingBottom: theme.space.lg,
   },
   roomList: {
-    paddingHorizontal: theme.space.xl,
+    paddingHorizontal: theme.space.lg,
     paddingBottom: theme.space.lg,
   },
   roomRow: {
@@ -871,10 +889,25 @@ const useStyles = createStyles((c) => ({
   },
   roomTag: {
     fontSize: theme.font.small,
+    fontWeight: '500',
+    color: c.textMuted,
+    backgroundColor: c.control,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  roomOpenSeat: {
+    color: c.textFaint,
+  },
+  roomNeedMore: {
+    marginTop: 12,
+    fontSize: theme.font.body,
+    lineHeight: 20,
     color: c.textMuted,
   },
   roomFooter: {
-    paddingHorizontal: theme.space.xl,
+    paddingHorizontal: theme.space.lg,
     paddingTop: theme.space.md,
     paddingBottom: theme.space.lg,
     gap: 8,

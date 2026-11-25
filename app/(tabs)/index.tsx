@@ -41,6 +41,8 @@ type DynamicRoom = RoomSummary;
 const WIDE_BREAKPOINT = 768;
 /** The lobby is a list, so it may run a little wider than the game column on big screens. */
 const WIDE_COLUMN = 600;
+/** Side margin, the same 16 as Profile, Emotes and the game table; never less on a phone. */
+const GUTTER = theme.space.lg;
 
 function Home() {
   const styles = useStyles();
@@ -235,6 +237,8 @@ function Home() {
   };
 
   const joinIcon = <MaterialIcons name="qr-code-scanner" size={17} color={c.text} />;
+  // Both footer buttons carry an icon, so neither reads as the odd one out.
+  const botsIcon = <MaterialIcons name="smart-toy" size={17} color={c.text} />;
 
   return (
     <View style={styles.container}>
@@ -362,6 +366,7 @@ function Home() {
                 variant="secondary"
                 onPress={handleWatchBots}
                 loading={isStartingBots}
+                icon={botsIcon}
                 style={{ flex: 1 }}
               />
             </View>
@@ -483,7 +488,7 @@ const useStyles = createStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginHorizontal: theme.space.xl,
+    marginHorizontal: GUTTER,
     marginBottom: theme.space.md,
     paddingHorizontal: theme.space.lg,
     paddingVertical: 12,
@@ -503,7 +508,7 @@ const useStyles = createStyles((c) => ({
   offline: {
     color: c.amber,
     fontSize: theme.font.small,
-    marginHorizontal: theme.space.xl,
+    marginHorizontal: GUTTER,
     marginBottom: theme.space.sm,
   },
   container: {
@@ -520,7 +525,7 @@ const useStyles = createStyles((c) => ({
     maxWidth: WIDE_COLUMN,
   },
   header: {
-    paddingHorizontal: theme.space.xl,
+    paddingHorizontal: GUTTER,
     paddingTop: theme.space.lg,
     paddingBottom: theme.space.xl,
   },
@@ -572,7 +577,7 @@ const useStyles = createStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 8,
-    paddingHorizontal: theme.space.xl,
+    paddingHorizontal: GUTTER,
     paddingBottom: 10,
   },
   sectionTitle: {
@@ -589,7 +594,7 @@ const useStyles = createStyles((c) => ({
     flex: 1,
   },
   roomList: {
-    paddingHorizontal: theme.space.xl,
+    paddingHorizontal: GUTTER,
     paddingBottom: theme.space.xl,
     flexGrow: 1,
   },
@@ -683,7 +688,6 @@ const useStyles = createStyles((c) => ({
     alignItems: 'center',
     gap: 16,
     marginTop: theme.space.xl,
-    paddingHorizontal: 2,
   },
   storeLinksTitle: {
     flex: 1,
@@ -696,7 +700,7 @@ const useStyles = createStyles((c) => ({
     textDecorationLine: 'underline',
   },
   footer: {
-    paddingHorizontal: theme.space.xl,
+    paddingHorizontal: GUTTER,
     paddingTop: theme.space.md,
     paddingBottom: theme.space.lg,
     gap: theme.space.sm,
